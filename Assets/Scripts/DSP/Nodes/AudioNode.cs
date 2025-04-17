@@ -40,6 +40,12 @@ namespace DSP
             OnSettingsChanged();
         }
 
+        public void DeserializeSettings(string serializedSettings)
+        {
+            settings.Deserialize(serializedSettings);
+            OnSettingsChanged();
+        }
+
         public abstract void OnSettingsChanged();
     }
 }

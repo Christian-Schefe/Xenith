@@ -40,6 +40,15 @@ namespace DSP
         public abstract Value Clone();
         public abstract void Set(Value value);
         public abstract ValueType Type { get; }
+        public static Value NewFromType(ValueType type)
+        {
+            return type switch
+            {
+                ValueType.Float => new FloatValue(),
+                ValueType.Bool => new BoolValue(),
+                _ => throw new System.ArgumentOutOfRangeException(nameof(type), type, null)
+            };
+        }
     }
 
     public class FloatValue : Value

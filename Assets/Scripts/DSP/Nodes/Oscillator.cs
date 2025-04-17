@@ -32,7 +32,7 @@ namespace DSP
         private float phase = 0;
         private Waveform waveform;
 
-        private readonly IntSetting waveformSetting = new("Waveform", 0);
+        private readonly EnumSetting<WaveformType> waveformSetting = new("Waveform", WaveformType.Sine);
 
         public override NodeSettings DefaultSettings => new(waveformSetting);
 

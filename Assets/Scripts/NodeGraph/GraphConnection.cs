@@ -91,7 +91,7 @@ namespace NodeGraph
             if (fromPosition is Vector2 from && toPosition is Vector2 to)
             {
                 line.gameObject.SetActive(true);
-                line.SetPositions(new Vector2[] { from, to });
+                line.SetPositions(new Vector2[] { from, from + Vector2.right * 15, to + Vector2.left * 15, to });
                 transform.localPosition = Vector3.zero;
             }
             else

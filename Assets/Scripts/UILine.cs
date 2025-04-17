@@ -17,6 +17,7 @@ public enum LineCap
     Flat
 }
 
+[RequireComponent(typeof(CanvasRenderer))]
 public class UILine : MaskableGraphic
 {
     [SerializeField] private List<Vector2> points = new List<Vector2>();

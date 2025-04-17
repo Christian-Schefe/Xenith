@@ -35,12 +35,20 @@ namespace NodeGraph
         private float scrollThreshold = 0.1f;
         private float scrollStep = 1.1f;
 
+        private HashSet<GraphNode> selectedNodes = new();
+
+        private Dictionary<GraphNode, Vector2> dragOffsets = new();
+
         public Dictionary<NodeResource, System.Func<AudioNode>> GetBuiltinNodeTypes() => new()
         {
             { new NodeResource("Add", "add", true), () => Prelude.Add(2) },
             { new NodeResource("Multiply", "multiply", true), () => Prelude.Multiply(2) },
             { new NodeResource("Vibrato", "vibrato", true), () => Prelude.Vibrato(0.5f) },
-            { new NodeResource("ADSR", "adsr", true), () => new ADSR(0.1f, 0.1f, 0.1f, 0.1f) }
+            { new NodeResource("ADSR", "adsr", true), () => new ADSR(0.1f, 0.1f, 0.1f, 0.1f) },
+            { new NodeResource("Oscillator", "oscillator", true), () => new Oscillator() },
+            { new NodeResource("Float", "const_float", true), () => new ConstFloatNode() },
+            { new NodeResource("Input", "input", true), () => new GraphEdgeNode(true) },
+            { new NodeResource("Output", "output", true), () => new GraphEdgeNode(false) },
         };
 
         public List<NodeResource> GetAllAvailableNodes()
@@ -84,6 +92,71 @@ namespace NodeGraph
             {
                 addNodeDialog.Close();
             }
+
+            if (Input.GetKeyDown(KeyCode.Delete))
+            {
+                foreach (var node in selectedNodes.ToList())
+                {
+                    RemoveNode(node);
+                }
+                selectedNodes.Clear();
+            }
+        }
+
+        public void AddSelectedNode(GraphNode node, bool keepPrevious)
+        {
+            if (!keepPrevious)
+            {
+                foreach (var selectedNode in selectedNodes)
+                {
+                    selectedNode.SetSelected(false);
+                }
+                selectedNodes.Clear();
+            }
+            selectedNodes.Add(node);
+            node.SetSelected(true);
+        }
+
+        public void SelectWithinRect(Rect rect, bool keepPrevious)
+        {
+            if (!keepPrevious)
+            {
+                foreach (var selectedNode in selectedNodes)
+                {
+                    selectedNode.SetSelected(false);
+                }
+                selectedNodes.Clear();
+            }
+
+            foreach (var node in nodes)
+            {
+                if (rect.Overlaps(node.GetRect()))
+                {
+                    selectedNodes.Add(node);
+                    node.SetSelected(true);
+                }
+            }
+        }
+
+        public void SetDragOffset(Vector2 mousePos)
+        {
+            dragOffsets.Clear();
+            foreach (var node in selectedNodes)
+            {
+                var offset = mousePos - node.position;
+                dragOffsets.Add(node, offset);
+            }
+        }
+
+        public void MoveSelectedNodes(Vector2 mousePos)
+        {
+            foreach (var node in selectedNodes)
+            {
+                if (!dragOffsets.ContainsKey(node)) continue;
+                var pos = mousePos - dragOffsets[node];
+                node.position = pos;
+                node.rectTransform.localPosition = pos;
+            }
         }
 
         public void AddOffset(Vector2 screenDelta)
@@ -105,7 +178,6 @@ namespace NodeGraph
             {
                 var direction = Mathf.Sign(clampedSteps);
                 scale *= Mathf.Pow(direction < 0 ? (1f / scrollStep) : scrollStep, Mathf.Abs(clampedSteps));
-                Debug.Log(Mathf.Pow(direction < 0 ? (1f / scrollStep) : scrollStep, Mathf.Abs(clampedSteps)));
                 scrollAccumulator = 0;
             }
             scale = Mathf.Clamp(scale, 0.01f, 10f);
@@ -120,8 +192,46 @@ namespace NodeGraph
         public void AddNode(Vector2 position, NodeResource type)
         {
             var node = Instantiate(nodePrefab, nodeParent);
-            node.Initialize(type, position);
+            node.Initialize(type, position, null);
             nodes.Add(node);
+        }
+
+        public void RemoveNode(GraphNode node)
+        {
+            BreakAllConnections(node);
+            nodes.Remove(node);
+            Destroy(node.gameObject);
+        }
+
+        public void BreakAllConnections(GraphNode node)
+        {
+            var incoming = incomingConnections.GetValueOrDefault(node, new());
+            var outgoing = outgoingConnections.GetValueOrDefault(node, new());
+            var allConnections = incoming.ToList();
+            allConnections.AddRange(outgoing);
+
+            foreach (var conn in allConnections)
+            {
+                RemoveConnection(conn);
+                Destroy(conn.gameObject);
+            }
+        }
+
+        public void BreakInvalidConnections(GraphNode node)
+        {
+            var incoming = incomingConnections.GetValueOrDefault(node, new());
+            var outgoing = outgoingConnections.GetValueOrDefault(node, new());
+            var allConnections = incoming.ToList();
+            allConnections.AddRange(outgoing);
+
+            foreach (var conn in allConnections)
+            {
+                if (!IsValidExistingConnection(conn.fromNode, conn.toNode, conn.fromNodeOutput, conn.toNodeInput))
+                {
+                    RemoveConnection(conn);
+                    Destroy(conn.gameObject);
+                }
+            }
         }
 
         public bool TryPickConnection(GraphNode to, int index)
@@ -166,7 +276,7 @@ namespace NodeGraph
             {
                 throw new System.Exception("Not connecting");
             }
-            var validTargets = connectionTargets.Where(x => IsValidConnection(currentlyConnecting.fromNode, x.Item1, x.Item2)).ToList();
+            var validTargets = connectionTargets.Where(x => IsValidConnection(currentlyConnecting.fromNode, x.Item1, currentlyConnecting.fromNodeOutput, x.Item2)).ToList();
             if (validTargets.Count == 0)
             {
                 Destroy(currentlyConnecting.gameObject);
@@ -182,9 +292,13 @@ namespace NodeGraph
             }
         }
 
-        private bool IsValidConnection(GraphNode from, GraphNode to, int toIndex)
+
+        private bool IsValidExistingConnection(GraphNode from, GraphNode to, int fromIndex, int toIndex)
         {
-            if (incomingConnections.ContainsKey(to) && incomingConnections[to].Any(c => c.toNodeInput == toIndex))
+            if (!from.TryGetConnector(false, fromIndex, out var fromConnector)) return false;
+            if (!to.TryGetConnector(true, toIndex, out var toConnector)) return false;
+
+            if (fromConnector.type != toConnector.type)
             {
                 return false;
             }
@@ -207,6 +321,15 @@ namespace NodeGraph
                 return false;
             }
             return !ContainsUpstream(from);
+        }
+
+        private bool IsValidConnection(GraphNode from, GraphNode to, int fromIndex, int toIndex)
+        {
+            if (incomingConnections.ContainsKey(to) && incomingConnections[to].Any(c => c.toNodeInput == toIndex))
+            {
+                return false;
+            }
+            return IsValidExistingConnection(from, to, fromIndex, toIndex);
         }
 
         private void AddConnection(GraphConnection connection)

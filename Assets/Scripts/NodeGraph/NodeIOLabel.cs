@@ -14,7 +14,8 @@ namespace NodeGraph
         private GraphNode node;
         private int index;
         private bool isInput;
-        private ValueType type;
+        public ValueType type;
+        public string text;
 
         private bool isDragging;
 
@@ -24,6 +25,7 @@ namespace NodeGraph
             this.index = index;
             this.isInput = isInput;
             this.type = type;
+            this.text = text;
             label.text = text;
             typeIndicator.color = GetConnectorColor();
         }

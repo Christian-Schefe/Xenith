@@ -27,7 +27,8 @@ namespace DSP
 
         public int AddInput<T>(string name) where T : Value, new()
         {
-            var inputNode = new GraphEdgeNode<T>(true);
+            var inputNode = new GraphEdgeNode(true);
+            inputNode.valueTypeSetting.value = (int)new T().Type;
             inputNode.nameSetting.value = name;
             inputNode.OnSettingsChanged();
             int index = AddNode(inputNode);
@@ -37,7 +38,7 @@ namespace DSP
 
         public int AddOutput<T>(string name) where T : Value, new()
         {
-            var outputNode = new GraphEdgeNode<T>(false);
+            var outputNode = new GraphEdgeNode(false);
             outputNode.nameSetting.value = name;
             outputNode.OnSettingsChanged();
             int index = AddNode(outputNode);
@@ -244,40 +245,36 @@ namespace DSP
         public NamedValue GetValue { get; }
     }
 
-    public class GraphEdgeNode<T> : SettingsNode, IGraphEdgeNode where T : Value, new()
+    public class GraphEdgeNode : SettingsNode, IGraphEdgeNode
     {
-        public NamedValue GetValue => isInput ? input : output;
+        public NamedValue GetValue => value;
 
-        private readonly NamedValue<T> input;
-        private readonly NamedValue<T> output;
+        private NamedValue value;
 
         private readonly bool isInput;
 
+        public readonly EnumSetting<ValueType> valueTypeSetting = new("Value Type", ValueType.Float);
         public readonly StringSetting nameSetting = new("Name", "Value");
 
-        public override NodeSettings DefaultSettings => new(nameSetting);
+        public override NodeSettings DefaultSettings => new(nameSetting, valueTypeSetting);
 
         public GraphEdgeNode(bool isInput)
         {
             this.isInput = isInput;
-            input = new NamedValue<T>("Input", new T());
-            output = new NamedValue<T>("Output", new T());
         }
 
         public override void OnSettingsChanged()
         {
-            input.name = nameSetting.value;
-            output.name = nameSetting.value;
+            var valueType = (ValueType)valueTypeSetting.value;
+            if (value == null || value.Value.Type != valueType) value = new NamedValue<Value>(nameSetting.value, Value.NewFromType(valueType));
+            value.name = nameSetting.value;
         }
 
-        public override List<NamedValue> BuildInputs() => isInput ? new() { } : new() { input };
+        public override List<NamedValue> BuildInputs() => isInput ? new() { } : new() { value };
 
-        public override List<NamedValue> BuildOutputs() => isInput ? new() { output } : new() { };
+        public override List<NamedValue> BuildOutputs() => isInput ? new() { value } : new() { };
 
-        public override void Process(Context context)
-        {
-            output.value.Set(input.value);
-        }
+        public override void Process(Context context) { }
 
         public override void ResetState() { }
 

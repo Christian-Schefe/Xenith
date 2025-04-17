@@ -5,90 +5,194 @@ using UnityEngine.EventSystems;
 
 namespace NodeGraph
 {
-    public class GraphNode : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler
+    public class GraphNode : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler, IPointerEnterHandler, IPointerExitHandler
     {
         public RectTransform rectTransform;
 
-        [SerializeField] private RectTransform inputLabelParent, outputLabelParent;
+        [SerializeField] private UIImage background;
+        [SerializeField] private RectTransform inputLabelParent, outputLabelParent, footer;
         [SerializeField] private TMPro.TextMeshProUGUI label;
+        [SerializeField] private NodeSettingsContainer settingsContainer;
         [SerializeField] private float headerHeight, labelWidth, labelHeight;
 
         private NodeResource id;
         public Vector2 position;
 
-        private List<NodeIOLabel> inputLabels;
-        private List<NodeIOLabel> outputLabels;
+        private readonly List<NodeIOLabel> inputLabels = new();
+        private readonly List<NodeIOLabel> outputLabels = new();
 
-        private Vector2 dragOffset;
         private bool isDragging;
+        private bool isSelected;
+        private bool isHovered;
 
         private AudioNode audioNode;
+
+        private bool isRebuilding;
 
         private void Awake()
         {
             rectTransform = GetComponent<RectTransform>();
         }
 
-        public void Initialize(NodeResource id, Vector2 position)
+        public bool NeedsRebuild()
         {
-            inputLabels = new();
-            outputLabels = new();
+            var inputs = audioNode.BuildInputs();
+            var outputs = audioNode.BuildOutputs();
+            if (inputs.Count != inputLabels.Count) return true;
+            if (outputs.Count != outputLabels.Count) return true;
 
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                var input = inputs[i];
+                var inputLabel = inputLabels[i];
+                if (inputLabel.type != input.Value.Type) return true;
+                if (inputLabel.text != input.name) return true;
+            }
+            for (int i = 0; i < outputs.Count; i++)
+            {
+                var output = outputs[i];
+                var outputLabel = outputLabels[i];
+                if (outputLabel.type != output.Value.Type) return true;
+                if (outputLabel.text != output.name) return true;
+            }
+            return false;
+        }
+
+        public void Rebuild()
+        {
+            if (isRebuilding)
+            {
+                Debug.LogError("Rebuilding caused loop.");
+                return;
+            }
+            isRebuilding = true;
+            var graphEditor = Globals<GraphEditor>.Instance;
+            UpdateVisuals();
+            graphEditor.BreakInvalidConnections(this);
+            isRebuilding = false;
+        }
+
+        public void Initialize(NodeResource id, Vector2 position, string serializedSettings)
+        {
             this.id = id;
             this.position = position;
             var graphEditor = Globals<GraphEditor>.Instance;
             audioNode = graphEditor.GetNodeFromTypeId(id);
-
-            audioNode.Initialize();
-            for (int i = 0; i < audioNode.inputs.Count; i++)
+            if (serializedSettings != null && audioNode is SettingsNode settingsNode)
             {
-                var input = audioNode.inputs[i];
+                settingsNode.DeserializeSettings(serializedSettings);
+            }
+
+            UpdateVisuals();
+        }
+
+        private void UpdateVisuals()
+        {
+            foreach (var label in inputLabels)
+            {
+                Destroy(label.gameObject);
+            }
+            foreach (var label in outputLabels)
+            {
+                Destroy(label.gameObject);
+            }
+            inputLabels.Clear();
+            outputLabels.Clear();
+
+            var graphEditor = Globals<GraphEditor>.Instance;
+
+            var inputs = audioNode.BuildInputs();
+            var outputs = audioNode.BuildOutputs();
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                var input = inputs[i];
                 var inputLabel = Instantiate(graphEditor.inputLabelPrefab, inputLabelParent);
                 inputLabel.Initialize(this, i, true, input.name, input.Value.Type);
                 inputLabels.Add(inputLabel);
             }
-            for (int i = 0; i < audioNode.outputs.Count; i++)
+            for (int i = 0; i < outputs.Count; i++)
             {
-                var output = audioNode.outputs[i];
+                var output = outputs[i];
                 var outputLabel = Instantiate(graphEditor.outputLabelPrefab, outputLabelParent);
                 outputLabel.Initialize(this, i, false, output.name, output.Value.Type);
                 outputLabels.Add(outputLabel);
             }
+            settingsContainer.Initialize(this, audioNode);
+            var settingsHeight = settingsContainer.ApplyHeight();
 
             var maxCount = Mathf.Max(inputLabels.Count, outputLabels.Count);
             var height = labelHeight * maxCount;
 
-            var width = audioNode.inputs.Count > 0 && audioNode.outputs.Count > 0 ? (labelWidth * 2) : labelWidth;
+            var isTwoColumns = settingsContainer.HasSettings() || (inputs.Count > 0 && outputs.Count > 0);
+            var width = isTwoColumns ? (labelWidth * 2) : labelWidth;
 
             var inputRect = inputLabelParent.GetComponent<RectTransform>();
             var outputRect = outputLabelParent.GetComponent<RectTransform>();
-            inputRect.sizeDelta = audioNode.inputs.Count > 0 ? new(labelWidth, height) : new(0, height);
-            outputRect.sizeDelta = audioNode.outputs.Count > 0 ? new(labelWidth, height) : new(0, height);
+            inputRect.sizeDelta = isTwoColumns || inputs.Count > 0 ? new(labelWidth, height) : new(0, height);
+            outputRect.sizeDelta = isTwoColumns || outputs.Count > 0 ? new(labelWidth, height) : new(0, height);
 
-            rectTransform.sizeDelta = new Vector2(width, height + headerHeight);
+            rectTransform.sizeDelta = new Vector2(width, height + headerHeight + settingsHeight);
+
+            footer.offsetMax = new Vector2(0, -headerHeight - settingsHeight);
 
             label.text = id.displayName;
             rectTransform.localPosition = position;
         }
 
-        public Vector2 GetConnectorPosition(bool input, int outputIndex)
+        public void SetSelected(bool selected)
         {
-            var label = input ? inputLabels[outputIndex] : outputLabels[outputIndex];
+            isSelected = selected;
+            UpdateOutline();
+        }
+
+        private void UpdateOutline()
+        {
+            bool visible = isSelected || isHovered;
+            float width = isSelected ? 2.5f : 1.5f;
+            background.outlineWidth = width;
+            background.outline = visible;
+        }
+
+        public Vector2 GetConnectorPosition(bool input, int index)
+        {
+            var label = input ? inputLabels[index] : outputLabels[index];
             return label.GetConnectorPosition();
         }
 
-        public NodeIOLabel GetConnector(bool input, int outputIndex)
+        public bool TryGetConnector(bool input, int index, out NodeIOLabel connector)
         {
-            return input ? inputLabels[outputIndex] : outputLabels[outputIndex];
+            var list = input ? inputLabels : outputLabels;
+            if (index < 0 || index >= list.Count)
+            {
+                connector = null;
+                return false;
+            }
+            connector = list[index];
+            return true;
+        }
+
+        public NodeIOLabel GetConnector(bool input, int index)
+        {
+            return input ? inputLabels[index] : outputLabels[index];
         }
 
         public void OnDrag(PointerEventData eventData)
         {
+            if (eventData.button == PointerEventData.InputButton.Right)
+            {
+                return;
+            }
             if (!isDragging) return;
             var graphEditor = Globals<GraphEditor>.Instance;
             var mousePos = graphEditor.ScreenToNodePosition(eventData.position);
-            position = mousePos - dragOffset;
-            rectTransform.localPosition = position;
+            graphEditor.MoveSelectedNodes(mousePos);
+        }
+
+        public Rect GetRect()
+        {
+            var size = rectTransform.sizeDelta;
+            var pos = position - size / 2;
+            return new Rect(pos, size);
         }
 
         public void OnBeginDrag(PointerEventData eventData)
@@ -98,13 +202,27 @@ namespace NodeGraph
                 return;
             }
             rectTransform.SetAsLastSibling();
-            dragOffset = Globals<GraphEditor>.Instance.ScreenToNodePosition(eventData.position) - position;
+            var graphEditor = Globals<GraphEditor>.Instance;
+            var mousePos = graphEditor.ScreenToNodePosition(eventData.position);
+            graphEditor.SetDragOffset(mousePos);
             isDragging = true;
         }
 
         public void OnEndDrag(PointerEventData eventData)
         {
+            if (eventData.button == PointerEventData.InputButton.Right)
+            {
+                return;
+            }
             isDragging = false;
+        }
+
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            if (isSelected) return;
+            var graphEditor = Globals<GraphEditor>.Instance;
+            bool keepPrevious = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            graphEditor.AddSelectedNode(this, keepPrevious);
         }
 
         public SerializedGraphNode Serialize()
@@ -124,11 +242,19 @@ namespace NodeGraph
 
         public void Deserialize(SerializedGraphNode node)
         {
-            Initialize(node.id, node.position);
-            if (audioNode is SettingsNode settingsNode)
-            {
-                settingsNode.Settings.Deserialize(node.serializedSettings);
-            }
+            Initialize(node.id, node.position, node.serializedSettings);
+        }
+
+        public void OnPointerEnter(PointerEventData eventData)
+        {
+            isHovered = true;
+            UpdateOutline();
+        }
+
+        public void OnPointerExit(PointerEventData eventData)
+        {
+            isHovered = false;
+            UpdateOutline();
         }
     }
 
