@@ -68,16 +68,20 @@ namespace NodeGraph
             isRebuilding = true;
             var graphEditor = Globals<GraphEditor>.Instance;
             UpdateVisuals();
-            graphEditor.BreakInvalidConnections(this);
+            graphEditor.Graph.BreakInvalidConnections(this);
             isRebuilding = false;
         }
 
-        public void Initialize(NodeResource id, Vector2 position, string serializedSettings)
+        public void Initialize(NodeResource nodeId, Vector2 position, string serializedSettings)
         {
-            this.id = id;
+            id = nodeId;
             this.position = position;
             var graphEditor = Globals<GraphEditor>.Instance;
-            audioNode = graphEditor.GetNodeFromTypeId(id);
+            if (!graphEditor.GetNodeFromTypeId(nodeId, out audioNode))
+            {
+                id = new("Invalid", "invalid", true);
+                graphEditor.GetNodeFromTypeId(id, out audioNode);
+            }
             if (serializedSettings != null && audioNode is SettingsNode settingsNode)
             {
                 settingsNode.DeserializeSettings(serializedSettings);
@@ -263,5 +267,15 @@ namespace NodeGraph
         public Vector2 position;
         public NodeResource id;
         public string serializedSettings;
+
+        public readonly SerializedGraphNode WithId(NodeResource id)
+        {
+            return new SerializedGraphNode
+            {
+                position = position,
+                id = id,
+                serializedSettings = serializedSettings
+            };
+        }
     }
 }

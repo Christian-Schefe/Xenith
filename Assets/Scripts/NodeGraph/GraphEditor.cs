@@ -2,7 +2,6 @@ using DSP;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace NodeGraph
 {
@@ -12,7 +11,10 @@ namespace NodeGraph
         [SerializeField] private RectTransform contentParent;
         [SerializeField] private RectTransform nodeParent, connectionParent;
         [SerializeField] private AddNodeDialog addNodeDialog;
+        [SerializeField] private GraphDatabase graphDatabase;
+        [SerializeField] private GraphEditorUI ui;
 
+        public Graph graphPrefab;
         public GraphNode nodePrefab;
         public GraphConnection connectionPrefab;
 
@@ -20,27 +22,23 @@ namespace NodeGraph
         public NodeIOLabel outputLabelPrefab;
 
         private GraphConnection currentlyConnecting;
-        private HashSet<(GraphNode, int)> connectionTargets = new();
-
-        private List<GraphNode> nodes = new();
-        private HashSet<GraphConnection> connections = new();
-
-        private Dictionary<GraphNode, HashSet<GraphConnection>> incomingConnections = new();
-        private Dictionary<GraphNode, HashSet<GraphConnection>> outgoingConnections = new();
+        private readonly HashSet<(GraphNode, int)> connectionTargets = new();
+        private readonly HashSet<GraphNode> selectedNodes = new();
+        private readonly Dictionary<GraphNode, Vector2> dragOffsets = new();
 
         private float scale = 1;
         private Vector2 offset = Vector2.zero;
 
         private float scrollAccumulator = 0;
-        private float scrollThreshold = 0.1f;
-        private float scrollStep = 1.1f;
+        private readonly float scrollThreshold = 0.1f;
+        private readonly float scrollStep = 1.1f;
+        private Graph graph;
 
-        private HashSet<GraphNode> selectedNodes = new();
-
-        private Dictionary<GraphNode, Vector2> dragOffsets = new();
+        public Graph Graph => graph;
 
         public Dictionary<NodeResource, System.Func<AudioNode>> GetBuiltinNodeTypes() => new()
         {
+            { new NodeResource("Invalid", "invalid", true), () => new EmptyNode() },
             { new NodeResource("Add", "add", true), () => Prelude.Add(2) },
             { new NodeResource("Multiply", "multiply", true), () => Prelude.Multiply(2) },
             { new NodeResource("Vibrato", "vibrato", true), () => Prelude.Vibrato(0.5f) },
@@ -51,39 +49,90 @@ namespace NodeGraph
             { new NodeResource("Output", "output", true), () => new GraphEdgeNode(false) },
         };
 
-        public List<NodeResource> GetAllAvailableNodes()
+        public List<NodeResource> GetPlaceableNodes()
         {
             var builtIns = GetBuiltinNodeTypes();
             var allNodes = new List<NodeResource>();
             foreach (var kvp in builtIns)
             {
+                if (kvp.Key.id == "invalid") continue;
                 allNodes.Add(kvp.Key);
+            }
+            foreach (var graph in graphDatabase.GetGraphs())
+            {
+                if (!GetNodeFromTypeId(graph.id, out _)) continue;
+                allNodes.Add(graph.id);
             }
             return allNodes;
         }
 
-        public AudioNode GetNodeFromTypeId(NodeResource typeId)
+        public bool GetNodeFromTypeId(NodeResource typeId, out AudioNode audioNode)
         {
+            var set = new HashSet<NodeResource>
+            {
+                graph.id
+            };
+            return GetNodeFromTypeIdInternal(typeId, set, out audioNode);
+        }
+
+        public bool GetNodeFromTypeIdInternal(NodeResource typeId, HashSet<NodeResource> visited, out AudioNode audioNode)
+        {
+            audioNode = null;
+
             if (typeId.builtIn)
             {
                 var builtIns = GetBuiltinNodeTypes();
                 if (builtIns.TryGetValue(typeId, out var factory))
                 {
-                    return factory();
+                    audioNode = factory();
+                    return true;
                 }
-                else
-                {
-                    throw new System.Exception($"Unknown built-in node type: {typeId}");
-                }
+                return false;
             }
             else
             {
-                throw new System.NotImplementedException();
+                if (visited.Contains(typeId))
+                {
+                    audioNode = null;
+                    return false;
+                }
+                visited.Add(typeId);
+                bool success = false;
+                if (graphDatabase.TryGetGraph(typeId, out var graph))
+                {
+                    success = graph.TryCreateAudioNode(this, visited, out audioNode);
+                }
+                visited.Remove(typeId);
+                return success;
             }
+
         }
+
+        public bool IsInteractable()
+        {
+            return graph != null && !ui.IsDialogOpen();
+        }
+
+        public bool TryGetGraphDisplayName(out string displayName)
+        {
+            if (graph == null)
+            {
+                displayName = null;
+                return false;
+            }
+            displayName = graph.id.displayName;
+            return true;
+        }
+
 
         private void Update()
         {
+            if (!IsInteractable())
+            {
+                addNodeDialog.Close();
+                return;
+            }
+
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 addNodeDialog.Open(ScreenToUnscaledNodePosition(Input.mousePosition), ScreenToNodePosition(Input.mousePosition));
@@ -97,21 +146,106 @@ namespace NodeGraph
             {
                 foreach (var node in selectedNodes.ToList())
                 {
-                    RemoveNode(node);
+                    graph.RemoveNode(node);
                 }
                 selectedNodes.Clear();
             }
+
+            if (Input.GetKeyDown(KeyCode.D) && Input.GetKey(KeyCode.LeftControl))
+            {
+                var duplicatedNodes = new List<GraphNode>();
+                foreach (var node in selectedNodes.ToList())
+                {
+                    var newNode = graph.DuplicateNode(node);
+                    duplicatedNodes.Add(newNode);
+                }
+                DeselectAll();
+                foreach (var node in duplicatedNodes)
+                {
+                    AddSelectedNode(node, true);
+                }
+            }
+        }
+
+        public void DeleteGraph()
+        {
+            if (graph == null) return;
+            graphDatabase.DeleteGraph(graph.id);
+            CloseGraph();
+        }
+
+        public void CloseGraph()
+        {
+            addNodeDialog.Close();
+            graph.DestroySelf();
+            selectedNodes.Clear();
+            if (currentlyConnecting != null)
+            {
+                Destroy(currentlyConnecting.gameObject);
+            }
+            currentlyConnecting = null;
+            connectionTargets.Clear();
+            dragOffsets.Clear();
+            graph = null;
+        }
+
+        public void OpenGraph(NodeResource graphId)
+        {
+            if (graph != null)
+            {
+                SaveGraph();
+                CloseGraph();
+            }
+            if (!graphDatabase.TryGetGraph(graphId, out var loadedGraph))
+            {
+                throw new System.Exception($"Failed to load graph: {graphId}.");
+            }
+            graph = Instantiate(graphPrefab, contentParent);
+            graph.Deserialize(loadedGraph);
+        }
+
+        public void NewGraph(NodeResource id)
+        {
+            if (graph != null)
+            {
+                SaveGraph();
+                CloseGraph();
+            }
+            graph = Instantiate(graphPrefab, contentParent);
+            graph.Initialize(id);
+        }
+
+        public void SaveGraph()
+        {
+            if (graph == null) return;
+            var serializedGraph = graph.Serialize();
+            graphDatabase.SaveGraph(serializedGraph);
+        }
+
+        public GraphNode CreateNodeInstance()
+        {
+            return Instantiate(nodePrefab, nodeParent);
+        }
+
+        public GraphConnection CreateConnectionInstance()
+        {
+            return Instantiate(connectionPrefab, connectionParent);
+        }
+
+        public void DeselectAll()
+        {
+            foreach (var selectedNode in selectedNodes)
+            {
+                selectedNode.SetSelected(false);
+            }
+            selectedNodes.Clear();
         }
 
         public void AddSelectedNode(GraphNode node, bool keepPrevious)
         {
             if (!keepPrevious)
             {
-                foreach (var selectedNode in selectedNodes)
-                {
-                    selectedNode.SetSelected(false);
-                }
-                selectedNodes.Clear();
+                DeselectAll();
             }
             selectedNodes.Add(node);
             node.SetSelected(true);
@@ -121,14 +255,10 @@ namespace NodeGraph
         {
             if (!keepPrevious)
             {
-                foreach (var selectedNode in selectedNodes)
-                {
-                    selectedNode.SetSelected(false);
-                }
-                selectedNodes.Clear();
+                DeselectAll();
             }
 
-            foreach (var node in nodes)
+            foreach (var node in graph.GetNodes())
             {
                 if (rect.Overlaps(node.GetRect()))
                 {
@@ -189,58 +319,13 @@ namespace NodeGraph
             contentParent.localPosition = offset * scale;
         }
 
-        public void AddNode(Vector2 position, NodeResource type)
-        {
-            var node = Instantiate(nodePrefab, nodeParent);
-            node.Initialize(type, position, null);
-            nodes.Add(node);
-        }
-
-        public void RemoveNode(GraphNode node)
-        {
-            BreakAllConnections(node);
-            nodes.Remove(node);
-            Destroy(node.gameObject);
-        }
-
-        public void BreakAllConnections(GraphNode node)
-        {
-            var incoming = incomingConnections.GetValueOrDefault(node, new());
-            var outgoing = outgoingConnections.GetValueOrDefault(node, new());
-            var allConnections = incoming.ToList();
-            allConnections.AddRange(outgoing);
-
-            foreach (var conn in allConnections)
-            {
-                RemoveConnection(conn);
-                Destroy(conn.gameObject);
-            }
-        }
-
-        public void BreakInvalidConnections(GraphNode node)
-        {
-            var incoming = incomingConnections.GetValueOrDefault(node, new());
-            var outgoing = outgoingConnections.GetValueOrDefault(node, new());
-            var allConnections = incoming.ToList();
-            allConnections.AddRange(outgoing);
-
-            foreach (var conn in allConnections)
-            {
-                if (!IsValidExistingConnection(conn.fromNode, conn.toNode, conn.fromNodeOutput, conn.toNodeInput))
-                {
-                    RemoveConnection(conn);
-                    Destroy(conn.gameObject);
-                }
-            }
-        }
-
         public bool TryPickConnection(GraphNode to, int index)
         {
             if (currentlyConnecting != null)
             {
                 throw new System.Exception("Already connecting");
             }
-            var incoming = incomingConnections.GetValueOrDefault(to);
+            var incoming = graph.GetConnections(to, true, false);
             if (incoming == null || incoming.Count == 0)
             {
                 return false;
@@ -250,7 +335,7 @@ namespace NodeGraph
             {
                 return false;
             }
-            RemoveConnection(connection);
+            graph.RemoveConnection(connection);
             currentlyConnecting = connection;
             currentlyConnecting.UnsetConnection(false);
             currentlyConnecting.connectToMouse = true;
@@ -276,7 +361,7 @@ namespace NodeGraph
             {
                 throw new System.Exception("Not connecting");
             }
-            var validTargets = connectionTargets.Where(x => IsValidConnection(currentlyConnecting.fromNode, x.Item1, currentlyConnecting.fromNodeOutput, x.Item2)).ToList();
+            var validTargets = connectionTargets.Where(x => graph.IsValidConnection(currentlyConnecting.fromNode, x.Item1, currentlyConnecting.fromNodeOutput, x.Item2)).ToList();
             if (validTargets.Count == 0)
             {
                 Destroy(currentlyConnecting.gameObject);
@@ -287,92 +372,11 @@ namespace NodeGraph
                 var (node, index) = validTargets[0];
                 currentlyConnecting.SetConnection(false, node, index);
                 currentlyConnecting.connectToMouse = false;
-                AddConnection(currentlyConnecting);
+                graph.AddConnection(currentlyConnecting);
                 currentlyConnecting = null;
             }
         }
 
-
-        private bool IsValidExistingConnection(GraphNode from, GraphNode to, int fromIndex, int toIndex)
-        {
-            if (!from.TryGetConnector(false, fromIndex, out var fromConnector)) return false;
-            if (!to.TryGetConnector(true, toIndex, out var toConnector)) return false;
-
-            if (fromConnector.type != toConnector.type)
-            {
-                return false;
-            }
-
-            bool ContainsUpstream(GraphNode node)
-            {
-                if (node == to) return true;
-
-                var incoming = incomingConnections.GetValueOrDefault(node);
-                if (incoming != null)
-                {
-                    foreach (var conn in incoming)
-                    {
-                        if (ContainsUpstream(conn.fromNode))
-                        {
-                            return true;
-                        }
-                    }
-                }
-                return false;
-            }
-            return !ContainsUpstream(from);
-        }
-
-        private bool IsValidConnection(GraphNode from, GraphNode to, int fromIndex, int toIndex)
-        {
-            if (incomingConnections.ContainsKey(to) && incomingConnections[to].Any(c => c.toNodeInput == toIndex))
-            {
-                return false;
-            }
-            return IsValidExistingConnection(from, to, fromIndex, toIndex);
-        }
-
-        private void AddConnection(GraphConnection connection)
-        {
-            if (!connections.Add(connection)) return;
-
-            var from = connection.fromNode;
-            var to = connection.toNode;
-            if (!incomingConnections.ContainsKey(to))
-            {
-                incomingConnections[to] = new();
-            }
-            incomingConnections[to].Add(connection);
-            if (!outgoingConnections.ContainsKey(from))
-            {
-                outgoingConnections[from] = new();
-            }
-            outgoingConnections[from].Add(connection);
-        }
-
-        private void RemoveConnection(GraphConnection connection)
-        {
-            if (!connections.Remove(connection)) return;
-
-            var from = connection.fromNode;
-            var to = connection.toNode;
-            if (incomingConnections.ContainsKey(to))
-            {
-                incomingConnections[to].Remove(connection);
-                if (incomingConnections[to].Count == 0)
-                {
-                    incomingConnections.Remove(to);
-                }
-            }
-            if (outgoingConnections.ContainsKey(from))
-            {
-                outgoingConnections[from].Remove(connection);
-                if (outgoingConnections[from].Count == 0)
-                {
-                    outgoingConnections.Remove(from);
-                }
-            }
-        }
 
         public bool IsConnecting()
         {
@@ -415,49 +419,5 @@ namespace NodeGraph
             var canvasVec = canvasRect.size * viewportVec / scale;
             return canvasVec;
         }
-
-        public SerializedGraph Serialize()
-        {
-            var serializedNodes = new List<SerializedGraphNode>();
-            var nodeToIndex = new Dictionary<GraphNode, int>();
-            for (int i = 0; i < nodes.Count; i++)
-            {
-                var node = nodes[i];
-                nodeToIndex[node] = i;
-                serializedNodes.Add(node.Serialize());
-            }
-            var serializedConnections = new List<SerializedGraphConnection>();
-            foreach (var connection in connections)
-            {
-                serializedConnections.Add(connection.Serialize(nodeToIndex));
-            }
-            return new SerializedGraph
-            {
-                nodes = serializedNodes,
-                connections = serializedConnections
-            };
-        }
-
-        public void Deserialize(SerializedGraph graph)
-        {
-            foreach (var node in graph.nodes)
-            {
-                var nodeObj = Instantiate(nodePrefab, nodeParent);
-                nodeObj.Deserialize(node);
-                nodes.Add(nodeObj);
-            }
-            foreach (var connection in graph.connections)
-            {
-                var connectionObj = Instantiate(connectionPrefab, connectionParent);
-                connectionObj.Deserialize(nodes, connection);
-                AddConnection(connectionObj);
-            }
-        }
-    }
-
-    public struct SerializedGraph
-    {
-        public List<SerializedGraphNode> nodes;
-        public List<SerializedGraphConnection> connections;
     }
 }

@@ -1,4 +1,5 @@
 using Unity.VisualScripting;
+using UnityEditor.UI;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -14,9 +15,11 @@ namespace NodeGraph
 
         public void OnPointerDown(PointerEventData eventData)
         {
+            var graphEditor = Globals<GraphEditor>.Instance;
+            if (!graphEditor.IsInteractable()) return;
+
             if (eventData.button == PointerEventData.InputButton.Left)
             {
-                var graphEditor = Globals<GraphEditor>.Instance;
                 dragSelectStart = graphEditor.ScreenToNodePosition(eventData.position);
                 isDraggingSelect = true;
                 dragSelectImage.gameObject.SetActive(true);
@@ -27,9 +30,11 @@ namespace NodeGraph
 
         public void OnDrag(PointerEventData eventData)
         {
+            var graphEditor = Globals<GraphEditor>.Instance;
+            if (!graphEditor.IsInteractable()) return;
+
             if (eventData.button == PointerEventData.InputButton.Right)
             {
-                var graphEditor = Globals<GraphEditor>.Instance;
                 graphEditor.AddOffset(eventData.delta);
             }
 
@@ -54,6 +59,9 @@ namespace NodeGraph
 
         public void OnEndDrag(PointerEventData eventData)
         {
+            var graphEditor = Globals<GraphEditor>.Instance;
+            if (!graphEditor.IsInteractable()) return;
+
             if (eventData.button == PointerEventData.InputButton.Left && isDraggingSelect)
             {
                 DoSelect(eventData.position);
@@ -65,6 +73,8 @@ namespace NodeGraph
         public void OnScroll(PointerEventData eventData)
         {
             var graphEditor = Globals<GraphEditor>.Instance;
+            if (!graphEditor.IsInteractable()) return;
+
             graphEditor.AddScroll(eventData.scrollDelta.y);
         }
     }

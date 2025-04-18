@@ -1,55 +1,43 @@
 using System.Collections.Generic;
-using System.Xml.Linq;
 using UnityEngine;
-using static UnityEngine.EventSystems.StandaloneInputModule;
 
 namespace DSP
 {
     public class NodeGraph : AudioNode
     {
-        private readonly List<AudioNode> nodes;
-        private readonly List<Connection> connections;
+        private readonly List<AudioNode> nodes = new();
+        private readonly List<Connection> connections = new();
 
-        private List<int> inputNodes;
-        private List<int> outputNodes;
+        private readonly List<int> inputNodes = new();
+        private readonly List<int> outputNodes = new();
 
         private List<int> executionOrder;
         private List<Connection>[] incomingConnections;
         private List<Connection>[] outgoingConnections;
 
-        public NodeGraph()
-        {
-            nodes = new();
-            connections = new();
-            inputNodes = new();
-            outputNodes = new();
-        }
+        public int AddInput<T>(string name) where T : Value, new() => AddEdgeNode<T>(name, true);
 
-        public int AddInput<T>(string name) where T : Value, new()
-        {
-            var inputNode = new GraphEdgeNode(true);
-            inputNode.valueTypeSetting.value = (int)new T().Type;
-            inputNode.nameSetting.value = name;
-            inputNode.OnSettingsChanged();
-            int index = AddNode(inputNode);
-            inputNodes.Add(index);
-            return index;
-        }
+        public int AddOutput<T>(string name) where T : Value, new() => AddEdgeNode<T>(name, false);
 
-        public int AddOutput<T>(string name) where T : Value, new()
+        public int AddEdgeNode<T>(string name, bool isInput) where T : Value, new()
         {
-            var outputNode = new GraphEdgeNode(false);
-            outputNode.nameSetting.value = name;
-            outputNode.OnSettingsChanged();
-            int index = AddNode(outputNode);
-            outputNodes.Add(index);
-            return index;
+            var node = new GraphEdgeNode(isInput);
+            node.valueTypeSetting.value = (int)new T().Type;
+            node.nameSetting.value = name;
+            node.OnSettingsChanged();
+            return AddNode(node);
         }
 
         public int AddNode(AudioNode node)
         {
+            var index = nodes.Count;
             nodes.Add(node);
-            return nodes.Count - 1;
+            if (node is IGraphEdgeNode edgeNode)
+            {
+                var list = edgeNode.IsInput ? inputNodes : outputNodes;
+                list.Add(index);
+            }
+            return index;
         }
 
         public void AddConnection(Connection connection)
@@ -243,11 +231,13 @@ namespace DSP
     public interface IGraphEdgeNode
     {
         public NamedValue GetValue { get; }
+        public bool IsInput { get; }
     }
 
     public class GraphEdgeNode : SettingsNode, IGraphEdgeNode
     {
         public NamedValue GetValue => value;
+        public bool IsInput => isInput;
 
         private NamedValue value;
 

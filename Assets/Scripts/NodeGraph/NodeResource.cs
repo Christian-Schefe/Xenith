@@ -1,5 +1,3 @@
-using UnityEngine;
-
 namespace NodeGraph
 {
     public struct NodeResource
@@ -13,6 +11,35 @@ namespace NodeGraph
             this.displayName = displayName;
             this.id = id;
             this.builtIn = builtIn;
+        }
+
+        public override readonly string ToString()
+        {
+            return $"{displayName} ({id})";
+        }
+
+        public override readonly bool Equals(object obj)
+        {
+            if (obj is NodeResource other)
+            {
+                return id == other.id;
+            }
+            return false;
+        }
+
+        public override readonly int GetHashCode()
+        {
+            return id.GetHashCode();
+        }
+
+        public static bool operator ==(NodeResource a, NodeResource b)
+        {
+            return a.Equals(b);
+        }
+
+        public static bool operator !=(NodeResource a, NodeResource b)
+        {
+            return !a.Equals(b);
         }
     }
 }

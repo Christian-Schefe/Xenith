@@ -7,11 +7,11 @@ namespace NodeGraph
     {
         [SerializeField] private RectTransform scrollContent;
         [SerializeField] private TMPro.TMP_InputField searchField;
-        [SerializeField] private AddNodeEntry addNodeEntryPrefab;
+        [SerializeField] private ClickableItem itemPrefab;
 
-        private List<AddNodeEntry> entries = new();
+        private List<ClickableItem> entries = new();
         private Vector2 position;
-        private bool isOpen;
+        public bool isOpen;
 
         private void OnEnable()
         {
@@ -58,16 +58,16 @@ namespace NodeGraph
         private void SpawnEntries(string searchText)
         {
             var graphEditor = Globals<GraphEditor>.Instance;
-            var nodeTypes = graphEditor.GetAllAvailableNodes();
+            var nodeTypes = graphEditor.GetPlaceableNodes();
             foreach (var nodeType in nodeTypes)
             {
                 if (searchText == "" || nodeType.displayName.ToLower().Contains(searchText.ToLower()))
                 {
-                    var entry = Instantiate(addNodeEntryPrefab, scrollContent);
+                    var entry = Instantiate(itemPrefab, scrollContent);
                     entry.SetText(nodeType.displayName);
-                    entry.SetOnClick(() =>
+                    entry.SetOnClickListener(() =>
                     {
-                        graphEditor.AddNode(position, nodeType);
+                        graphEditor.Graph.AddNode(position, nodeType);
                         Close();
                     });
                     entries.Add(entry);

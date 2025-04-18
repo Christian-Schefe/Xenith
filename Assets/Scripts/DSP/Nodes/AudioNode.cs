@@ -22,6 +22,17 @@ namespace DSP
         public abstract void ResetState();
     }
 
+    public class EmptyNode : AudioNode
+    {
+        public override List<NamedValue> BuildInputs() => new();
+
+        public override List<NamedValue> BuildOutputs() => new();
+
+        public override void Process(Context context) { }
+
+        public override void ResetState() { }
+    }
+
     public abstract class SettingsNode : AudioNode
     {
         protected NodeSettings settings;
