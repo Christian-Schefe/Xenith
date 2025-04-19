@@ -166,11 +166,6 @@ namespace DSP
             {
                 DFS(i);
             }
-
-            foreach (var i in executionOrder)
-            {
-                Debug.Log($"Execution Order: {i}");
-            }
         }
 
         public override void Initialize()

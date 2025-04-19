@@ -8,6 +8,8 @@ namespace DSP
         private bool isInitialized;
         private Context context;
 
+        public float volume = 1.0f;
+
         public void Initialize(AudioNode node)
         {
             Debug.Log("Initializing DSP...");
@@ -39,7 +41,7 @@ namespace DSP
                 node.Process(context);
                 for (int c = 0; c < channels; c++)
                 {
-                    data[i * channels + c] = outputValues[c].value;
+                    data[i * channels + c] = outputValues[c].value * volume;
                 }
             }
         }

@@ -5,10 +5,11 @@ namespace DSP
 {
     public class Oscillator : SettingsNode
     {
-        public static Oscillator New(WaveformType type)
+        public static Oscillator New(WaveformType type, float initialPhase = 0)
         {
             var node = new Oscillator();
             node.waveformSetting.value = (int)type;
+            node.initialPhaseSetting.value = initialPhase;
             node.OnSettingsChanged();
             return node;
         }
@@ -29,16 +30,19 @@ namespace DSP
 
         public delegate float Waveform(float phase);
 
+        private float initialPhase = 0;
         private float phase = 0;
         private Waveform waveform;
 
         private readonly EnumSetting<WaveformType> waveformSetting = new("Waveform", WaveformType.Sine);
+        private readonly FloatSetting initialPhaseSetting = new("InitialPhase", 0);
 
         public override NodeSettings DefaultSettings => new(waveformSetting);
 
         public override void OnSettingsChanged()
         {
             waveform = GetWaveform((WaveformType)waveformSetting.value);
+            initialPhase = initialPhaseSetting.value;
         }
 
         public static Waveform GetWaveform(WaveformType type)
@@ -68,7 +72,7 @@ namespace DSP
 
         public override void ResetState()
         {
-            phase = 0;
+            phase = initialPhase;
         }
     }
 }
