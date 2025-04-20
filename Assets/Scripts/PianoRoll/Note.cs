@@ -22,17 +22,15 @@ namespace PianoRoll
 
         public void Initialize(float xPos, int yPos, float length)
         {
-            this.xPos = xPos;
-            this.yPos = yPos;
-            this.length = length;
             SetSelected(false);
-            Update();
+            SetLength(length);
+            SetPosition(xPos, yPos);
         }
 
         public void SetPosition(float xPos, int yPos)
         {
-            this.xPos = xPos;
-            this.yPos = yPos;
+            this.xPos = Mathf.Max(xPos, 0);
+            this.yPos = Mathf.Max(yPos, 0);
             Update();
         }
 
@@ -51,8 +49,8 @@ namespace PianoRoll
         {
             var noteEditor = Globals<NoteEditor>.Instance;
             var pianoPos = new Vector2(xPos + length * 0.5f, yPos + 0.5f);
-            transform.localPosition = noteEditor.PianoToWorldCoords(pianoPos);
-            sprite.size = noteEditor.zoom * new Vector2(length, 1f - border);
+            transform.position = noteEditor.PianoToWorldCoords(pianoPos);
+            sprite.size = noteEditor.Zoom * new Vector2(length, 1f - border) / sprite.transform.localScale;
         }
 
         public void SetLength(float length)

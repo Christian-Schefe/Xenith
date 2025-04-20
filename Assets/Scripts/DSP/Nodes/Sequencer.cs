@@ -30,11 +30,14 @@ namespace DSP
 
         private int noteIndex = 0;
         private float time = 0;
+        private readonly float startTime;
 
-        public Sequencer(List<SequencerNote> notes, System.Func<AudioNode> voiceFactory)
+        public Sequencer(float startTime, List<SequencerNote> notes, System.Func<AudioNode> voiceFactory)
         {
+            this.startTime = startTime;
+            time = startTime;
             this.voiceFactory = voiceFactory;
-            this.notes = notes;
+            this.notes = notes.Where(n => n.time >= startTime).OrderBy(n => n.time).ToList();
             floatOutputs = new();
 
             var template = voiceFactory();
@@ -79,15 +82,14 @@ namespace DSP
                     voices.Add(voice);
                     noteIndex++;
                 }
-
-                while (voiceData.Count > 0 && voiceData[^1].endTime + 1 < time)
-                {
-                    voiceData.RemoveAt(voiceData.Count - 1);
-                    voices.RemoveAt(voices.Count - 1);
-                }
             }
 
-            //Debug.Log($"Time: {time}, NoteIndex: {noteIndex}, Voices: {voices.Count}");
+            while (voices.Count > 0 && voiceData[0].endTime + 1 < time)
+            {
+                voiceData.RemoveAt(0);
+                voices.RemoveAt(0);
+                voiceInputs.RemoveAt(0);
+            }
 
             foreach (var output in floatOutputs)
             {
@@ -104,7 +106,7 @@ namespace DSP
                 for (int j = 0; j < floatOutputs.Count; j++)
                 {
                     var output = floatOutputs[j];
-                    var voiceOutput = voices[i].BuildOutputs()[j];
+                    var voiceOutput = voices[i].outputs[j];
                     output.value.value += ((FloatValue)voiceOutput.Value).value;
                 }
             }
@@ -117,7 +119,7 @@ namespace DSP
             voiceInputs.Clear();
 
             noteIndex = 0;
-            time = 0;
+            time = startTime;
         }
     }
 }

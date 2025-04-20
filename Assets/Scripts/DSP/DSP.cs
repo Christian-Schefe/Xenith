@@ -12,11 +12,15 @@ namespace DSP
 
         public void Initialize(AudioNode node)
         {
-            Debug.Log("Initializing DSP...");
             this.node = node;
             context = new Context(AudioSettings.outputSampleRate);
             node.Initialize();
             isInitialized = true;
+        }
+
+        public void ResetDSP()
+        {
+            isInitialized = false;
         }
 
         private void OnAudioFilterRead(float[] data, int channels)

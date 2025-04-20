@@ -11,18 +11,23 @@ namespace DSP
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
+                var noteEditor = Globals<PianoRoll.NoteEditor>.Instance;
+                var dsp = Globals<DSP>.Instance;
+                if (noteEditor.isPlaying)
+                {
+                    noteEditor.StopPlaying();
+                    dsp.ResetDSP();
+                    return;
+                }
+                noteEditor.StartPlaying();
                 var semitone = Mathf.Pow(2, 1f / 12f);
 
-                var noteEditor = Globals<PianoRoll.NoteEditor>.Instance;
                 var notes = noteEditor.Serialize().GetNotes();
-                foreach (var note in notes)
-                {
-                    Debug.Log($"Note: {note.pitch}, {note.time}, {note.duration}");
-                }
 
-                var node = new Sequencer(notes, SimpleInstrument);
+                var startTime = noteEditor.GetPlayStartTime();
 
-                var dsp = Globals<DSP>.Instance;
+                var node = new Sequencer(startTime, notes, SimpleInstrument);
+
                 dsp.Initialize(node);
             }
         }

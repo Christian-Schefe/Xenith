@@ -19,8 +19,8 @@ namespace PianoRoll
         private void Update()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            transform.localScale = new Vector3(1, 100, 1) * noteEditor.zoom;
-            transform.localPosition = new Vector3(index + 1, 50, 0) * noteEditor.zoom;
+            transform.localScale = new Vector3(1, 100, 1) * noteEditor.Zoom;
+            transform.position = new Vector3(index + 1, 50, 0) * noteEditor.Zoom;
         }
     }
 }

@@ -11,11 +11,19 @@ namespace PianoRoll
         [SerializeField] private Note notePrefab;
         [SerializeField] private SpriteRenderer selector;
 
-        public Vector2 zoom = new(1, 1);
+        private Vector2 zoom = new(1f, 0.33f);
+        public Vector2 Zoom => zoom;
 
         private HashSet<Note> selectedNotes = new();
 
         private Dictionary<int, List<Note>> notes = new();
+        private List<TempoEvent> tempoEvents = new()
+        {
+            new(2, 2),
+            new(4, 1),
+            new(5, 4),
+            new(8, 2),
+        };
 
         private bool isDragging;
         private Dictionary<Note, Vector2> dragOffsets = new();
@@ -24,6 +32,16 @@ namespace PianoRoll
 
         private bool isSelecting;
         private Vector2 selectionStart;
+
+        private bool isDraggingPlayPosition;
+
+        public bool isPlaying;
+        private float startPlayPosition;
+        private float startPlayPlayTime;
+        private float startPlayTime;
+
+        private int edo = 12;
+        public int Edo => edo;
 
         private void Start()
         {
@@ -43,66 +61,40 @@ namespace PianoRoll
         {
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
-                Zoom(new(1.1f, 1));
+                DoZoom(new(1.1f, 1));
             }
             if (Input.GetKeyDown(KeyCode.Alpha2))
             {
-                Zoom(new(1f / 1.1f, 1));
+                DoZoom(new(1f / 1.1f, 1));
             }
             if (Input.GetKeyDown(KeyCode.Alpha3))
             {
-                Zoom(new(1, 1.1f));
+                DoZoom(new(1, 1.1f));
             }
             if (Input.GetKeyDown(KeyCode.Alpha4))
             {
-                Zoom(new(1, 1f / 1.1f));
+                DoZoom(new(1, 1f / 1.1f));
+            }
+
+            if (isPlaying)
+            {
+                var timePlaying = Time.time - startPlayTime;
+                var playPosition = Globals<PlayPosition>.Instance;
+                var playTime = startPlayPlayTime + timePlaying;
+                var playBeat = TempoController.GetBeatFromTime(playTime, tempoEvents);
+                playPosition.SetPosition(playBeat);
+
+                return;
             }
 
             var mousePiano = ScreenToPianoCoords(Input.mousePosition);
 
             if (Input.GetMouseButtonDown(0))
             {
-                bool isShift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
-                if (TryGetHoveredNote(out var note))
-                {
-                    if (!selectedNotes.Contains(note)) SelectNote(note, isShift);
-                    StartDragging(mousePiano, note);
-                }
-                else
-                {
-                    if (!isShift)
-                    {
-                        ClearSelection();
-                        StartSelecting(mousePiano);
-                    }
-                    else
-                    {
-                        AddNote(SnapX(mousePiano.x), Mathf.FloorToInt(mousePiano.y), 1f);
-                        ClearSelection();
-                    }
-                }
+                HandleMouseDown(mousePiano);
             }
 
-            if (isDragging && Input.GetMouseButton(0))
-            {
-                DoDrag(mousePiano);
-            }
-            else
-            {
-                isDragging = false;
-            }
-
-
-            if (isSelecting && Input.GetMouseButton(0))
-            {
-                DoSelecting(mousePiano);
-            }
-            else
-            {
-                isSelecting = false;
-                selector.gameObject.SetActive(false);
-            }
-
+            HandleDrag(mousePiano);
 
             if (Input.GetKeyDown(KeyCode.Delete))
             {
@@ -112,6 +104,160 @@ namespace PianoRoll
                 }
                 selectedNotes.Clear();
             }
+
+            if (Input.GetKeyDown(KeyCode.D))
+            {
+                var minStartTime = selectedNotes.Min(n => n.Position.x);
+                var playPosition = Globals<PlayPosition>.Instance;
+                foreach (var note in selectedNotes)
+                {
+                    var offset = note.Position.x - minStartTime;
+                    AddNote(playPosition.position + offset, note.yPos, note.length);
+                }
+                ClearSelection();
+            }
+
+            var isShift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (Input.GetKeyDown(KeyCode.UpArrow))
+            {
+                MoveSelectedNotes(isShift ? edo : 1);
+            }
+            if (Input.GetKeyDown(KeyCode.DownArrow))
+            {
+                MoveSelectedNotes(isShift ? -edo : -1);
+            }
+        }
+
+        private void MoveSelectedNotes(int deltaY)
+        {
+            foreach (var note in selectedNotes)
+            {
+                var newY = note.yPos + deltaY;
+                SetNotePosition(note, note.Position.x, newY);
+            }
+        }
+
+        public bool IsSpecialRow(int y)
+        {
+            return y % edo == 0;
+        }
+
+        public void StartPlaying()
+        {
+            if (isPlaying) return;
+            isPlaying = true;
+            var playPosition = Globals<PlayPosition>.Instance;
+            startPlayPosition = playPosition.position;
+            startPlayTime = Time.time;
+            startPlayPlayTime = GetPlayStartTime();
+
+            isDragging = false;
+            isSelecting = false;
+            selector.gameObject.SetActive(false);
+            isDraggingPlayPosition = false;
+            ClearSelection();
+        }
+
+        public float GetPlayStartTime()
+        {
+            var playPosition = Globals<PlayPosition>.Instance;
+            var startTime = TempoController.GetTimeFromBeat(playPosition.position, tempoEvents);
+            return startTime;
+        }
+
+        public void StopPlaying()
+        {
+            isPlaying = false;
+            var playPosition = Globals<PlayPosition>.Instance;
+            playPosition.SetPosition(startPlayPosition);
+        }
+
+        private void HandleDrag(Vector2 mousePiano)
+        {
+            if (Input.GetMouseButton(0) && isDragging)
+            {
+                DoDrag(mousePiano);
+            }
+            else
+            {
+                isDragging = false;
+            }
+
+
+            if (Input.GetMouseButton(0) && isSelecting)
+            {
+                DoSelecting(mousePiano);
+            }
+            else
+            {
+                isSelecting = false;
+                selector.gameObject.SetActive(false);
+            }
+
+            if (Input.GetMouseButton(0) && isDraggingPlayPosition)
+            {
+                var playPosition = Globals<PlayPosition>.Instance;
+                playPosition.SetPosition(SnapX(mousePiano.x));
+            }
+            else
+            {
+                isDraggingPlayPosition = false;
+            }
+        }
+
+        private void HandleMouseDown(Vector2 mousePiano)
+        {
+            bool isShift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+            if (!isShift && IsHoveringPlayPosition(mousePiano))
+            {
+                isDraggingPlayPosition = true;
+                return;
+            }
+
+            if (TryGetHoveredNote(out var note))
+            {
+                if (!selectedNotes.Contains(note)) SelectNote(note, isShift);
+                StartDragging(mousePiano, note);
+                return;
+            }
+
+            if (!isShift)
+            {
+                ClearSelection();
+                StartSelecting(mousePiano);
+            }
+            else
+            {
+                AddNote(Mathf.FloorToInt(mousePiano.x), Mathf.FloorToInt(mousePiano.y), 1f);
+                ClearSelection();
+            }
+        }
+
+        private bool IsHoveringPlayPosition(Vector2 mousePiano)
+        {
+            var playPosition = Globals<PlayPosition>.Instance;
+            var xDist = Mathf.Abs(mousePiano.x - playPosition.position);
+            var camWorldY = CamWorldRect().yMax;
+            var mouseWorldY = PianoToWorldCoords(mousePiano).y;
+            var yDist = Mathf.Abs(mouseWorldY - camWorldY);
+            return xDist < 0.2f || yDist < 1f;
+        }
+
+        public Rect CamPianoRect()
+        {
+            var cam = Globals<CameraController>.Instance.Cam;
+            var camHalfSize = new Vector2(cam.orthographicSize * cam.aspect, cam.orthographicSize);
+            var camBottomLeft = WorldToPianoCoords((Vector2)cam.transform.position - camHalfSize);
+            var camTopRight = WorldToPianoCoords((Vector2)cam.transform.position + camHalfSize);
+            return new Rect(camBottomLeft, camTopRight - camBottomLeft);
+        }
+
+        public Rect CamWorldRect()
+        {
+            var cam = Globals<CameraController>.Instance.Cam;
+            var camHalfSize = new Vector2(cam.orthographicSize * cam.aspect, cam.orthographicSize);
+            var camBottomLeft = (Vector2)cam.transform.position - camHalfSize;
+            return new Rect(camBottomLeft, camHalfSize * 2);
         }
 
         private void DoDrag(Vector2 mousePiano)
@@ -177,8 +323,8 @@ namespace PianoRoll
             var max = Vector2.Max(selectionStart, mousePiano);
             var rect = new Rect(min, max - min);
             selector.gameObject.SetActive(true);
-            selector.transform.localPosition = rect.center;
-            selector.transform.localScale = new Vector3(rect.width, rect.height, 1);
+            selector.transform.localPosition = PianoToWorldCoords(rect.center);
+            selector.transform.localScale = new Vector3(rect.width * zoom.x, rect.height * zoom.y, 1);
 
             ClearSelection();
 
@@ -214,6 +360,9 @@ namespace PianoRoll
 
         private void SetNotePosition(Note note, float x, int y)
         {
+            x = Mathf.Max(x, 0);
+            y = Mathf.Max(y, 0);
+
             if (y != note.yPos)
             {
                 var oldRow = notes[note.yPos];
@@ -285,7 +434,7 @@ namespace PianoRoll
             notes[yPos].Add(note);
         }
 
-        public void Zoom(Vector2 factor)
+        public void DoZoom(Vector2 factor)
         {
             var cam = Globals<CameraController>.Instance;
             var camWorldSize = new Vector2(cam.Cam.orthographicSize * cam.Cam.aspect, cam.Cam.orthographicSize);
@@ -307,17 +456,22 @@ namespace PianoRoll
 
         public Vector2 WorldToPianoCoords(Vector2 world)
         {
-            return world / zoom;
+            return world / Zoom;
         }
 
         public Vector2 PianoToWorldCoords(Vector2 piano)
         {
-            return piano * zoom;
+            return piano * Zoom;
+        }
+
+        public int GetBar(Vector2 piano)
+        {
+            return Mathf.FloorToInt(piano.x / 4f);
         }
 
         public SerializedPianoRoll Serialize()
         {
-            var serialized = new SerializedPianoRoll() { notes = new() };
+            var serialized = new SerializedPianoRoll() { notes = new(), tempoEvents = tempoEvents.ToList() };
             foreach (var row in notes)
             {
                 foreach (var note in row.Value)
@@ -345,14 +499,18 @@ namespace PianoRoll
     public struct SerializedPianoRoll
     {
         public List<SerializedNote> notes;
+        public List<TempoEvent> tempoEvents;
 
-        public List<DSP.SequencerNote> GetNotes()
+        public readonly List<DSP.SequencerNote> GetNotes()
         {
-            return notes.Select(note =>
+            var noteEditor = Globals<NoteEditor>.Instance;
+            var unsortedTempoNotes = notes.Select(note =>
             {
-                var pitch = 110 * Mathf.Pow(2, note.y / 12f);
-                return new DSP.SequencerNote(pitch, note.x, note.length);
-            }).OrderBy(n => n.time).ToList();
+                var pitch = 55 * Mathf.Pow(2, (float)note.y / noteEditor.Edo);
+                return new TempoNote(note.x, note.length, pitch);
+            }).ToList();
+            var sequencerNotes = TempoController.ConvertNotes(unsortedTempoNotes, tempoEvents);
+            return sequencerNotes;
         }
     }
 

@@ -101,3 +101,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bg: {fileID: 7809372139259629146}
+  evenColor: {r: 0.3301887, g: 0.3301887, b: 0.3301887, a: 1}
+  oddColor: {r: 0.24528301, g: 0.24528301, b: 0.24528301, a: 1}
+  specialColor: {r: 0.1495194, g: 0.18393508, b: 0.3018868, a: 1}
