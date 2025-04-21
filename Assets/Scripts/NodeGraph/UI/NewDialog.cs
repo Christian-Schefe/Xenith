@@ -30,7 +30,7 @@ namespace NodeGraph
         private void OnCreate()
         {
             var graphEditor = Globals<GraphEditor>.Instance;
-            graphEditor.NewGraph(new(id.text, displayName.text, false));
+            graphEditor.NewGraph(new(displayName.text, id.text, false));
             Close();
         }
     }

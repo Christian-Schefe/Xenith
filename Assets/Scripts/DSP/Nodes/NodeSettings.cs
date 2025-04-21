@@ -37,6 +37,14 @@ namespace DSP
                 settings[name].Deserialize(val);
             }
         }
+
+        public void CloneInto(NodeSettings target)
+        {
+            foreach (var setting in settings)
+            {
+                setting.Value.CloneInto(target.settings[setting.Key]);
+            }
+        }
     }
 
     public enum SettingType
@@ -54,6 +62,8 @@ namespace DSP
 
         public abstract string Serialize();
         public abstract void Deserialize(string str);
+
+        public abstract void CloneInto(NodeSetting other);
 
         public NodeSetting(string name)
         {
@@ -74,6 +84,7 @@ namespace DSP
 
         public override string Serialize() => value.ToString("R");
         public override void Deserialize(string str) => value = float.TryParse(str, out var result) ? result : 0f;
+        public override void CloneInto(NodeSetting other) => ((FloatSetting)other).value = value;
     }
 
     public class IntSetting : NodeSetting
@@ -89,6 +100,7 @@ namespace DSP
 
         public override string Serialize() => value.ToString();
         public override void Deserialize(string str) => value = int.TryParse(str, out var result) ? result : 0;
+        public override void CloneInto(NodeSetting other) => ((IntSetting)other).value = value;
     }
 
     public class StringSetting : NodeSetting
@@ -104,6 +116,7 @@ namespace DSP
 
         public override string Serialize() => value;
         public override void Deserialize(string str) => value = str;
+        public override void CloneInto(NodeSetting other) => ((StringSetting)other).value = value;
     }
 
     public class EnumSetting : NodeSetting
@@ -121,6 +134,7 @@ namespace DSP
 
         public override string Serialize() => value.ToString();
         public override void Deserialize(string str) => value = int.TryParse(str, out var result) ? result : 0;
+        public override void CloneInto(NodeSetting other) => ((EnumSetting)other).value = value;
     }
 
     public class EnumSetting<T> : EnumSetting where T : struct, IConvertible

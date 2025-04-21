@@ -87,6 +87,16 @@ namespace NodeGraph
                 settingsNode.DeserializeSettings(serializedSettings);
             }
 
+            try
+            {
+                audioNode.Initialize();
+            }
+            catch
+            {
+                id = new("Invalid", "invalid", true);
+                graphEditor.GetNodeFromTypeId(id, out audioNode);
+            }
+
             UpdateVisuals();
         }
 

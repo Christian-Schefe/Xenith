@@ -40,11 +40,11 @@ namespace DSP
         public static NodeGraph Vibrato(float fadeIn)
         {
             var graph = new NodeGraph();
-            int freqIn = graph.AddInput<FloatValue>("Frequency");
-            int depthIn = graph.AddInput<FloatValue>("Depth");
-            int adsrTimeIn = graph.AddInput<FloatValue>("Time Since Gate");
-            int valueIn = graph.AddInput<FloatValue>("Value");
-            int valueOut = graph.AddOutput<FloatValue>("Output");
+            int freqIn = graph.AddInput<FloatValue>("Frequency", 0);
+            int depthIn = graph.AddInput<FloatValue>("Depth", 1);
+            int adsrTimeIn = graph.AddInput<FloatValue>("Time Since Gate", 2);
+            int valueIn = graph.AddInput<FloatValue>("Value", 3);
+            int valueOut = graph.AddOutput<FloatValue>("Output", 0);
             int lfo = graph.AddNode(Oscillator.New(Oscillator.WaveformType.Sine));
             int one = graph.AddNode(ConstFloatNode.New(1));
             int combinator = graph.AddNode(new CombinatorNode<FloatValue>(4, 1, (inputs, outputs) =>

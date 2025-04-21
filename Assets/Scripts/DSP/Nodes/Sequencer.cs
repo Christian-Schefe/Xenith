@@ -121,5 +121,10 @@ namespace DSP
             noteIndex = 0;
             time = startTime;
         }
+
+        public override AudioNode Clone()
+        {
+            return new Sequencer(startTime, notes, voiceFactory);
+        }
     }
 }

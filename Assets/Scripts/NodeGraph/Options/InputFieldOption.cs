@@ -21,14 +21,14 @@ namespace NodeGraph
                 SettingType.Float => TMPro.TMP_InputField.ContentType.Standard,
                 SettingType.Int => TMPro.TMP_InputField.ContentType.IntegerNumber,
                 SettingType.String => TMPro.TMP_InputField.ContentType.Standard,
-                _ => throw new ArgumentOutOfRangeException("Setting Type", type, "Unsupported SettingType")
+                _ => throw new ArgumentOutOfRangeException("Setting Variant", type, "Unsupported SettingType")
             };
             inputField.text = setting switch
             {
                 FloatSetting floatSetting => floatSetting.value.ToString("R"),
                 IntSetting intSetting => intSetting.value.ToString(),
                 StringSetting stringSetting => stringSetting.value,
-                _ => throw new ArgumentOutOfRangeException("Setting Type", type, "Unsupported SettingType")
+                _ => throw new ArgumentOutOfRangeException("Setting Variant", type, "Unsupported SettingType")
             };
         }
 

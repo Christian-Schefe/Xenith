@@ -27,27 +27,27 @@ namespace DSP
 
         public override List<NamedValue> BuildOutputs() => new() { value };
 
-        public override void Process(Context context)
-        {
-        }
+        public override void Process(Context context) { }
 
-        public override void ResetState()
-        {
-        }
+        public override void ResetState() { }
 
+        protected override SettingsNode CloneWithoutSettings()
+        {
+            return new ConstFloatNode();
+        }
     }
 
 
-    public class TransformerNode<T1, T2> : AudioNode where T1 : Value where T2 : Value
+    public class TransformerNode<T1, T2> : AudioNode where T1 : Value, new() where T2 : Value, new()
     {
         private NamedValue<T1> input;
         private NamedValue<T2> output;
         private System.Action<T1, T2> transformer;
 
-        public TransformerNode(T1 fromValue, T2 toValue, System.Action<T1, T2> transformer)
+        public TransformerNode(System.Action<T1, T2> transformer)
         {
-            input = new NamedValue<T1>("Input", fromValue);
-            output = new NamedValue<T2>("Output", toValue);
+            input = new NamedValue<T1>("Input", new());
+            output = new NamedValue<T2>("Output", new());
             this.transformer = transformer;
         }
 
@@ -60,10 +60,14 @@ namespace DSP
             transformer(input.value, output.value);
         }
 
-        public override void ResetState()
+        public override void ResetState() { }
+
+        public override AudioNode Clone()
         {
+            return new TransformerNode<T1, T2>(transformer);
         }
     }
+
     public class CombinatorNode<T> : AudioNode where T : Value, new()
     {
         private List<NamedValue> namedInputs;
@@ -103,6 +107,11 @@ namespace DSP
 
         public override void ResetState()
         {
+        }
+
+        public override AudioNode Clone()
+        {
+            return new CombinatorNode<T>(inputVals.Length, outputVals.Length, combinator);
         }
     }
 }

@@ -1,3 +1,4 @@
+using ActionMenu;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -10,6 +11,7 @@ namespace PianoRoll
         [SerializeField] private Subdivision subdivisionPrefab;
         [SerializeField] private Note notePrefab;
         [SerializeField] private SpriteRenderer selector;
+        [SerializeField] private SceneReference trackEditorScene;
 
         private Vector2 zoom = new(1f, 0.33f);
         public Vector2 Zoom => zoom;
@@ -17,13 +19,6 @@ namespace PianoRoll
         private HashSet<Note> selectedNotes = new();
 
         private Dictionary<int, List<Note>> notes = new();
-        private List<TempoEvent> tempoEvents = new()
-        {
-            new(2, 2),
-            new(4, 1),
-            new(5, 4),
-            new(8, 2),
-        };
 
         private bool isDragging;
         private Dictionary<Note, Vector2> dragOffsets = new();
@@ -55,6 +50,27 @@ namespace PianoRoll
                 var subdivision = Instantiate(subdivisionPrefab, transform);
                 subdivision.Initialize(i);
             }
+
+            var main = Globals<Main>.Instance;
+            if (main.OpenTrack != -1 && main.OpenSong.HasValue)
+            {
+                Deserialize(main.OpenSong.Value.tracks[main.OpenTrack].serializedPianoRoll);
+            }
+
+            var actionBar = Globals<ActionBar>.Instance;
+            actionBar.SetActions(new()
+            {
+                new("File", new()
+                {
+                    new ActionType.Button("Back", OnPressBack)
+                })
+            });
+        }
+
+        private void OnPressBack()
+        {
+            SaveNotes();
+            SceneSystem.LoadScene(trackEditorScene);
         }
 
         private void Update()
@@ -78,10 +94,11 @@ namespace PianoRoll
 
             if (isPlaying)
             {
+                var main = Globals<Main>.Instance;
                 var timePlaying = Time.time - startPlayTime;
                 var playPosition = Globals<PlayPosition>.Instance;
                 var playTime = startPlayPlayTime + timePlaying;
-                var playBeat = TempoController.GetBeatFromTime(playTime, tempoEvents);
+                var playBeat = TempoController.GetBeatFromTime(playTime, main.OpenSong.Value.tempoEvents);
                 playPosition.SetPosition(playBeat);
 
                 return;
@@ -142,9 +159,18 @@ namespace PianoRoll
             return y % edo == 0;
         }
 
+        private void SaveNotes()
+        {
+            var main = Globals<Main>.Instance;
+            var track = main.OpenSong.Value.tracks[main.OpenTrack];
+            track.serializedPianoRoll = Serialize();
+            main.OpenSong.Value.tracks[main.OpenTrack] = track;
+        }
+
         public void StartPlaying()
         {
             if (isPlaying) return;
+            SaveNotes();
             isPlaying = true;
             var playPosition = Globals<PlayPosition>.Instance;
             startPlayPosition = playPosition.position;
@@ -161,7 +187,8 @@ namespace PianoRoll
         public float GetPlayStartTime()
         {
             var playPosition = Globals<PlayPosition>.Instance;
-            var startTime = TempoController.GetTimeFromBeat(playPosition.position, tempoEvents);
+            var main = Globals<Main>.Instance;
+            var startTime = TempoController.GetTimeFromBeat(playPosition.position, main.OpenSong.Value.tempoEvents);
             return startTime;
         }
 
@@ -471,7 +498,7 @@ namespace PianoRoll
 
         public SerializedPianoRoll Serialize()
         {
-            var serialized = new SerializedPianoRoll() { notes = new(), tempoEvents = tempoEvents.ToList() };
+            var serialized = new SerializedPianoRoll() { notes = new() };
             foreach (var row in notes)
             {
                 foreach (var note in row.Value)
@@ -499,14 +526,14 @@ namespace PianoRoll
     public struct SerializedPianoRoll
     {
         public List<SerializedNote> notes;
-        public List<TempoEvent> tempoEvents;
 
-        public readonly List<DSP.SequencerNote> GetNotes()
+        public readonly List<DSP.SequencerNote> GetNotes(List<TempoEvent> tempoEvents)
         {
             var noteEditor = Globals<NoteEditor>.Instance;
             var unsortedTempoNotes = notes.Select(note =>
             {
-                var pitch = 55 * Mathf.Pow(2, (float)note.y / noteEditor.Edo);
+                var pitch = 110 * Mathf.Pow(2, (float)note.y / noteEditor.Edo);
+                Debug.Log($"{note.y}, {pitch}");
                 return new TempoNote(note.x, note.length, pitch);
             }).ToList();
             var sequencerNotes = TempoController.ConvertNotes(unsortedTempoNotes, tempoEvents);

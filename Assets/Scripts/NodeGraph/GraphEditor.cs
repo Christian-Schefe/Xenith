@@ -36,22 +36,10 @@ namespace NodeGraph
 
         public Graph Graph => graph;
 
-        public Dictionary<NodeResource, System.Func<AudioNode>> GetBuiltinNodeTypes() => new()
-        {
-            { new NodeResource("Invalid", "invalid", true), () => new EmptyNode() },
-            { new NodeResource("Add", "add", true), () => Prelude.Add(2) },
-            { new NodeResource("Multiply", "multiply", true), () => Prelude.Multiply(2) },
-            { new NodeResource("Vibrato", "vibrato", true), () => Prelude.Vibrato(0.5f) },
-            { new NodeResource("ADSR", "adsr", true), () => new ADSR(0.1f, 0.1f, 0.1f, 0.1f) },
-            { new NodeResource("Oscillator", "oscillator", true), () => new Oscillator() },
-            { new NodeResource("Float", "const_float", true), () => new ConstFloatNode() },
-            { new NodeResource("Input", "input", true), () => new GraphEdgeNode(true) },
-            { new NodeResource("Output", "output", true), () => new GraphEdgeNode(false) },
-        };
 
         public List<NodeResource> GetPlaceableNodes()
         {
-            var builtIns = GetBuiltinNodeTypes();
+            var builtIns = graphDatabase.GetBuiltinNodeTypes();
             var allNodes = new List<NodeResource>();
             foreach (var kvp in builtIns)
             {
@@ -68,44 +56,7 @@ namespace NodeGraph
 
         public bool GetNodeFromTypeId(NodeResource typeId, out AudioNode audioNode)
         {
-            var set = new HashSet<NodeResource>
-            {
-                graph.id
-            };
-            return GetNodeFromTypeIdInternal(typeId, set, out audioNode);
-        }
-
-        public bool GetNodeFromTypeIdInternal(NodeResource typeId, HashSet<NodeResource> visited, out AudioNode audioNode)
-        {
-            audioNode = null;
-
-            if (typeId.builtIn)
-            {
-                var builtIns = GetBuiltinNodeTypes();
-                if (builtIns.TryGetValue(typeId, out var factory))
-                {
-                    audioNode = factory();
-                    return true;
-                }
-                return false;
-            }
-            else
-            {
-                if (visited.Contains(typeId))
-                {
-                    audioNode = null;
-                    return false;
-                }
-                visited.Add(typeId);
-                bool success = false;
-                if (graphDatabase.TryGetGraph(typeId, out var graph))
-                {
-                    success = graph.TryCreateAudioNode(this, visited, out audioNode);
-                }
-                visited.Remove(typeId);
-                return success;
-            }
-
+            return graphDatabase.GetNodeFromTypeId(typeId, graph.id, out audioNode);
         }
 
         public bool IsInteractable()

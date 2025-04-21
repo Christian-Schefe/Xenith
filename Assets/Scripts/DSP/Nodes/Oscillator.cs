@@ -56,7 +56,7 @@ namespace DSP
                 WaveformType.Sine => SineWave,
                 WaveformType.Square => SquareWave,
                 WaveformType.Sawtooth => SawtoothWave,
-                _ => throw new System.ArgumentOutOfRangeException(nameof(type), type, "Invalid Waveform Type")
+                _ => throw new System.ArgumentOutOfRangeException(nameof(type), type, "Invalid Waveform Variant")
             };
         }
 
@@ -73,6 +73,11 @@ namespace DSP
         public override void ResetState()
         {
             phase = initialPhase;
+        }
+
+        protected override SettingsNode CloneWithoutSettings()
+        {
+            return new Oscillator();
         }
     }
 }

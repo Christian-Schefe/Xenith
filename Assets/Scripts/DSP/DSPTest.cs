@@ -13,6 +13,7 @@ namespace DSP
             {
                 var noteEditor = Globals<PianoRoll.NoteEditor>.Instance;
                 var dsp = Globals<DSP>.Instance;
+                var main = Globals<Main>.Instance;
                 if (noteEditor.isPlaying)
                 {
                     noteEditor.StopPlaying();
@@ -20,13 +21,10 @@ namespace DSP
                     return;
                 }
                 noteEditor.StartPlaying();
-                var semitone = Mathf.Pow(2, 1f / 12f);
-
-                var notes = noteEditor.Serialize().GetNotes();
 
                 var startTime = noteEditor.GetPlayStartTime();
-
-                var node = new Sequencer(startTime, notes, SimpleInstrument);
+                var song = main.OpenSong.Value;
+                var node = song.BuildAudioNode(startTime);
 
                 dsp.Initialize(node);
             }
@@ -49,29 +47,6 @@ namespace DSP
 
                 return (state & 0xFFFFFF) / (float)(1 << 24);
             }
-        }
-
-        private AudioNode SimpleInstrument()
-        {
-            var node = new NodeGraph();
-
-            var freq = node.AddInput<FloatValue>("Frequency");
-            var gate = node.AddInput<BoolValue>("Gate");
-
-            var left = node.AddOutput<FloatValue>("left");
-            var right = node.AddOutput<FloatValue>("right");
-
-            var adsr = node.AddNode(new ADSR(0.1f, 1.0f, 0.5f, 0.1f));
-            var osc = node.AddNode(Oscillator.New(Oscillator.WaveformType.Square, random.NextFloat()));
-
-            node.AddConnection(new(gate, 0, adsr, 0));
-            node.AddConnection(new(freq, 0, osc, 0));
-            node.AddConnection(new(adsr, 0, osc, 1));
-
-            node.AddConnection(new(osc, 0, left, 0));
-            node.AddConnection(new(osc, 0, right, 0));
-
-            return node;
         }
     }
 }

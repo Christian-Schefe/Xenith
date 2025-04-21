@@ -247,14 +247,14 @@ namespace NodeGraph
         public List<SerializedGraphNode> nodes;
         public List<SerializedGraphConnection> connections;
 
-        public readonly bool TryCreateAudioNode(GraphEditor graphEditor, HashSet<NodeResource> visited, out AudioNode audioNode)
+        public readonly bool TryCreateAudioNode(GraphDatabase graphDatabase, HashSet<NodeResource> visited, out AudioNode audioNode)
         {
             var graph = new DSP.NodeGraph();
             audioNode = graph;
 
             foreach (var node in nodes)
             {
-                if (!graphEditor.GetNodeFromTypeIdInternal(node.id, visited, out var innerNode))
+                if (!graphDatabase.GetNodeFromTypeIdInternal(node.id, visited, out var innerNode))
                 {
                     return false;
                 }

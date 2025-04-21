@@ -3,11 +3,27 @@ using UnityEngine;
 
 namespace DSP
 {
-    public class ADSR : AudioNode
+    public class ADSR : SettingsNode
     {
-        private NamedValue<BoolValue> gate = new("Gate", new BoolValue());
-        private NamedValue<FloatValue> output = new("Output", new FloatValue());
-        private NamedValue<FloatValue> timeSinceGateVal = new("Time Since Gate", new FloatValue());
+        public static ADSR New(float attack, float decay, float sustain, float release)
+        {
+            var node = new ADSR();
+            node.attackSetting.value = attack;
+            node.decaySetting.value = decay;
+            node.sustainSetting.value = sustain;
+            node.releaseSetting.value = release;
+            node.OnSettingsChanged();
+            return node;
+        }
+
+        private readonly NamedValue<BoolValue> gate = new("Gate", new BoolValue());
+        private readonly NamedValue<FloatValue> output = new("Output", new FloatValue());
+        private readonly NamedValue<FloatValue> timeSinceGateVal = new("Time Since Gate", new FloatValue());
+
+        private readonly FloatSetting attackSetting = new("Attack", 0.1f);
+        private readonly FloatSetting decaySetting = new("Decay", 0.1f);
+        private readonly FloatSetting sustainSetting = new("Sustain", 0.5f);
+        private readonly FloatSetting releaseSetting = new("Release", 0.1f);
 
         private float attack;
         private float decay;
@@ -19,12 +35,19 @@ namespace DSP
         private float timeSinceGate = 0f;
         private float ampAtGate = 0f;
 
-        public ADSR(float attack, float decay, float sustain, float release)
+        public override NodeSettings DefaultSettings => new(attackSetting, decaySetting, sustainSetting, releaseSetting);
+
+        public override void OnSettingsChanged()
         {
-            this.attack = attack;
-            this.decay = decay;
-            this.sustain = sustain;
-            this.release = release;
+            attack = attackSetting.value;
+            decay = decaySetting.value;
+            sustain = sustainSetting.value;
+            release = releaseSetting.value;
+        }
+
+        protected override SettingsNode CloneWithoutSettings()
+        {
+            return new ADSR();
         }
 
         public override List<NamedValue> BuildInputs() => new() { gate };

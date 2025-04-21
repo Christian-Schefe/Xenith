@@ -15,15 +15,16 @@ namespace DSP
         private List<Connection>[] incomingConnections;
         private List<Connection>[] outgoingConnections;
 
-        public int AddInput<T>(string name) where T : Value, new() => AddEdgeNode<T>(name, true);
+        public int AddInput<T>(string name, int index) where T : Value, new() => AddEdgeNode<T>(name, index, true);
 
-        public int AddOutput<T>(string name) where T : Value, new() => AddEdgeNode<T>(name, false);
+        public int AddOutput<T>(string name, int index) where T : Value, new() => AddEdgeNode<T>(name, index, false);
 
-        public int AddEdgeNode<T>(string name, bool isInput) where T : Value, new()
+        public int AddEdgeNode<T>(string name, int index, bool isInput) where T : Value, new()
         {
             var node = new GraphEdgeNode(isInput);
             node.valueTypeSetting.value = (int)new T().Type;
             node.nameSetting.value = name;
+            node.indexSetting.value = index;
             node.OnSettingsChanged();
             return AddNode(node);
         }
@@ -45,26 +46,42 @@ namespace DSP
             connections.Add(connection);
         }
 
+        public List<NamedValue> BuildInputsOrOutputs(bool isInput)
+        {
+            var nodeList = isInput ? inputNodes : outputNodes;
+
+            var numDict = new Dictionary<int, IGraphEdgeNode>();
+            foreach (var edgeNodeIndex in nodeList)
+            {
+                var edgeNode = (IGraphEdgeNode)nodes[edgeNodeIndex];
+                var edgeIndex = edgeNode.Index;
+                if (numDict.ContainsKey(edgeIndex))
+                {
+                    throw new System.Exception($"Duplicate {(isInput ? "Input" : "Output")} index {edgeIndex} found in node graph.");
+                }
+                if (edgeIndex >= nodeList.Count || edgeIndex < 0)
+                {
+                    throw new System.Exception($"Invalid {(isInput ? "Input" : "Output")} index {edgeIndex} found in node graph.");
+                }
+                numDict.Add(edgeIndex, edgeNode);
+            }
+            var values = new List<NamedValue>();
+            for (int i = 0; i < nodeList.Count; i++)
+            {
+                var edgeNode = numDict[i];
+                values.Add(edgeNode.GetValue);
+            }
+            return values;
+        }
+
         public override List<NamedValue> BuildInputs()
         {
-            var inputs = new List<NamedValue>();
-            foreach (var i in inputNodes)
-            {
-                var inputNode = (IGraphEdgeNode)nodes[i];
-                inputs.Add(inputNode.GetValue);
-            }
-            return inputs;
+            return BuildInputsOrOutputs(true);
         }
 
         public override List<NamedValue> BuildOutputs()
         {
-            var outputs = new List<NamedValue>();
-            foreach (var node in outputNodes)
-            {
-                var outputNode = (IGraphEdgeNode)nodes[node];
-                outputs.Add(outputNode.GetValue);
-            }
-            return outputs;
+            return BuildInputsOrOutputs(false);
         }
 
         private void BuildConnectionMap()
@@ -205,6 +222,20 @@ namespace DSP
                 node.ResetState();
             }
         }
+
+        public override AudioNode Clone()
+        {
+            var clone = new NodeGraph();
+            foreach (var node in nodes)
+            {
+                clone.AddNode(node.Clone());
+            }
+            foreach (var connection in connections)
+            {
+                clone.AddConnection(new Connection(connection.fromNode, connection.fromOutput, connection.toNode, connection.toInput));
+            }
+            return clone;
+        }
     }
 
     public class Connection
@@ -227,21 +258,24 @@ namespace DSP
     {
         public NamedValue GetValue { get; }
         public bool IsInput { get; }
+        public int Index { get; }
     }
 
     public class GraphEdgeNode : SettingsNode, IGraphEdgeNode
     {
         public NamedValue GetValue => value;
         public bool IsInput => isInput;
+        public int Index => indexSetting.value;
 
         private NamedValue value;
 
         private readonly bool isInput;
 
-        public readonly EnumSetting<ValueType> valueTypeSetting = new("Value Type", ValueType.Float);
+        public readonly EnumSetting<ValueType> valueTypeSetting = new("Value Variant", ValueType.Float);
         public readonly StringSetting nameSetting = new("Name", "Value");
+        public readonly IntSetting indexSetting = new("Index", 0);
 
-        public override NodeSettings DefaultSettings => new(nameSetting, valueTypeSetting);
+        public override NodeSettings DefaultSettings => new(nameSetting, valueTypeSetting, indexSetting);
 
         public GraphEdgeNode(bool isInput)
         {
@@ -263,5 +297,9 @@ namespace DSP
 
         public override void ResetState() { }
 
+        protected override SettingsNode CloneWithoutSettings()
+        {
+            return new GraphEdgeNode(isInput);
+        }
     }
 }

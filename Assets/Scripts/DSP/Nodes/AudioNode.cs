@@ -20,6 +20,7 @@ namespace DSP
 
         public abstract void Process(Context context);
         public abstract void ResetState();
+        public abstract AudioNode Clone();
     }
 
     public class EmptyNode : AudioNode
@@ -31,6 +32,7 @@ namespace DSP
         public override void Process(Context context) { }
 
         public override void ResetState() { }
+        public override AudioNode Clone() => new EmptyNode();
     }
 
     public abstract class SettingsNode : AudioNode
@@ -58,5 +60,13 @@ namespace DSP
         }
 
         public abstract void OnSettingsChanged();
+        protected abstract SettingsNode CloneWithoutSettings();
+        public override AudioNode Clone()
+        {
+            var clone = CloneWithoutSettings();
+            settings.CloneInto(clone.settings);
+            clone.OnSettingsChanged();
+            return clone;
+        }
     }
 }
