@@ -1,21 +1,22 @@
 using ActionMenu;
 using DSP;
-using Mono.Cecil.Cil;
 using Persistence;
 using PianoRoll;
 using System.Collections.Generic;
-using Unity.VisualScripting;
 using UnityEngine;
 using Yeast;
 
 public class TrackEditor : MonoBehaviour
 {
     [SerializeField] private RectTransform trackContainer;
-    [SerializeField] private SceneReference pianoRollScene;
 
     [SerializeField] private Track trackPrefab;
 
+    [System.NonSerialized] public List<TempoEvent> tempoEvents = new() { new(0, 2), new(8, 3) };
+
     private readonly List<Track> tracks = new();
+
+    private string songPath;
 
     private void Start()
     {
@@ -32,19 +33,11 @@ public class TrackEditor : MonoBehaviour
                 new ActionType.Button("New", AddTrack),
             }),
         });
-
-        var main = Globals<Main>.Instance;
-        if (main.OpenSong != null)
-        {
-            Deserialize(main.OpenSong.Value);
-            main.OpenSong = null;
-        }
     }
 
     private void Update()
     {
-        var main = Globals<Main>.Instance;
-        var songName = main.SongPath != null ? System.IO.Path.GetFileNameWithoutExtension(main.SongPath) : "Untitled";
+        var songName = songPath != null ? System.IO.Path.GetFileNameWithoutExtension(songPath) : "Untitled";
         var actionBar = Globals<ActionBar>.Instance;
         actionBar.SetTitle(songName);
     }
@@ -62,7 +55,6 @@ public class TrackEditor : MonoBehaviour
     {
         SaveSong(false, () =>
         {
-            var main = Globals<Main>.Instance;
             var fileBrowser = Globals<FileBrowser>.Instance;
             fileBrowser.Open(path =>
             {
@@ -72,7 +64,7 @@ public class TrackEditor : MonoBehaviour
                     {
                         Close();
                         Debug.Log($"Loaded song from {path}");
-                        main.SongPath = path;
+                        songPath = path;
                         Deserialize(serializedSong);
                     }
                     else
@@ -90,10 +82,9 @@ public class TrackEditor : MonoBehaviour
 
     private void SaveSong(bool alwaysAsk, System.Action onFinishSave)
     {
-        var main = Globals<Main>.Instance;
-        if (main.SongPath != null && !alwaysAsk)
+        if (songPath != null && !alwaysAsk)
         {
-            FilePersistence.SaveFullPath(main.SongPath, Serialize().ToJson());
+            FilePersistence.SaveFullPath(songPath, Serialize().ToJson());
             onFinishSave?.Invoke();
         }
         else if (tracks.Count == 0 && !alwaysAsk)
@@ -105,8 +96,8 @@ public class TrackEditor : MonoBehaviour
             var fileBrowser = Globals<FileBrowser>.Instance;
             fileBrowser.Save(path =>
             {
-                main.SongPath = path;
-                FilePersistence.SaveFullPath(main.SongPath, Serialize().ToJson());
+                songPath = path;
+                FilePersistence.SaveFullPath(songPath, Serialize().ToJson());
                 onFinishSave?.Invoke();
             }, () =>
             {
@@ -122,8 +113,7 @@ public class TrackEditor : MonoBehaviour
             Destroy(track.gameObject);
         }
         tracks.Clear();
-        var main = Globals<Main>.Instance;
-        main.SongPath = null;
+        songPath = null;
     }
 
     private void AddTrack()
@@ -133,20 +123,14 @@ public class TrackEditor : MonoBehaviour
         tracks.Add(track);
     }
 
-    public void OpenTrack(int trackIndex)
-    {
-        var main = Globals<Main>.Instance;
-        main.OpenSong = Serialize();
-        main.OpenTrack = trackIndex;
-        SceneSystem.LoadScene(pianoRollScene);
-    }
+    public Track GetTrack(int index) => tracks[index];
 
     public SerializedSong Serialize()
     {
         return new SerializedSong()
         {
             tracks = tracks.ConvertAll(track => track.Serialize()),
-            tempoEvents = new List<TempoEvent>() { new(0, 2), new(8, 3) }
+            tempoEvents = tempoEvents
         };
     }
 

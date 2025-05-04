@@ -19,10 +19,13 @@ namespace PianoRoll
             var bar = timeBar.GetBarByIndex(index);
             text.text = bar.ToString();
             var noteEditor = Globals<NoteEditor>.Instance;
-            var cam = Globals<CameraController>.Instance.Cam;
-            var camTop = cam.transform.position.y + cam.orthographicSize;
-            var piano = noteEditor.WorldToPianoCoords(new(bar * 4, 0)).x;
-            transform.position = new Vector2(piano, camTop) + new Vector2(0.5f, -0.5f);
+            var rect = noteEditor.ViewRectScreen();
+            var topLeftPiano = noteEditor.ScreenToPianoCoords(new(rect.xMin, rect.yMax));
+
+            var worldPos = noteEditor.PianoToWorldCoords(new(bar * 4, topLeftPiano.y));
+
+
+            transform.position = worldPos + new Vector2(0.5f, -0.5f);
         }
     }
 }

@@ -1,4 +1,3 @@
-using ActionMenu;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -7,11 +6,11 @@ namespace PianoRoll
 {
     public class NoteEditor : MonoBehaviour
     {
+        [SerializeField] private RectTransform viewFrame;
         [SerializeField] private NoteRow rowPrefab;
         [SerializeField] private Subdivision subdivisionPrefab;
         [SerializeField] private Note notePrefab;
         [SerializeField] private SpriteRenderer selector;
-        [SerializeField] private SceneReference trackEditorScene;
 
         private Vector2 zoom = new(1f, 0.33f);
         public Vector2 Zoom => zoom;
@@ -38,6 +37,8 @@ namespace PianoRoll
         private int edo = 12;
         public int Edo => edo;
 
+        private int activeTrackIndex;
+
         private void Start()
         {
             for (int i = 0; i < 100; i++)
@@ -50,27 +51,6 @@ namespace PianoRoll
                 var subdivision = Instantiate(subdivisionPrefab, transform);
                 subdivision.Initialize(i);
             }
-
-            var main = Globals<Main>.Instance;
-            if (main.OpenTrack != -1 && main.OpenSong.HasValue)
-            {
-                Deserialize(main.OpenSong.Value.tracks[main.OpenTrack].serializedPianoRoll);
-            }
-
-            var actionBar = Globals<ActionBar>.Instance;
-            actionBar.SetActions(new()
-            {
-                new("File", new()
-                {
-                    new ActionType.Button("Back", OnPressBack)
-                })
-            });
-        }
-
-        private void OnPressBack()
-        {
-            SaveNotes();
-            SceneSystem.LoadScene(trackEditorScene);
         }
 
         private void Update()
@@ -94,11 +74,11 @@ namespace PianoRoll
 
             if (isPlaying)
             {
-                var main = Globals<Main>.Instance;
+                var trackEditor = Globals<TrackEditor>.Instance;
                 var timePlaying = Time.time - startPlayTime;
                 var playPosition = Globals<PlayPosition>.Instance;
                 var playTime = startPlayPlayTime + timePlaying;
-                var playBeat = TempoController.GetBeatFromTime(playTime, main.OpenSong.Value.tempoEvents);
+                var playBeat = TempoController.GetBeatFromTime(playTime, trackEditor.tempoEvents);
                 playPosition.SetPosition(playBeat);
 
                 return;
@@ -145,6 +125,16 @@ namespace PianoRoll
             }
         }
 
+        public void SetActiveTrack(int newActiveTrack)
+        {
+            SaveNotesToTrack();
+            ClearAll();
+            activeTrackIndex = newActiveTrack;
+            var trackEditor = Globals<TrackEditor>.Instance;
+            var track = trackEditor.GetTrack(activeTrackIndex);
+            Deserialize(track.PianoRoll);
+        }
+
         private void MoveSelectedNotes(int deltaY)
         {
             foreach (var note in selectedNotes)
@@ -159,19 +149,11 @@ namespace PianoRoll
             return y % edo == 0;
         }
 
-        private void SaveNotes()
-        {
-            var main = Globals<Main>.Instance;
-            var track = main.OpenSong.Value.tracks[main.OpenTrack];
-            track.serializedPianoRoll = Serialize();
-            main.OpenSong.Value.tracks[main.OpenTrack] = track;
-        }
-
         public void StartPlaying()
         {
             if (isPlaying) return;
-            SaveNotes();
             isPlaying = true;
+            SaveNotesToTrack();
             var playPosition = Globals<PlayPosition>.Instance;
             startPlayPosition = playPosition.position;
             startPlayTime = Time.time;
@@ -186,9 +168,9 @@ namespace PianoRoll
 
         public float GetPlayStartTime()
         {
+            var trackEditor = Globals<TrackEditor>.Instance;
             var playPosition = Globals<PlayPosition>.Instance;
-            var main = Globals<Main>.Instance;
-            var startTime = TempoController.GetTimeFromBeat(playPosition.position, main.OpenSong.Value.tempoEvents);
+            var startTime = TempoController.GetTimeFromBeat(playPosition.position, trackEditor.tempoEvents);
             return startTime;
         }
 
@@ -234,6 +216,12 @@ namespace PianoRoll
 
         private void HandleMouseDown(Vector2 mousePiano)
         {
+            var viewRectScreen = ViewRectScreen();
+            if (!viewRectScreen.Contains(Input.mousePosition))
+            {
+                return;
+            }
+
             bool isShift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             if (!isShift && IsHoveringPlayPosition(mousePiano))
             {
@@ -264,10 +252,10 @@ namespace PianoRoll
         {
             var playPosition = Globals<PlayPosition>.Instance;
             var xDist = Mathf.Abs(mousePiano.x - playPosition.position);
-            var camWorldY = CamWorldRect().yMax;
+            var camWorldY = ViewRectWorld().yMax;
             var mouseWorldY = PianoToWorldCoords(mousePiano).y;
-            var yDist = Mathf.Abs(mouseWorldY - camWorldY);
-            return xDist < 0.2f || yDist < 1f;
+            var yDist = camWorldY - mouseWorldY;
+            return xDist < 0.2f || (yDist < 1f && yDist >= 0);
         }
 
         public Rect CamPianoRect()
@@ -279,12 +267,12 @@ namespace PianoRoll
             return new Rect(camBottomLeft, camTopRight - camBottomLeft);
         }
 
-        public Rect CamWorldRect()
+        public Rect ViewRectWorld()
         {
-            var cam = Globals<CameraController>.Instance.Cam;
-            var camHalfSize = new Vector2(cam.orthographicSize * cam.aspect, cam.orthographicSize);
-            var camBottomLeft = (Vector2)cam.transform.position - camHalfSize;
-            return new Rect(camBottomLeft, camHalfSize * 2);
+            var screenRect = ViewRectScreen();
+            var minWorld = PianoToWorldCoords(ScreenToPianoCoords(screenRect.min));
+            var maxWorld = PianoToWorldCoords(ScreenToPianoCoords(screenRect.max));
+            return Rect.MinMaxRect(minWorld.x, minWorld.y, maxWorld.x, maxWorld.y);
         }
 
         private void DoDrag(Vector2 mousePiano)
@@ -481,6 +469,22 @@ namespace PianoRoll
             return WorldToPianoCoords(world);
         }
 
+        public Rect ViewRectScreen()
+        {
+            Vector3[] corners = new Vector3[4];
+            viewFrame.GetWorldCorners(corners);
+
+            // Calculate the screen space rectangle
+            float minX = Mathf.Min(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
+            float minY = Mathf.Min(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
+            float width = Mathf.Max(corners[0].x, corners[1].x, corners[2].x, corners[3].x) - minX;
+            float height = Mathf.Max(corners[0].y, corners[1].y, corners[2].y, corners[3].y) - minY;
+
+            // Display the screen space rectangle
+            Rect screenRect = new(minX, minY, width, height);
+            return screenRect;
+        }
+
         public Vector2 WorldToPianoCoords(Vector2 world)
         {
             return world / Zoom;
@@ -494,6 +498,32 @@ namespace PianoRoll
         public int GetBar(Vector2 piano)
         {
             return Mathf.FloorToInt(piano.x / 4f);
+        }
+
+        public void SaveNotesToTrack()
+        {
+            var trackEditor = Globals<TrackEditor>.Instance;
+            trackEditor.GetTrack(activeTrackIndex).PianoRoll = Serialize();
+        }
+
+        public void ClearAll()
+        {
+            foreach (var row in notes)
+            {
+                foreach (var note in row.Value)
+                {
+                    Destroy(note.gameObject);
+                }
+            }
+            notes.Clear();
+            selectedNotes.Clear();
+            isDragging = false;
+            isSelecting = false;
+            isDraggingPlayPosition = false;
+            selector.gameObject.SetActive(false);
+            dragOffsets.Clear();
+            primaryDragNote = null;
+            isDraggingLengths = false;
         }
 
         public SerializedPianoRoll Serialize()

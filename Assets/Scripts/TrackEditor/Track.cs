@@ -13,7 +13,6 @@ public class Track : MonoBehaviour
     [SerializeField] private Button soloButton;
     [SerializeField] private Button setInstrumentButton;
     [SerializeField] private TMPro.TextMeshProUGUI instrumentNameText;
-    [SerializeField] private TrackBody body;
 
     private int trackIndex;
     private string trackName;
@@ -24,6 +23,7 @@ public class Track : MonoBehaviour
     private float pan;
 
     private SerializedPianoRoll serializedPianoRoll;
+    public SerializedPianoRoll PianoRoll { get => serializedPianoRoll; set => serializedPianoRoll = value; }
 
     public void Initialize(int trackIndex)
     {
@@ -38,7 +38,6 @@ public class Track : MonoBehaviour
         {
             notes = new(),
         };
-        body.Initialize(OnClickBody);
         UpdateUI();
     }
 
@@ -54,12 +53,6 @@ public class Track : MonoBehaviour
         muteButton.onClick.RemoveListener(OnMuteButtonClick);
         soloButton.onClick.RemoveListener(OnSoloButtonClick);
         setInstrumentButton.onClick.RemoveListener(OnSetInstrumentButtonClick);
-    }
-
-    private void OnClickBody()
-    {
-        var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.OpenTrack(trackIndex);
     }
 
     private void OnMuteButtonClick()
@@ -78,7 +71,9 @@ public class Track : MonoBehaviour
 
     private void OnSetInstrumentButtonClick()
     {
-
+        Debug.Log("Set Instrument Button Clicked");
+        var noteEditor = Globals<NoteEditor>.Instance;
+        noteEditor.SetActiveTrack(trackIndex);
     }
 
     private void UpdateUI()

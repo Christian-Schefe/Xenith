@@ -17,7 +17,6 @@ namespace PianoRoll
                 mouseDownPos = cam.ScreenToWorldPoint(Input.mousePosition);
             }
             var pos = cam.transform.position;
-            var size = cam.orthographicSize;
             if (Input.GetMouseButton(1))
             {
                 Vector2 mousePos = cam.ScreenToWorldPoint(Input.mousePosition);
@@ -26,8 +25,13 @@ namespace PianoRoll
                 pos -= (Vector3)delta;
             }
 
-            pos.x = Mathf.Max(pos.x, size * cam.aspect);
-            pos.y = Mathf.Max(pos.y, size);
+            var noteEditor = Globals<NoteEditor>.Instance;
+            var rect = noteEditor.ViewRectScreen();
+            var bottomLeftWorld = noteEditor.PianoToWorldCoords(noteEditor.ScreenToPianoCoords(rect.min));
+            var offset = (Vector2)cam.transform.position - bottomLeftWorld;
+
+            pos.x = Mathf.Max(pos.x, offset.x);
+            pos.y = Mathf.Max(pos.y, offset.y);
             cam.transform.position = pos;
         }
     }

@@ -12,10 +12,9 @@ namespace PianoRoll
         public int GetBarByIndex(int index)
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            var cam = Globals<CameraController>.Instance.Cam;
 
-            var camTopLeft = (Vector2)cam.transform.position + new Vector2(-cam.orthographicSize * cam.aspect, cam.orthographicSize);
-            var topLeftPiano = noteEditor.WorldToPianoCoords(camTopLeft);
+            var rect = noteEditor.ViewRectScreen();
+            var topLeftPiano = noteEditor.ScreenToPianoCoords(new(rect.xMin, rect.yMax));
             var firstBar = noteEditor.GetBar(topLeftPiano);
             return firstBar + index;
         }
@@ -23,12 +22,10 @@ namespace PianoRoll
         private void Update()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            var cam = Globals<CameraController>.Instance.Cam;
 
-            var camTopLeft = (Vector2)cam.transform.position + new Vector2(-cam.orthographicSize * cam.aspect, cam.orthographicSize);
-            var camTopRight = (Vector2)cam.transform.position + new Vector2(cam.orthographicSize * cam.aspect, cam.orthographicSize);
-            var topLeftPiano = noteEditor.WorldToPianoCoords(camTopLeft);
-            var topRightPiano = noteEditor.WorldToPianoCoords(camTopRight);
+            var rect = noteEditor.ViewRectScreen();
+            var topLeftPiano = noteEditor.ScreenToPianoCoords(new(rect.xMin, rect.yMax));
+            var topRightPiano = noteEditor.ScreenToPianoCoords(rect.max);
             var firstBar = noteEditor.GetBar(topLeftPiano);
             var lastBar = noteEditor.GetBar(topRightPiano) + 1;
             var barCount = lastBar - firstBar + 1;
@@ -54,11 +51,15 @@ namespace PianoRoll
 
         private void LateUpdate()
         {
-            var cam = Globals<CameraController>.Instance.Cam;
+            var noteEditor = Globals<NoteEditor>.Instance;
+            var rect = noteEditor.ViewRectScreen();
+            var topLeftWorld = noteEditor.PianoToWorldCoords(noteEditor.ScreenToPianoCoords(new(rect.xMin, rect.yMax)));
+            var topRightWorld = noteEditor.PianoToWorldCoords(noteEditor.ScreenToPianoCoords(rect.max));
+            var topWorld = (topLeftWorld + topRightWorld) / 2f;
+            var width = topRightWorld.x - topLeftWorld.x;
 
-            var camTop = (Vector2)cam.transform.position + cam.orthographicSize * Vector2.up;
-            transform.position = camTop + Vector2.down * 0.5f;
-            transform.localScale = new(cam.orthographicSize * cam.aspect * 2, 1, 1);
+            transform.position = topWorld + Vector2.down * 0.5f;
+            transform.localScale = new(width, 1, 1);
         }
     }
 }
