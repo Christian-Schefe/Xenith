@@ -5,61 +5,99 @@ namespace PianoRoll
 {
     public class TimeBar : MonoBehaviour
     {
+        [SerializeField] private Transform parent;
+
+        [SerializeField] private RectTransform leftBar;
+        [SerializeField] private RectTransform topBar;
+        [SerializeField] private PianoKey pianoKeyPrefab;
         [SerializeField] private TimeBarBar barPrefab;
 
+        [SerializeField] private Subdivision subdivisionPrefab;
+        [SerializeField] private NoteRow rowPrefab;
+
         private List<TimeBarBar> bars = new();
+        private List<Subdivision> subdivisions = new();
+        private List<NoteRow> rows = new();
+        private List<PianoKey> pianoKeys = new();
 
         public int GetBarByIndex(int index)
         {
             var noteEditor = Globals<NoteEditor>.Instance;
 
-            var rect = noteEditor.ViewRectScreen();
-            var topLeftPiano = noteEditor.ScreenToPianoCoords(new(rect.xMin, rect.yMax));
-            var firstBar = noteEditor.GetBar(topLeftPiano);
+            var rect = noteEditor.ViewRectPiano();
+            var firstBar = noteEditor.GetBar(rect.min);
             return firstBar + index;
+        }
+
+        public int GetSubdivisionByIndex(int index)
+        {
+            return GetBarByIndex(index / 4) * 4 + index % 4;
+        }
+
+        public int GetRowByOffset(int index)
+        {
+            var noteEditor = Globals<NoteEditor>.Instance;
+
+            var rect = noteEditor.ViewRectPiano();
+            var firstRow = noteEditor.GetRow(rect.min);
+            return firstRow + index;
         }
 
         private void Update()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
 
-            var rect = noteEditor.ViewRectScreen();
-            var topLeftPiano = noteEditor.ScreenToPianoCoords(new(rect.xMin, rect.yMax));
-            var topRightPiano = noteEditor.ScreenToPianoCoords(rect.max);
-            var firstBar = noteEditor.GetBar(topLeftPiano);
-            var lastBar = noteEditor.GetBar(topRightPiano) + 1;
+            var rect = noteEditor.ViewRectPiano();
+            var firstBar = noteEditor.GetBar(rect.min);
+            var lastBar = noteEditor.GetBar(rect.max) + 1;
             var barCount = lastBar - firstBar + 1;
+            var subdivisionCount = barCount * 4;
 
-            if (bars.Count < barCount)
+            var firstRow = noteEditor.GetRow(rect.min);
+            var lastRow = noteEditor.GetRow(rect.max) + 1;
+            var rowCount = lastRow - firstRow + 1;
+
+            AdjustCount(barPrefab, bars, barCount, (bar, i) =>
             {
-                for (var i = bars.Count; i < barCount; i++)
-                {
-                    var bar = Instantiate(barPrefab);
-                    bar.Initialize(i);
-                    bars.Add(bar);
-                }
-            }
-            else if (bars.Count > barCount)
+                bar.Initialize(i);
+            }, parent: topBar.transform);
+
+            AdjustCount(subdivisionPrefab, subdivisions, subdivisionCount, (subdivision, i) =>
             {
-                for (var i = bars.Count - 1; i >= barCount; i--)
-                {
-                    Destroy(bars[i].gameObject);
-                    bars.RemoveAt(i);
-                }
-            }
+                subdivision.Initialize(i);
+            });
+
+            AdjustCount(rowPrefab, rows, rowCount, (row, i) =>
+            {
+                row.Initialize(i);
+            });
+
+            AdjustCount(pianoKeyPrefab, pianoKeys, rowCount, (pianoKey, i) =>
+            {
+                pianoKey.Initialize(i);
+            }, parent: leftBar.transform);
         }
 
-        private void LateUpdate()
+        private void AdjustCount<T>(T prefab, List<T> list, int count, System.Action<T, int> onInstantiate, Transform parent = null) where T : MonoBehaviour
         {
-            var noteEditor = Globals<NoteEditor>.Instance;
-            var rect = noteEditor.ViewRectScreen();
-            var topLeftWorld = noteEditor.PianoToWorldCoords(noteEditor.ScreenToPianoCoords(new(rect.xMin, rect.yMax)));
-            var topRightWorld = noteEditor.PianoToWorldCoords(noteEditor.ScreenToPianoCoords(rect.max));
-            var topWorld = (topLeftWorld + topRightWorld) / 2f;
-            var width = topRightWorld.x - topLeftWorld.x;
-
-            transform.position = topWorld + Vector2.down * 0.5f;
-            transform.localScale = new(width, 1, 1);
+            if (list.Count < count)
+            {
+                for (var i = list.Count; i < count; i++)
+                {
+                    var p = parent != null ? parent : this.parent;
+                    var instance = Instantiate(prefab, p);
+                    onInstantiate(instance, i);
+                    list.Add(instance);
+                }
+            }
+            else if (list.Count > count)
+            {
+                for (var i = list.Count - 1; i >= count; i--)
+                {
+                    Destroy(list[i].gameObject);
+                    list.RemoveAt(i);
+                }
+            }
         }
     }
 }

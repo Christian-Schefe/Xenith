@@ -38,11 +38,6 @@ namespace NodeGraph
         public bool TryGetGraph(NodeResource id, out SerializedGraph graph)
         {
             var dict = graphs.Value;
-            Debug.Log($"Key: {id}, contains: {dict.ContainsKey(id)}");
-            foreach (var pair in dict)
-            {
-                Debug.Log($"Key: {pair.Key}");
-            }
             return dict.TryGetValue(id, out graph);
         }
 

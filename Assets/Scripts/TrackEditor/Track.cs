@@ -2,6 +2,7 @@ using DSP;
 using NodeGraph;
 using PianoRoll;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -12,6 +13,7 @@ public class Track : MonoBehaviour
     [SerializeField] private Button muteButton;
     [SerializeField] private Button soloButton;
     [SerializeField] private Button setInstrumentButton;
+    [SerializeField] private Button openButton;
     [SerializeField] private TMPro.TextMeshProUGUI instrumentNameText;
 
     private int trackIndex;
@@ -46,6 +48,7 @@ public class Track : MonoBehaviour
         muteButton.onClick.AddListener(OnMuteButtonClick);
         soloButton.onClick.AddListener(OnSoloButtonClick);
         setInstrumentButton.onClick.AddListener(OnSetInstrumentButtonClick);
+        openButton.onClick.AddListener(OnOpenClick);
     }
 
     private void OnDisable()
@@ -53,6 +56,7 @@ public class Track : MonoBehaviour
         muteButton.onClick.RemoveListener(OnMuteButtonClick);
         soloButton.onClick.RemoveListener(OnSoloButtonClick);
         setInstrumentButton.onClick.RemoveListener(OnSetInstrumentButtonClick);
+        openButton.onClick.RemoveListener(OnOpenClick);
     }
 
     private void OnMuteButtonClick()
@@ -69,11 +73,20 @@ public class Track : MonoBehaviour
         }
     }
 
-    private void OnSetInstrumentButtonClick()
+    private void OnOpenClick()
     {
-        Debug.Log("Set Instrument Button Clicked");
         var noteEditor = Globals<NoteEditor>.Instance;
         noteEditor.SetActiveTrack(trackIndex);
+    }
+
+    private void OnSetInstrumentButtonClick()
+    {
+        var database = Globals<GraphDatabase>.Instance;
+        var graphs = database.GetGraphs().ToList();
+        var index = graphs.FindIndex(g => g.id == instrument);
+        index = (index + 1) % graphs.Count;
+        instrument = graphs[index].id;
+        UpdateUI();
     }
 
     private void UpdateUI()

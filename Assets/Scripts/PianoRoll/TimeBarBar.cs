@@ -4,7 +4,8 @@ namespace PianoRoll
 {
     public class TimeBarBar : MonoBehaviour
     {
-        [SerializeField] private TMPro.TextMeshPro text;
+        [SerializeField] private RectTransform rectTransform;
+        [SerializeField] private TMPro.TextMeshProUGUI text;
         private int index;
 
         public void Initialize(int index)
@@ -15,17 +16,17 @@ namespace PianoRoll
 
         private void LateUpdate()
         {
+            var noteEditor = Globals<NoteEditor>.Instance;
             var timeBar = Globals<TimeBar>.Instance;
             var bar = timeBar.GetBarByIndex(index);
             text.text = bar.ToString();
-            var noteEditor = Globals<NoteEditor>.Instance;
-            var rect = noteEditor.ViewRectScreen();
-            var topLeftPiano = noteEditor.ScreenToPianoCoords(new(rect.xMin, rect.yMax));
-
-            var worldPos = noteEditor.PianoToWorldCoords(new(bar * 4, topLeftPiano.y));
-
-
-            transform.position = worldPos + new Vector2(0.5f, -0.5f);
+            var screenPos = noteEditor.PianoToScreenCoords(new(bar * 4, 0));
+            var rightScreenPos = noteEditor.PianoToScreenCoords(new(bar * 4 + 4, 0));
+            var canvasPos = noteEditor.ScreenToCanvasCoords(screenPos);
+            var rightCanvasPos = noteEditor.ScreenToCanvasCoords(rightScreenPos);
+            var width = rightCanvasPos.x - canvasPos.x;
+            rectTransform.position = new((screenPos.x + rightScreenPos.x) * 0.5f, rectTransform.position.y);
+            rectTransform.sizeDelta = new(width, rectTransform.sizeDelta.y);
         }
     }
 }

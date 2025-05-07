@@ -6,21 +6,26 @@ namespace PianoRoll
     public class Subdivision : MonoBehaviour
     {
         [SerializeField] private SpriteRenderer sprite;
+        [SerializeField] private Color normalColor, specialColor;
 
-        private int index;
+        private int indexOffset;
 
-        public void Initialize(int index)
+        public void Initialize(int indexOffset)
         {
-            this.index = index;
-            sprite.color = (index + 1) % 4 == 0 ? new Color(0.7f, 0.7f, 0.7f) : new Color(0.4f, 0.4f, 0.4f);
-            Update();
+            this.indexOffset = indexOffset;
+            LateUpdate();
         }
 
-        private void Update()
+        private void LateUpdate()
         {
+            var timeBar = Globals<TimeBar>.Instance;
             var noteEditor = Globals<NoteEditor>.Instance;
-            transform.localScale = new Vector3(1, 100, 1) * noteEditor.Zoom;
-            transform.position = new Vector3(index + 1, 50, 0) * noteEditor.Zoom;
+            var index = timeBar.GetSubdivisionByIndex(indexOffset);
+            sprite.color = index % 4 == 0 ? specialColor : normalColor;
+            var viewWorldRect = noteEditor.ViewRectWorld();
+            var worldPos = noteEditor.PianoToWorldCoords(new(index, 0));
+            transform.localScale = new Vector3(1, viewWorldRect.height, 1);
+            transform.position = new(worldPos.x, viewWorldRect.center.y, 0);
         }
     }
 }

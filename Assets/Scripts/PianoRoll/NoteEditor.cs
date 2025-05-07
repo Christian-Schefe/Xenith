@@ -6,9 +6,8 @@ namespace PianoRoll
 {
     public class NoteEditor : MonoBehaviour
     {
+        [SerializeField] private RectTransform canvasRT;
         [SerializeField] private RectTransform viewFrame;
-        [SerializeField] private NoteRow rowPrefab;
-        [SerializeField] private Subdivision subdivisionPrefab;
         [SerializeField] private Note notePrefab;
         [SerializeField] private SpriteRenderer selector;
 
@@ -34,22 +33,55 @@ namespace PianoRoll
         private float startPlayPlayTime;
         private float startPlayTime;
 
-        private int edo = 12;
-        public int Edo => edo;
+        private int activeTrackIndex = -1;
 
-        private int activeTrackIndex;
+        private MusicKey musicKey = MusicKey.CMajor;
+        public MusicKey Key => musicKey;
+
+        public List<int> stepsList;
+        private Dictionary<int, int> pianoStepsMap;
+
+        private float lastSelectedLength = 1f;
 
         private void Start()
         {
-            for (int i = 0; i < 100; i++)
+            BuildStepsList();
+        }
+
+        private void BuildStepsList()
+        {
+            stepsList = new List<int>();
+            int octaves = 12;
+
+            for (int i = 0; i < octaves; i++)
             {
-                NoteRow row = Instantiate(rowPrefab, transform);
-                row.Initialize(i);
+                int stepOffset = i * musicKey.edo;
+                for (int j = 0; j < musicKey.pitches.Count; j++)
+                {
+                    int steps = musicKey.pitches[j] + stepOffset;
+                    stepsList.Add(steps);
+                }
             }
-            for (int i = 0; i < 100; i++)
+
+            var accidentalRows = new List<int>();
+            foreach (var row in notes)
             {
-                var subdivision = Instantiate(subdivisionPrefab, transform);
-                subdivision.Initialize(i);
+                if (!stepsList.Contains(row.Key) && row.Value.Count > 0)
+                {
+                    accidentalRows.Add(row.Key);
+                }
+            }
+
+            foreach (var accidental in accidentalRows)
+            {
+                stepsList.Add(accidental);
+            }
+            stepsList.Sort();
+
+            pianoStepsMap = new Dictionary<int, int>();
+            for (int i = 0; i < stepsList.Count; i++)
+            {
+                pianoStepsMap[stepsList[i]] = i;
             }
         }
 
@@ -109,7 +141,7 @@ namespace PianoRoll
                 foreach (var note in selectedNotes)
                 {
                     var offset = note.Position.x - minStartTime;
-                    AddNote(playPosition.position + offset, note.yPos, note.length);
+                    AddNote(playPosition.position + offset, note.GetYPos(), note.length);
                 }
                 ClearSelection();
             }
@@ -117,36 +149,55 @@ namespace PianoRoll
             var isShift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
-                MoveSelectedNotes(isShift ? edo : 1);
+                MoveSelectedNotes(isShift ? musicKey.edo : 1);
             }
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {
-                MoveSelectedNotes(isShift ? -edo : -1);
+                MoveSelectedNotes(isShift ? -musicKey.edo : -1);
             }
         }
 
         public void SetActiveTrack(int newActiveTrack)
         {
-            SaveNotesToTrack();
+            if (activeTrackIndex == newActiveTrack) return;
+            if (activeTrackIndex != -1)
+            {
+                SaveNotesToTrack();
+            }
             ClearAll();
             activeTrackIndex = newActiveTrack;
-            var trackEditor = Globals<TrackEditor>.Instance;
-            var track = trackEditor.GetTrack(activeTrackIndex);
-            Deserialize(track.PianoRoll);
+
+            if (activeTrackIndex != -1)
+            {
+                var trackEditor = Globals<TrackEditor>.Instance;
+                var track = trackEditor.GetTrack(activeTrackIndex);
+                Deserialize(track.PianoRoll);
+            }
+        }
+
+        public void OnClose()
+        {
+            activeTrackIndex = -1;
+            ClearAll();
         }
 
         private void MoveSelectedNotes(int deltaY)
         {
             foreach (var note in selectedNotes)
             {
-                var newY = note.yPos + deltaY;
-                SetNotePosition(note, note.Position.x, newY);
+                SetNoteSteps(note, note.ySteps + deltaY);
             }
+            BuildStepsList();
         }
 
-        public bool IsSpecialRow(int y)
+        public bool IsSpecialRow(int steps)
         {
-            return y % edo == 0;
+            return steps % musicKey.edo == 0;
+        }
+
+        public bool IsAccidentalRow(int steps)
+        {
+            return !musicKey.pitches.Contains(steps % musicKey.edo);
         }
 
         public void StartPlaying()
@@ -214,10 +265,20 @@ namespace PianoRoll
             }
         }
 
+        private bool IsMouseOverUI()
+        {
+            return UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+        }
+
         private void HandleMouseDown(Vector2 mousePiano)
         {
             var viewRectScreen = ViewRectScreen();
             if (!viewRectScreen.Contains(Input.mousePosition))
+            {
+                return;
+            }
+
+            if (IsMouseOverUI())
             {
                 return;
             }
@@ -231,6 +292,7 @@ namespace PianoRoll
 
             if (TryGetHoveredNote(out var note))
             {
+                lastSelectedLength = note.length;
                 if (!selectedNotes.Contains(note)) SelectNote(note, isShift);
                 StartDragging(mousePiano, note);
                 return;
@@ -243,7 +305,7 @@ namespace PianoRoll
             }
             else
             {
-                AddNote(Mathf.FloorToInt(mousePiano.x), Mathf.FloorToInt(mousePiano.y), 1f);
+                AddNote(Mathf.FloorToInt(mousePiano.x), Mathf.FloorToInt(mousePiano.y), lastSelectedLength);
                 ClearSelection();
             }
         }
@@ -258,21 +320,20 @@ namespace PianoRoll
             return xDist < 0.2f || (yDist < 1f && yDist >= 0);
         }
 
-        public Rect CamPianoRect()
-        {
-            var cam = Globals<CameraController>.Instance.Cam;
-            var camHalfSize = new Vector2(cam.orthographicSize * cam.aspect, cam.orthographicSize);
-            var camBottomLeft = WorldToPianoCoords((Vector2)cam.transform.position - camHalfSize);
-            var camTopRight = WorldToPianoCoords((Vector2)cam.transform.position + camHalfSize);
-            return new Rect(camBottomLeft, camTopRight - camBottomLeft);
-        }
-
         public Rect ViewRectWorld()
         {
             var screenRect = ViewRectScreen();
             var minWorld = PianoToWorldCoords(ScreenToPianoCoords(screenRect.min));
             var maxWorld = PianoToWorldCoords(ScreenToPianoCoords(screenRect.max));
             return Rect.MinMaxRect(minWorld.x, minWorld.y, maxWorld.x, maxWorld.y);
+        }
+
+        public Rect ViewRectPiano()
+        {
+            var screenRect = ViewRectScreen();
+            var minPiano = ScreenToPianoCoords(screenRect.min);
+            var maxPiano = ScreenToPianoCoords(screenRect.max);
+            return Rect.MinMaxRect(minPiano.x, minPiano.y, maxPiano.x, maxPiano.y);
         }
 
         private void DoDrag(Vector2 mousePiano)
@@ -289,6 +350,7 @@ namespace PianoRoll
                     var yPos = Mathf.RoundToInt(pos.y);
                     SetNotePosition(note, pos.x, yPos);
                 }
+                BuildStepsList();
             }
             else
             {
@@ -300,6 +362,7 @@ namespace PianoRoll
                 {
                     note.SetLength(length + dragOffsets[note].x);
                 }
+                lastSelectedLength = primaryDragNote.length;
             }
         }
 
@@ -345,7 +408,7 @@ namespace PianoRoll
 
             foreach (var row in notes)
             {
-                var yMin = row.Key;
+                var yMin = StepsToPiano(row.Key);
                 var yMax = yMin + 1;
                 if (yMin > rect.yMax || yMax < rect.yMin)
                 {
@@ -378,17 +441,45 @@ namespace PianoRoll
             x = Mathf.Max(x, 0);
             y = Mathf.Max(y, 0);
 
-            if (y != note.yPos)
+            var steps = PianoToSteps(y);
+
+            if (steps != note.ySteps)
             {
-                var oldRow = notes[note.yPos];
+                var oldRow = notes[note.ySteps];
                 oldRow.Remove(note);
-                if (!notes.ContainsKey(y))
+                if (!notes.ContainsKey(steps))
                 {
-                    notes[y] = new List<Note>();
+                    notes[steps] = new List<Note>();
                 }
-                notes[y].Add(note);
+                notes[steps].Add(note);
+                if (oldRow.Count == 0)
+                {
+                    notes.Remove(note.ySteps);
+                }
             }
-            note.SetPosition(x, y);
+            note.SetPosition(x, steps);
+        }
+
+
+        private void SetNoteSteps(Note note, int steps)
+        {
+            int ySteps = Mathf.Max(steps, 0);
+
+            if (ySteps != note.ySteps)
+            {
+                var oldRow = notes[note.ySteps];
+                oldRow.Remove(note);
+                if (!notes.ContainsKey(ySteps))
+                {
+                    notes[ySteps] = new List<Note>();
+                }
+                notes[ySteps].Add(note);
+                if (oldRow.Count == 0)
+                {
+                    notes.Remove(note.ySteps);
+                }
+            }
+            note.SetPosition(note.xPos, ySteps);
         }
 
         private void SelectNote(Note note, bool keepPrevious)
@@ -412,15 +503,19 @@ namespace PianoRoll
 
         private void DeleteNote(Note note)
         {
-            var row = notes[note.yPos];
+            var row = notes[note.ySteps];
             row.Remove(note);
             Destroy(note.gameObject);
+            if (row.Count == 0)
+            {
+                notes.Remove(note.ySteps);
+            }
         }
 
         private bool TryGetHoveredNote(out Note note)
         {
             var pianoPos = ScreenToPianoCoords(Input.mousePosition);
-            var yPos = Mathf.FloorToInt(pianoPos.y);
+            var yPos = PianoToSteps(Mathf.FloorToInt(pianoPos.y));
             if (!notes.TryGetValue(yPos, out var noteRow))
             {
                 note = null;
@@ -441,25 +536,45 @@ namespace PianoRoll
         private void AddNote(float xPos, int yPos, float length)
         {
             var note = Instantiate(notePrefab, transform);
-            note.Initialize(xPos, yPos, length);
-            if (!notes.ContainsKey(yPos))
+            var clampedX = Mathf.Max(xPos, 0);
+            var clampedY = Mathf.Max(yPos, 0);
+            var yIndex = PianoToSteps(clampedY);
+            note.Initialize(clampedX, yIndex, length);
+            if (!notes.ContainsKey(yIndex))
             {
-                notes[yPos] = new List<Note>();
+                notes[yIndex] = new List<Note>();
             }
-            notes[yPos].Add(note);
+            notes[yIndex].Add(note);
+        }
+
+        public int StepsToPiano(int steps)
+        {
+            return pianoStepsMap.TryGetValue(steps, out var piano) ? piano : 0;
+        }
+
+        public int PianoToSteps(float piano)
+        {
+            var m = stepsList.Count;
+            return stepsList[((Mathf.FloorToInt(piano) % m) + m) % m];
         }
 
         public void DoZoom(Vector2 factor)
         {
-            var cam = Globals<CameraController>.Instance;
-            var camWorldSize = new Vector2(cam.Cam.orthographicSize * cam.Cam.aspect, cam.Cam.orthographicSize);
-            var camBottomLeftWorld = (Vector2)cam.Cam.transform.position - camWorldSize;
-            var camBottomLeftPiano = WorldToPianoCoords(camBottomLeftWorld);
+            var pianoRect = ViewRectPiano();
             zoom *= factor;
-            var pos = cam.Cam.transform.position;
-            Vector3 newPos = PianoToWorldCoords(camBottomLeftPiano) + camWorldSize;
-            newPos.z = pos.z;
-            cam.Cam.transform.position = newPos;
+            var cam = Globals<CameraController>.Instance;
+            var worldRect = ViewRectWorld();
+            Vector3 offset = worldRect.min - PianoToWorldCoords(pianoRect.min);
+            cam.Cam.transform.position -= offset;
+        }
+
+        public Vector2 ScreenToCanvasCoords(Vector2 screen)
+        {
+            var cam = Globals<CameraController>.Instance.Cam;
+            var canvasRect = canvasRT.rect;
+            var viewportPoint = cam.ScreenToViewportPoint(screen);
+            var canvasPos = canvasRect.size * viewportPoint;
+            return canvasPos;
         }
 
         public Vector2 ScreenToPianoCoords(Vector2 screen)
@@ -467,6 +582,13 @@ namespace PianoRoll
             var cam = Globals<CameraController>.Instance;
             var world = cam.Cam.ScreenToWorldPoint(screen);
             return WorldToPianoCoords(world);
+        }
+
+        public Vector2 PianoToScreenCoords(Vector2 piano)
+        {
+            var cam = Globals<CameraController>.Instance;
+            var world = PianoToWorldCoords(piano);
+            return cam.Cam.WorldToScreenPoint(world);
         }
 
         public Rect ViewRectScreen()
@@ -498,6 +620,11 @@ namespace PianoRoll
         public int GetBar(Vector2 piano)
         {
             return Mathf.FloorToInt(piano.x / 4f);
+        }
+
+        public int GetRow(Vector2 piano)
+        {
+            return Mathf.FloorToInt(piano.y);
         }
 
         public void SaveNotesToTrack()
@@ -536,7 +663,7 @@ namespace PianoRoll
                     serialized.notes.Add(new SerializedNote()
                     {
                         x = note.Position.x,
-                        y = note.yPos,
+                        y = note.ySteps,
                         length = note.length
                     });
                 }
@@ -546,9 +673,15 @@ namespace PianoRoll
 
         public void Deserialize(SerializedPianoRoll data)
         {
-            foreach (var note in data.notes)
+            foreach (var noteData in data.notes)
             {
-                AddNote(note.x, note.y, note.length);
+                var note = Instantiate(notePrefab, transform);
+                note.Initialize(noteData.x, noteData.y, noteData.length);
+                if (!notes.ContainsKey(noteData.y))
+                {
+                    notes[noteData.y] = new List<Note>();
+                }
+                notes[noteData.y].Add(note);
             }
         }
     }
@@ -562,8 +695,7 @@ namespace PianoRoll
             var noteEditor = Globals<NoteEditor>.Instance;
             var unsortedTempoNotes = notes.Select(note =>
             {
-                var pitch = 110 * Mathf.Pow(2, (float)note.y / noteEditor.Edo);
-                Debug.Log($"{note.y}, {pitch}");
+                var pitch = noteEditor.Key.StepsToFreq(note.y);
                 return new TempoNote(note.x, note.length, pitch);
             }).ToList();
             var sequencerNotes = TempoController.ConvertNotes(unsortedTempoNotes, tempoEvents);

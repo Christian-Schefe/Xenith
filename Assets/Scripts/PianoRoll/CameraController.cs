@@ -10,6 +10,13 @@ namespace PianoRoll
 
         private Vector2 mouseDownPos;
 
+        int waitFrames = 0;
+
+        private void Start()
+        {
+            waitFrames = 1;
+        }
+
         private void Update()
         {
             if (Input.GetMouseButtonDown(1))
@@ -25,12 +32,19 @@ namespace PianoRoll
                 pos -= (Vector3)delta;
             }
 
+            if (waitFrames > 0)
+            {
+                waitFrames--;
+                return;
+            }
+
             var noteEditor = Globals<NoteEditor>.Instance;
-            var rect = noteEditor.ViewRectScreen();
-            var bottomLeftWorld = noteEditor.PianoToWorldCoords(noteEditor.ScreenToPianoCoords(rect.min));
-            var offset = (Vector2)cam.transform.position - bottomLeftWorld;
+            var rect = noteEditor.ViewRectWorld();
+            var offset = (Vector2)cam.transform.position - rect.min;
+            var maxYWorld = noteEditor.PianoToWorldCoords(new(0, noteEditor.stepsList.Count)).y;
 
             pos.x = Mathf.Max(pos.x, offset.x);
+            pos.y = Mathf.Min(pos.y, maxYWorld - rect.height + offset.y);
             pos.y = Mathf.Max(pos.y, offset.y);
             cam.transform.position = pos;
         }

@@ -7,36 +7,39 @@ namespace PianoRoll
         [SerializeField] private SpriteRenderer sprite;
         [SerializeField] private Color normalColor, selectedColor;
 
-        private float xPos;
-        public int yPos;
+        public float xPos;
+        public int ySteps;
         public float length;
 
         const float border = 0.1f;
 
-        private bool selected;
-
-        public Vector2 Position => new(xPos, yPos);
+        public Vector2 Position => new(xPos, GetYPos());
         public float EndX => xPos + length;
 
-        public Rect Rect => new(xPos, yPos, length, 1f);
+        public Rect Rect => new(xPos, GetYPos(), length, 1f);
 
-        public void Initialize(float xPos, int yPos, float length)
+        public int GetYPos()
+        {
+            var noteEditor = Globals<NoteEditor>.Instance;
+            return noteEditor.StepsToPiano(ySteps);
+        }
+
+        public void Initialize(float xPos, int ySteps, float length)
         {
             SetSelected(false);
             SetLength(length);
-            SetPosition(xPos, yPos);
+            SetPosition(xPos, ySteps);
         }
 
-        public void SetPosition(float xPos, int yPos)
+        public void SetPosition(float xPos, int ySteps)
         {
             this.xPos = Mathf.Max(xPos, 0);
-            this.yPos = Mathf.Max(yPos, 0);
+            this.ySteps = Mathf.Max(ySteps, 0);
             Update();
         }
 
         public void SetSelected(bool selected)
         {
-            this.selected = selected;
             sprite.color = selected ? selectedColor : normalColor;
         }
 
@@ -48,7 +51,7 @@ namespace PianoRoll
         private void Update()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            var pianoPos = new Vector2(xPos + length * 0.5f, yPos + 0.5f);
+            var pianoPos = new Vector2(xPos + length * 0.5f, GetYPos() + 0.5f);
             transform.position = noteEditor.PianoToWorldCoords(pianoPos);
             sprite.size = noteEditor.Zoom * new Vector2(length, 1f - border) / sprite.transform.localScale;
         }

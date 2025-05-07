@@ -3,6 +3,7 @@ using DSP;
 using Persistence;
 using PianoRoll;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using Yeast;
 
@@ -33,6 +34,8 @@ public class TrackEditor : MonoBehaviour
                 new ActionType.Button("New", AddTrack),
             }),
         });
+
+        FillEmptySong();
     }
 
     private void Update()
@@ -42,12 +45,21 @@ public class TrackEditor : MonoBehaviour
         actionBar.SetTitle(songName);
     }
 
+    private void FillEmptySong()
+    {
+        if (tracks.Count == 0)
+        {
+            AddTrack();
+            Globals<NoteEditor>.Instance.SetActiveTrack(0);
+        }
+    }
+
     private void NewSong()
     {
         SaveSong(false, () =>
         {
             Close();
-            AddTrack();
+            FillEmptySong();
         });
     }
 
@@ -114,6 +126,8 @@ public class TrackEditor : MonoBehaviour
         }
         tracks.Clear();
         songPath = null;
+        var noteEditor = Globals<NoteEditor>.Instance;
+        noteEditor.OnClose();
     }
 
     private void AddTrack()
@@ -152,17 +166,20 @@ public struct SerializedSong
 
     public readonly AudioNode BuildAudioNode(float startTime)
     {
+        var hasSoloTracks = tracks.Any(t => t.isSoloed);
+        var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed) && !t.isMuted).ToList();
+
         var graph = new DSP.NodeGraph();
         int outLeft = graph.AddOutput<FloatValue>("Left", 0);
         int outRight = graph.AddOutput<FloatValue>("Right", 1);
-        int addLeft = graph.AddNode(Prelude.Add(tracks.Count));
-        int addRight = graph.AddNode(Prelude.Add(tracks.Count));
+        int addLeft = graph.AddNode(Prelude.Add(filteredTracks.Count));
+        int addRight = graph.AddNode(Prelude.Add(filteredTracks.Count));
         graph.AddConnection(new(addLeft, 0, outLeft, 0));
         graph.AddConnection(new(addRight, 0, outRight, 0));
 
-        for (int i = 0; i < tracks.Count; i++)
+        for (int i = 0; i < filteredTracks.Count; i++)
         {
-            var node = tracks[i].BuildAudioNode(startTime, tempoEvents);
+            var node = filteredTracks[i].BuildAudioNode(startTime, tempoEvents);
             int nodeIndex = graph.AddNode(node);
             graph.AddConnection(new(nodeIndex, 0, addLeft, i));
             graph.AddConnection(new(nodeIndex, 1, addRight, i));
