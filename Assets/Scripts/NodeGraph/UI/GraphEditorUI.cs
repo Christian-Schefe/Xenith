@@ -1,3 +1,4 @@
+using ActionMenu;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
@@ -6,26 +7,32 @@ namespace NodeGraph
 {
     public class GraphEditorUI : MonoBehaviour
     {
-        [SerializeField] private Button newButton, openButton, saveButton, deleteButton;
         [SerializeField] private OpenDialog openDialog;
         [SerializeField] private NewDialog newDialog;
-        [SerializeField] private TMPro.TextMeshProUGUI title;
         [SerializeField] private GameObject overlay;
 
         private BaseDialog currentDialog;
 
         private void Awake()
         {
-            newButton.onClick.AddListener(OnClickNew);
-            openButton.onClick.AddListener(OnClickOpen);
-            saveButton.onClick.AddListener(OnClickSave);
-            deleteButton.onClick.AddListener(OnClickDelete);
+            var actionBar = Globals<ActionBar>.Instance;
+            actionBar.AddActions(new()
+            {
+                new TopLevelAction("File", new()
+                {
+                    new ActionType.Button("New", OnClickNew),
+                    new ActionType.Button("Open", OnClickOpen),
+                    new ActionType.Button("Save", OnClickSave),
+                    new ActionType.Button("Delete", OnClickDelete),
+                })
+            });
         }
 
         private void Update()
         {
             var graphEditor = Globals<GraphEditor>.Instance;
-            title.text = graphEditor.TryGetGraphDisplayName(out var name) ? name : "No graph loaded";
+            var actionBar = Globals<ActionBar>.Instance;
+            actionBar.SetTitle(graphEditor.TryGetGraphDisplayName(out var name) ? name : "No graph loaded");
 
             overlay.SetActive(IsDialogOpen());
 

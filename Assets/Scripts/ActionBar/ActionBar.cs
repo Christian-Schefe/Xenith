@@ -7,33 +7,122 @@ namespace ActionMenu
     public class ActionBar : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
     {
         [SerializeField] private RectTransform actionParent;
+        [SerializeField] private RectTransform tabParent;
         [SerializeField] private TMPro.TextMeshProUGUI titleText;
         [SerializeField] private ActionButton actionButtonPrefab;
+        [SerializeField] private TabButton tabButtonPrefab;
         [SerializeField] private ActionDropdown actionDropdownPrefab;
 
-        private List<TopLevelAction> actions;
+        private readonly List<TopLevelAction> actions = new();
+        private readonly List<ActionTab> tabs = new();
         private readonly List<ActionButton> buttons = new();
+        private readonly List<TabButton> tabButtons = new();
 
         private ActionDropdown dropdown;
         private int openButtonIndex = -1;
         private bool isMouseInside = false;
+        private int openTabIndex = -1;
 
         public void SetTitle(string title)
         {
             titleText.text = title;
         }
 
-        public void SetActions(List<TopLevelAction> actions)
+        public void AddActions(List<TopLevelAction> actionList)
         {
-            this.actions = actions;
+            int offset = actions.Count;
+            actions.AddRange(actionList);
 
-            for (int i = 0; i < actions.Count; i++)
+            for (int i = 0; i < actionList.Count; i++)
             {
-                var index = i;
-                var action = actions[i];
+                var index = i + offset;
+                var action = actions[index];
                 var instance = Instantiate(actionButtonPrefab, actionParent);
                 instance.SetData(action.name, () => OnActionButtonClick(index));
                 buttons.Add(instance);
+            }
+        }
+
+        public void RemoveAction(TopLevelAction action)
+        {
+            CloseDropdown();
+            int index = actions.IndexOf(action);
+            if (index != -1)
+            {
+                Destroy(buttons[index].gameObject);
+                buttons.RemoveAt(index);
+                actions.RemoveAt(index);
+                for (int i = index; i < buttons.Count; i++)
+                {
+                    buttons[i].SetData(action.name, () => OnActionButtonClick(index));
+                }
+            }
+        }
+
+        public void AddTab(ActionTab tab, bool setActive)
+        {
+            tabs.Add(tab);
+            var instance = Instantiate(tabButtonPrefab, tabParent);
+            int index = tabs.Count - 1;
+            instance.Initialize(index, tab.name, (i) => OnTabClick(i), (i) => OnTabClose(i));
+            tabButtons.Add(instance);
+
+            if (openTabIndex == -1)
+            {
+                openTabIndex = index;
+                SelectTab(index);
+            }
+
+            if (setActive)
+            {
+                OnTabClick(index);
+            }
+        }
+
+        private void SelectTab(int index)
+        {
+            tabs[index].onSelect?.Invoke();
+            tabButtons[index].SetSelected(true);
+        }
+
+        private void DeselectTab(int index)
+        {
+            tabs[index].onDeselect?.Invoke();
+            tabButtons[index].SetSelected(false);
+        }
+
+        private void OnTabClick(int index)
+        {
+            if (index == openTabIndex) return;
+
+            if (openTabIndex != -1)
+            {
+                DeselectTab(openTabIndex);
+            }
+            openTabIndex = index;
+            SelectTab(index);
+        }
+
+        private void OnTabClose(int index)
+        {
+            if (index == openTabIndex)
+            {
+                DeselectTab(index);
+                openTabIndex = tabs.Count >= 2 ? (index == 0 ? 1 : index - 1) : -1;
+            }
+            tabs[index].onClose?.Invoke();
+            Destroy(tabButtons[index].gameObject);
+            tabButtons.RemoveAt(index);
+            tabs.RemoveAt(index);
+            for (int i = index; i < tabButtons.Count; i++)
+            {
+                tabButtons[i].SetIndex(i);
+            }
+            if (openTabIndex >= index && openTabIndex > 0) openTabIndex--;
+
+            if (openTabIndex != -1)
+            {
+                SelectTab(openTabIndex);
             }
         }
 
@@ -88,6 +177,22 @@ namespace ActionMenu
         {
             this.name = name;
             this.actions = actions;
+        }
+    }
+
+    public class ActionTab
+    {
+        public string name;
+        public System.Action onSelect;
+        public System.Action onDeselect;
+        public System.Action onClose;
+
+        public ActionTab(string name, System.Action onSelect, System.Action onDeselect, System.Action onClose)
+        {
+            this.name = name;
+            this.onSelect = onSelect;
+            this.onDeselect = onDeselect;
+            this.onClose = onClose;
         }
     }
 }

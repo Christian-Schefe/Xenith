@@ -134,6 +134,23 @@ public struct SerializedTrack
     public float pan;
     public SerializedPianoRoll serializedPianoRoll;
 
+    public static SerializedTrack Default()
+    {
+        return new SerializedTrack
+        {
+            name = "New Track",
+            instrument = new NodeResource("Piano", "piano", false),
+            isMuted = false,
+            isSoloed = false,
+            volume = 0.5f,
+            pan = 0.0f,
+            serializedPianoRoll = new SerializedPianoRoll()
+            {
+                notes = new(),
+            },
+        };
+    }
+
     public readonly AudioNode BuildAudioNode(float startTime, List<TempoEvent> tempoEvents)
     {
         var graphDatabase = Globals<GraphDatabase>.Instance;

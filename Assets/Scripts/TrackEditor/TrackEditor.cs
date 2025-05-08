@@ -1,14 +1,13 @@
 using ActionMenu;
 using DSP;
-using Persistence;
 using PianoRoll;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using Yeast;
 
 public class TrackEditor : MonoBehaviour
 {
+    [SerializeField] private RectTransform uiRoot;
     [SerializeField] private RectTransform trackContainer;
 
     [SerializeField] private Track trackPrefab;
@@ -17,115 +16,49 @@ public class TrackEditor : MonoBehaviour
 
     private readonly List<Track> tracks = new();
 
-    private string songPath;
+    private TopLevelAction trackAction = null;
 
-    private void Start()
+    private TopLevelAction BuildAction()
     {
+        return new("Track", new() { new ActionType.Button("", () => AddTrack()) });
+    }
+
+    public void SetVisible(bool visible)
+    {
+        uiRoot.gameObject.SetActive(visible);
+
         var actionBar = Globals<ActionBar>.Instance;
-        actionBar.SetActions(new()
-        {
-            new("File", new() {
-                new ActionType.Button("New", NewSong),
-                new ActionType.Button("Open", OpenSong),
-                new ActionType.Button("Save", () => SaveSong(false, null)),
-                new ActionType.Button("Save As", () => SaveSong(true, null)),
-            }),
-            new("Tracks", new() {
-                new ActionType.Button("New", AddTrack),
-            }),
-        });
+        var noteEditor = Globals<NoteEditor>.Instance;
 
-        FillEmptySong();
-    }
-
-    private void Update()
-    {
-        var songName = songPath != null ? System.IO.Path.GetFileNameWithoutExtension(songPath) : "Untitled";
-        var actionBar = Globals<ActionBar>.Instance;
-        actionBar.SetTitle(songName);
-    }
-
-    private void FillEmptySong()
-    {
-        if (tracks.Count == 0)
+        trackAction ??= BuildAction();
+        if (visible)
         {
-            AddTrack();
-            Globals<NoteEditor>.Instance.SetActiveTrack(0);
-        }
-    }
-
-    private void NewSong()
-    {
-        SaveSong(false, () =>
-        {
-            Close();
-            FillEmptySong();
-        });
-    }
-
-    private void OpenSong()
-    {
-        SaveSong(false, () =>
-        {
-            var fileBrowser = Globals<FileBrowser>.Instance;
-            fileBrowser.Open(path =>
-            {
-                if (FilePersistence.TryLoadFullPath(path, out var song))
-                {
-                    if (song.TryFromJson(out SerializedSong serializedSong))
-                    {
-                        Close();
-                        Debug.Log($"Loaded song from {path}");
-                        songPath = path;
-                        Deserialize(serializedSong);
-                    }
-                    else
-                    {
-                        Debug.LogError($"Failed to load song from {path}");
-                    }
-                }
-                else
-                {
-                    Debug.LogError($"Failed to load song from {path}");
-                }
-            });
-        });
-    }
-
-    private void SaveSong(bool alwaysAsk, System.Action onFinishSave)
-    {
-        if (songPath != null && !alwaysAsk)
-        {
-            FilePersistence.SaveFullPath(songPath, Serialize().ToJson());
-            onFinishSave?.Invoke();
-        }
-        else if (tracks.Count == 0 && !alwaysAsk)
-        {
-            onFinishSave?.Invoke();
+            actionBar.AddActions(new() { trackAction });
+            noteEditor.SetActiveTrack(0);
         }
         else
         {
-            var fileBrowser = Globals<FileBrowser>.Instance;
-            fileBrowser.Save(path =>
-            {
-                songPath = path;
-                FilePersistence.SaveFullPath(songPath, Serialize().ToJson());
-                onFinishSave?.Invoke();
-            }, () =>
-            {
-                onFinishSave?.Invoke();
-            });
+            actionBar.RemoveAction(trackAction);
+            noteEditor.ClearAll();
+            noteEditor.SetActiveTrack(-1);
         }
     }
 
-    private void Close()
+    public bool IsEmptySong()
+    {
+        if (tracks.Count == 0) return true;
+        if (tracks.Count > 1) return false;
+        var track = tracks[0];
+        return track.PianoRoll.notes.Count == 0;
+    }
+
+    public void DiscardAll()
     {
         foreach (var track in tracks)
         {
             Destroy(track.gameObject);
         }
         tracks.Clear();
-        songPath = null;
         var noteEditor = Globals<NoteEditor>.Instance;
         noteEditor.OnClose();
     }
@@ -138,6 +71,12 @@ public class TrackEditor : MonoBehaviour
     }
 
     public Track GetTrack(int index) => tracks[index];
+
+    public void Save()
+    {
+        var noteEditor = Globals<NoteEditor>.Instance;
+        noteEditor.SaveNotesToTrack();
+    }
 
     public SerializedSong Serialize()
     {
@@ -156,6 +95,7 @@ public class TrackEditor : MonoBehaviour
             trackInstance.Deserialize(i, song.tracks[i]);
             tracks.Add(trackInstance);
         }
+        tempoEvents = new(song.tempoEvents);
     }
 }
 
@@ -163,6 +103,17 @@ public struct SerializedSong
 {
     public List<SerializedTrack> tracks;
     public List<TempoEvent> tempoEvents;
+
+    public static SerializedSong Default()
+    {
+        return new()
+        {
+            tracks = new List<SerializedTrack>() {
+                SerializedTrack.Default()
+            },
+            tempoEvents = new List<TempoEvent>() { new(0, 2), new(12, 3) }
+        };
+    }
 
     public readonly AudioNode BuildAudioNode(float startTime)
     {
