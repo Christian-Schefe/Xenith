@@ -18,7 +18,7 @@ namespace PianoRoll
 
         private void LateUpdate()
         {
-            var timeBar = Globals<TimeBar>.Instance;
+            var timeBar = Globals<PianoRollVisuals>.Instance;
             var noteEditor = Globals<NoteEditor>.Instance;
             var index = timeBar.GetSubdivisionByIndex(indexOffset);
             sprite.color = index % 4 == 0 ? specialColor : normalColor;

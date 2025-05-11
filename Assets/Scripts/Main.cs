@@ -1,14 +1,17 @@
 using ActionMenu;
-using Persistence;
+using DTO;
+using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using UnityEngine;
-using Yeast;
 
 public class Main : MonoBehaviour
 {
-    private List<SongTab> openSongs = new();
-    private SongTab openTab;
+    public SongController songController;
+
+    private readonly Dictionary<SongID, ActionTab> songTabs = new();
+    private SongID openSong;
+
+    public Song CurrentSong => songController.GetSong(openSong);
 
     private void Start()
     {
@@ -19,8 +22,8 @@ public class Main : MonoBehaviour
             new("Song", new() {
                 new ActionType.Button("New", NewSong),
                 new ActionType.Button("Open", OpenSong),
-                new ActionType.Button("Save", () => SaveSong(false, null)),
-                new ActionType.Button("Save As", () => SaveSong(true, null)),
+                new ActionType.Button("Save", () => SaveOpenSong(false, null)),
+                new ActionType.Button("Save As", () => SaveOpenSong(true, null)),
             }),
 
             new("Graph", new() {
@@ -34,64 +37,75 @@ public class Main : MonoBehaviour
         actionBar.SetTitle("Xenith");
 
         var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.SetVisible(false);
+        trackEditor.Hide();
     }
 
     private void NewSong()
     {
-        AddSongTab(null);
+        var id = songController.AddSong();
+        AddSongTab(id);
     }
 
     private void OpenSong()
     {
-        SaveSong(false, () =>
+        var fileBrowser = Globals<FileBrowser>.Instance;
+        fileBrowser.Open(path =>
         {
-            var trackEditor = Globals<TrackEditor>.Instance;
-            var fileBrowser = Globals<FileBrowser>.Instance;
-            fileBrowser.Open(path =>
+            if (songController.TryLoadSong(path, out var id))
             {
-                if (FilePersistence.TryLoadFullPath(path, out var song))
-                {
-                    if (song.TryFromJson(out SerializedSong serializedSong))
-                    {
-                        Debug.Log($"Loaded song from {path}");
-                        AddSongTab(path);
-                    }
-                    else
-                    {
-                        Debug.LogError($"Failed to load song from {path}");
-                    }
-                }
-                else
-                {
-                    Debug.LogError($"Failed to load song from {path}");
-                }
-            });
+                AddSongTab(id);
+            }
         });
     }
 
-    private void AddSongTab(string path)
+    private void SaveOpenSong(bool alwaysAsk, System.Action onFinishSave)
+    {
+        if (openSong == null)
+        {
+            return;
+        }
+        SaveSong(openSong, alwaysAsk, onFinishSave);
+    }
+
+    private void AddSongTab(SongID id)
     {
         var actionBar = Globals<ActionBar>.Instance;
-        var name = path == null ? "New Song" : Path.GetFileName(path);
-        var songTab = new SongTab(path, SerializedSong.Default());
-        openSongs.Add(songTab);
-        var tab = new ActionTab(name, () => OnSongOpen(songTab), () => OnSongClose(songTab), () => { });
+        var name = id.GetName();
+        var tab = new ActionTab(name, () => OnSongShow(id), () => OnSongHide(), (callback) => OnSongClose(id, callback));
+        songTabs.Add(id, tab);
         actionBar.AddTab(tab, true);
     }
 
-    private void SaveSong(bool alwaysAsk, System.Action onFinishSave)
+    private void ChangeSongId(SongID oldId, SongID newId)
     {
-        var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.Save();
+        var actionBar = Globals<ActionBar>.Instance;
+        var tab = songTabs[oldId];
+        songTabs.Remove(oldId);
+        songTabs.Add(newId, tab);
+        tab.name = newId.GetName();
+        tab.onSelect = () => OnSongShow(newId);
+        tab.onDeselect = () => OnSongHide();
+        tab.onTryClose = (callback) => OnSongClose(newId, callback);
+        actionBar.UpdateTab(tab);
+    }
 
-        if (openTab.path != null && !alwaysAsk)
+    private void OnSongClose(SongID id, System.Action callback)
+    {
+        SaveSong(id, false, () =>
         {
-            FilePersistence.SaveFullPath(openTab.path, trackEditor.Serialize().ToJson());
+            callback();
+        });
+    }
+
+    private void SaveSong(SongID id, bool alwaysAsk, System.Action onFinishSave)
+    {
+        if (!songController.HasUnsavedChanges(id) && !alwaysAsk)
+        {
             onFinishSave?.Invoke();
         }
-        else if (trackEditor.IsEmptySong() && !alwaysAsk)
+        else if (id.path != null && !alwaysAsk)
         {
+            songController.SaveSong(id, id.path, out _);
             onFinishSave?.Invoke();
         }
         else
@@ -99,8 +113,10 @@ public class Main : MonoBehaviour
             var fileBrowser = Globals<FileBrowser>.Instance;
             fileBrowser.Save(path =>
             {
-                openTab.path = path;
-                FilePersistence.SaveFullPath(openTab.path, trackEditor.Serialize().ToJson());
+                if (songController.SaveSong(id, path, out var newId))
+                {
+                    ChangeSongId(id, newId);
+                }
                 onFinishSave?.Invoke();
             }, () =>
             {
@@ -109,22 +125,20 @@ public class Main : MonoBehaviour
         }
     }
 
-    private void OnSongOpen(SongTab song)
+    private void OnSongShow(SongID id)
     {
+        openSong = id;
+
         var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.Deserialize(song.song);
-        trackEditor.SetVisible(true);
-        Debug.Log($"Opened song {song.path}");
+        trackEditor.Show();
     }
 
-    private void OnSongClose(SongTab song)
+    private void OnSongHide()
     {
+        openSong = null;
+
         var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.Save();
-        song.song = trackEditor.Serialize();
-        trackEditor.DiscardAll();
-        trackEditor.SetVisible(false);
-        Debug.Log($"Closed song {song.path}");
+        trackEditor.Hide();
     }
 
     private void NewGraph()
@@ -140,17 +154,5 @@ public class Main : MonoBehaviour
     private void SaveGraph(bool alwaysAsk)
     {
 
-    }
-
-    public class SongTab
-    {
-        public string path;
-        public SerializedSong song;
-
-        public SongTab(string path, SerializedSong song)
-        {
-            this.path = path;
-            this.song = song;
-        }
     }
 }

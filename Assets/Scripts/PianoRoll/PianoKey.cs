@@ -18,7 +18,7 @@ namespace PianoRoll
         private void LateUpdate()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            var timeBar = Globals<TimeBar>.Instance;
+            var timeBar = Globals<PianoRollVisuals>.Instance;
             var y = timeBar.GetRowByOffset(yOffset);
             var steps = noteEditor.PianoToSteps(y);
             var octaves = steps / noteEditor.Key.edo;

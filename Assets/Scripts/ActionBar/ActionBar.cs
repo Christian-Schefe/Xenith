@@ -79,6 +79,15 @@ namespace ActionMenu
             }
         }
 
+        public void UpdateTab(ActionTab tab)
+        {
+            var index = tabs.IndexOf(tab);
+            if (index != -1)
+            {
+                tabButtons[index].Initialize(index, tab.name, (i) => OnTabClick(i), (i) => OnTabClose(i));
+            }
+        }
+
         private void SelectTab(int index)
         {
             tabs[index].onSelect?.Invoke();
@@ -105,24 +114,34 @@ namespace ActionMenu
 
         private void OnTabClose(int index)
         {
-            if (index == openTabIndex)
+            void CloseInternal()
             {
-                DeselectTab(index);
-                openTabIndex = tabs.Count >= 2 ? (index == 0 ? 1 : index - 1) : -1;
-            }
-            tabs[index].onClose?.Invoke();
-            Destroy(tabButtons[index].gameObject);
-            tabButtons.RemoveAt(index);
-            tabs.RemoveAt(index);
-            for (int i = index; i < tabButtons.Count; i++)
-            {
-                tabButtons[i].SetIndex(i);
-            }
-            if (openTabIndex >= index && openTabIndex > 0) openTabIndex--;
+                if (index == openTabIndex)
+                {
+                    DeselectTab(index);
+                    openTabIndex = tabs.Count >= 2 ? (index == 0 ? 1 : index - 1) : -1;
+                }
+                Destroy(tabButtons[index].gameObject);
+                tabButtons.RemoveAt(index);
+                tabs.RemoveAt(index);
+                for (int i = index; i < tabButtons.Count; i++)
+                {
+                    tabButtons[i].SetIndex(i);
+                }
+                if (openTabIndex >= index && openTabIndex > 0) openTabIndex--;
 
-            if (openTabIndex != -1)
+                if (openTabIndex != -1)
+                {
+                    SelectTab(openTabIndex);
+                }
+            }
+            if (tabs[index].onTryClose != null)
             {
-                SelectTab(openTabIndex);
+                tabs[index].onTryClose.Invoke(CloseInternal);
+            }
+            else
+            {
+                CloseInternal();
             }
         }
 
@@ -185,14 +204,14 @@ namespace ActionMenu
         public string name;
         public System.Action onSelect;
         public System.Action onDeselect;
-        public System.Action onClose;
+        public System.Action<System.Action> onTryClose;
 
-        public ActionTab(string name, System.Action onSelect, System.Action onDeselect, System.Action onClose)
+        public ActionTab(string name, System.Action onSelect, System.Action onDeselect, System.Action<System.Action> onTryClose)
         {
             this.name = name;
             this.onSelect = onSelect;
             this.onDeselect = onDeselect;
-            this.onClose = onClose;
+            this.onTryClose = onTryClose;
         }
     }
 }

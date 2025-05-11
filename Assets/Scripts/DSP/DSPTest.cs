@@ -11,7 +11,7 @@ namespace DSP
             {
                 var noteEditor = Globals<PianoRoll.NoteEditor>.Instance;
                 var dsp = Globals<DSP>.Instance;
-                var trackEditor = Globals<TrackEditor>.Instance;
+                var main = Globals<Main>.Instance;
                 if (noteEditor.isPlaying)
                 {
                     noteEditor.StopPlaying();
@@ -21,8 +21,7 @@ namespace DSP
                 noteEditor.StartPlaying();
 
                 var startTime = noteEditor.GetPlayStartTime();
-                var song = trackEditor.Serialize();
-                var node = song.BuildAudioNode(startTime);
+                var node = main.CurrentSong.BuildAudioNode(startTime);
 
                 dsp.Initialize(node);
             }

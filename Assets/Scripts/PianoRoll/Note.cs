@@ -7,34 +7,36 @@ namespace PianoRoll
         [SerializeField] private SpriteRenderer sprite;
         [SerializeField] private Color normalColor, selectedColor;
 
-        public float xPos;
-        public int ySteps;
-        public float length;
+        public DTO.Note note;
+
+        public float Length => note.length;
+        public float X => note.x;
+        public int Y => note.y;
 
         const float border = 0.1f;
 
-        public Vector2 Position => new(xPos, GetYPos());
-        public float EndX => xPos + length;
+        public Vector2 Position => new(note.x, GetYPos());
+        public float EndX => note.x + note.length;
 
-        public Rect Rect => new(xPos, GetYPos(), length, 1f);
+        public Rect Rect => new(note.x, GetYPos(), note.length, 1f);
 
         public int GetYPos()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            return noteEditor.StepsToPiano(ySteps);
+            return noteEditor.StepsToPiano(note.y);
         }
 
-        public void Initialize(float xPos, int ySteps, float length)
+        public void Initialize(DTO.Note note)
         {
+            this.note = note;
             SetSelected(false);
-            SetLength(length);
-            SetPosition(xPos, ySteps);
+            Update();
         }
 
         public void SetPosition(float xPos, int ySteps)
         {
-            this.xPos = Mathf.Max(xPos, 0);
-            this.ySteps = Mathf.Max(ySteps, 0);
+            note.x = xPos;
+            note.y = ySteps;
             Update();
         }
 
@@ -45,20 +47,20 @@ namespace PianoRoll
 
         public bool IsWithin(float x)
         {
-            return xPos <= x && x < xPos + length;
+            return note.x <= x && x < EndX;
         }
 
         private void Update()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            var pianoPos = new Vector2(xPos + length * 0.5f, GetYPos() + 0.5f);
+            var pianoPos = new Vector2(note.x + note.length * 0.5f, GetYPos() + 0.5f);
             transform.position = noteEditor.PianoToWorldCoords(pianoPos);
-            sprite.size = noteEditor.Zoom * new Vector2(length, 1f - border) / sprite.transform.localScale;
+            sprite.size = noteEditor.Zoom * new Vector2(note.length, 1f - border) / sprite.transform.localScale;
         }
 
         public void SetLength(float length)
         {
-            this.length = Mathf.Max(0.01f, length);
+            note.length = Mathf.Max(0.01f, length);
             Update();
         }
     }

@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace PianoRoll
 {
-    public class TimeBar : MonoBehaviour
+    public class PianoRollVisuals : MonoBehaviour
     {
         [SerializeField] private Transform parent;
 
@@ -15,10 +15,10 @@ namespace PianoRoll
         [SerializeField] private Subdivision subdivisionPrefab;
         [SerializeField] private NoteRow rowPrefab;
 
-        private List<TimeBarBar> bars = new();
-        private List<Subdivision> subdivisions = new();
-        private List<NoteRow> rows = new();
-        private List<PianoKey> pianoKeys = new();
+        private readonly List<TimeBarBar> bars = new();
+        private readonly List<Subdivision> subdivisions = new();
+        private readonly List<NoteRow> rows = new();
+        private readonly List<PianoKey> pianoKeys = new();
 
         public int GetBarByIndex(int index)
         {
@@ -27,6 +27,13 @@ namespace PianoRoll
             var rect = noteEditor.ViewRectPiano();
             var firstBar = noteEditor.GetBar(rect.min);
             return firstBar + index;
+        }
+
+        public void SetVisible(bool visible)
+        {
+            parent.gameObject.SetActive(visible);
+            leftBar.gameObject.SetActive(visible);
+            topBar.gameObject.SetActive(visible);
         }
 
         public int GetSubdivisionByIndex(int index)

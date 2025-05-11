@@ -1,4 +1,5 @@
 using DSP;
+using DTO;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -16,18 +17,6 @@ namespace PianoRoll
             this.beat = beat;
             this.length = length;
             this.pitch = pitch;
-        }
-    }
-
-    public struct TempoEvent
-    {
-        public float beat;
-        public float bps;
-
-        public TempoEvent(float beat, float bps)
-        {
-            this.beat = beat;
-            this.bps = bps;
         }
     }
 

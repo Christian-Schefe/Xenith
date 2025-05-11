@@ -17,7 +17,7 @@ namespace PianoRoll
         private void LateUpdate()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            var timeBar = Globals<TimeBar>.Instance;
+            var timeBar = Globals<PianoRollVisuals>.Instance;
             var bar = timeBar.GetBarByIndex(index);
             text.text = bar.ToString();
             var screenPos = noteEditor.PianoToScreenCoords(new(bar * 4, 0));

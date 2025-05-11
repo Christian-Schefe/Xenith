@@ -10,11 +10,9 @@ namespace PianoRoll
 
         private Vector2 mouseDownPos;
 
-        int waitFrames = 0;
-
-        private void Start()
+        public void ResetPosition()
         {
-            waitFrames = 1;
+            cam.transform.position = new Vector3(0, 0, cam.transform.position.z);
         }
 
         private void Update()
@@ -30,12 +28,6 @@ namespace PianoRoll
                 Vector2 delta = mousePos - mouseDownPos;
 
                 pos -= (Vector3)delta;
-            }
-
-            if (waitFrames > 0)
-            {
-                waitFrames--;
-                return;
             }
 
             var noteEditor = Globals<NoteEditor>.Instance;

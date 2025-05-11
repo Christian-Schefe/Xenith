@@ -17,14 +17,27 @@ namespace DSP
             });
         }
 
-        public static CombinatorNode<FloatValue> Add(int inputs)
+        public static CombinatorNode<FloatValue> Add(int inputCount)
         {
-            return new CombinatorNode<FloatValue>(inputs, 1, (inputs, outputs) =>
+            return new CombinatorNode<FloatValue>(inputCount, 1, (inputs, outputs) =>
             {
                 float sum = 0;
                 for (int i = 0; i < inputs.Length; i++)
                 {
                     sum += inputs[i].value;
+                }
+                outputs[0].value = sum;
+            });
+        }
+
+        public static CombinatorNode<FloatValue> Mix(int inputCount)
+        {
+            return new CombinatorNode<FloatValue>(2 * inputCount, 1, (inputs, outputs) =>
+            {
+                float sum = 0;
+                for (int i = 0; i < inputCount; i++)
+                {
+                    sum += inputs[2 * i].value * inputs[2 * i + 1].value;
                 }
                 outputs[0].value = sum;
             });

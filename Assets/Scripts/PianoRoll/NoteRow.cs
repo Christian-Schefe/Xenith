@@ -18,7 +18,7 @@ namespace PianoRoll
         private void Update()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            var timeBar = Globals<TimeBar>.Instance;
+            var timeBar = Globals<PianoRollVisuals>.Instance;
             var y = timeBar.GetRowByOffset(yOffset);
             var steps = noteEditor.PianoToSteps(y);
             if (noteEditor.IsSpecialRow(steps))
