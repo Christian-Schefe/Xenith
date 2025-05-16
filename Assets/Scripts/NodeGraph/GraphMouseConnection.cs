@@ -3,48 +3,50 @@ using UnityEngine;
 
 namespace NodeGraph
 {
-    public class GraphConnection : MonoBehaviour
+    public class GraphMouseConnection : MonoBehaviour
     {
         [SerializeField] private UILine line;
 
-        public DTO.Connection connection;
-
         public GraphNode fromNode;
-        public int FromNodeOutput => connection.fromNodeOutput;
-        public GraphNode toNode;
-        public int ToNodeInput => connection.toNodeInput;
+        public int fromNodeOutput;
 
         private Vector2? fromPosition = null;
         private Vector2? toPosition = null;
 
-        public void Initialize(List<GraphNode> nodes, DTO.Connection connection)
+        public bool visible;
+
+        public void Show(GraphNode fromNode, int fromNodeOutput)
         {
-            this.connection = connection;
-            fromNode = nodes[connection.fromNodeIndex];
-            toNode = nodes[connection.toNodeIndex];
+            visible = true;
+            line.gameObject.SetActive(true);
+            this.fromNode = fromNode;
+            this.fromNodeOutput = fromNodeOutput;
 
             UpdatePositions();
         }
 
-        public void UpdateNodeIndices(Dictionary<GraphNode, int> indexMap)
+        public void Hide()
         {
-            connection.fromNodeIndex = indexMap[fromNode];
-            connection.toNodeIndex = indexMap[toNode];
+            visible = false;
+            line.gameObject.SetActive(false);
         }
 
         private void Update()
         {
+            if (!visible) return;
             var oldFromPosition = fromPosition;
             var oldToPosition = toPosition;
 
-            fromPosition = fromNode.GetConnectorPosition(false, FromNodeOutput);
-            toPosition = toNode.GetConnectorPosition(true, ToNodeInput);
+            var graphEditor = Globals<GraphEditor>.Instance;
+
+            fromPosition = fromNode.GetConnectorPosition(false, fromNodeOutput);
+            toPosition = graphEditor.ScreenToNodePosition(Input.mousePosition);
 
             if (oldFromPosition != fromPosition || oldToPosition != toPosition)
             {
                 UpdatePositions();
             }
-            line.color = fromNode.GetConnector(false, FromNodeOutput).GetConnectorColor();
+            line.color = fromNode.GetConnector(false, fromNodeOutput).GetConnectorColor();
         }
 
         private void UpdatePositions()

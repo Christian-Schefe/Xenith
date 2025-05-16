@@ -1,17 +1,19 @@
 
 using System.Collections.Generic;
+using Unity.VisualScripting.Antlr3.Runtime;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class FileSaveBrowser : MonoBehaviour
 {
     [SerializeField] private RectTransform contentArea;
-    [SerializeField] private FileTreeEntry folderEntryPrefab;
+    [SerializeField] private FileTreeEntry fileEntryPrefab, folderEntryPrefab;
     [SerializeField] private TMPro.TMP_InputField fileNameInputField;
     [SerializeField] private Button cancelButton, confirmButton;
 
+    private bool isOpen;
     private string pwd;
-    private System.Action<string> onConfirm;
+    private System.Action<string, string> onConfirm;
     private System.Action onCancel;
     private readonly List<FileTreeEntry> entries = new();
 
@@ -27,10 +29,20 @@ public class FileSaveBrowser : MonoBehaviour
         cancelButton.onClick.RemoveListener(OnCancel);
     }
 
+    private void Update()
+    {
+        if (isOpen && Input.GetKeyDown(KeyCode.Escape))
+        {
+            OnCancel();
+        }
+    }
+
     private void OnCancel()
     {
         onCancel?.Invoke();
         gameObject.SetActive(false);
+        CleanEntries();
+        isOpen = false;
     }
 
     private void OnConfirm()
@@ -38,57 +50,57 @@ public class FileSaveBrowser : MonoBehaviour
         if (!string.IsNullOrEmpty(fileNameInputField.text))
         {
             var fileName = fileNameInputField.text;
-            if (!fileName.EndsWith(".json"))
-            {
-                fileName += ".json";
-            }
-            var path = System.IO.Path.Combine(pwd, fileNameInputField.text);
-            onConfirm?.Invoke(path);
+            onConfirm?.Invoke(pwd, fileName);
             gameObject.SetActive(false);
+            CleanEntries();
+            isOpen = false;
         }
     }
 
-    public void Open(string pwd, System.Action<string> onConfirm, System.Action onCancel)
+    public void Open<T>(FileBrowserDataSource<T> dataSource, string pwd, System.Action<string, string> onConfirm, System.Action onCancel)
     {
         this.pwd = pwd;
         this.onConfirm = onConfirm;
         this.onCancel = onCancel;
         fileNameInputField.text = "";
         gameObject.SetActive(true);
-        UpdateEntries();
+        UpdateEntries(dataSource);
     }
 
-    public void UpdateEntries()
+    private void CleanEntries()
     {
         foreach (var entry in entries)
         {
             Destroy(entry.gameObject);
         }
         entries.Clear();
+    }
 
-        var parent = System.IO.Path.GetDirectoryName(pwd);
-        if (parent != null)
-        {
-            var parentName = System.IO.Path.GetFileName(parent);
-            var entry = Instantiate(folderEntryPrefab, contentArea);
-            entry.SetData("..", () => OnClickDirectory(parent));
-            entries.Add(entry);
-        }
+    public void UpdateEntries<T>(FileBrowserDataSource<T> dataSource)
+    {
+        CleanEntries();
 
-        var directories = System.IO.Directory.GetDirectories(pwd);
-        foreach (var directory in directories)
+        var data = new List<FileBrowserDataEntry<T>>();
+        data.AddRange(dataSource.GetDirectories(pwd));
+
+        foreach (var entry in data)
         {
-            var fullPath = System.IO.Path.GetFullPath(directory);
-            var name = System.IO.Path.GetFileName(fullPath);
-            var entry = Instantiate(folderEntryPrefab, contentArea);
-            entry.SetData(name, () => OnClickDirectory(fullPath));
-            entries.Add(entry);
+            var prefab = entry.isDirectory ? folderEntryPrefab : fileEntryPrefab;
+            var entryObj = Instantiate(prefab, contentArea);
+            System.Action<FileBrowserDataSource<T>, string> onClick = entry.isDirectory ? OnClickDirectory<T> : OnClickFile<T>;
+            entryObj.SetData(entry.name, () => onClick(dataSource, entry.path));
+            entries.Add(entryObj);
         }
     }
 
-    private void OnClickDirectory(string directory)
+    private void OnClickDirectory<T>(FileBrowserDataSource<T> dataSource, string directory)
     {
         pwd = directory;
-        UpdateEntries();
+        UpdateEntries(dataSource);
+    }
+
+    private void OnClickFile<T>(FileBrowserDataSource<T> dataSource, string file)
+    {
+        fileNameInputField.text = System.IO.Path.GetFileName(file);
     }
 }

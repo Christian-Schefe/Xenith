@@ -71,9 +71,9 @@ public class Track : MonoBehaviour
     {
         var database = Globals<GraphDatabase>.Instance;
         var graphs = database.GetGraphs().ToList();
-        var index = graphs.FindIndex(g => g.id == track.instrument);
+        var index = graphs.FindIndex(g => g.Key.ToResource() == track.instrument);
         index = (index + 1) % graphs.Count;
-        track.instrument = graphs[index].id;
+        track.instrument = graphs[index].Key.ToResource();
         UpdateUI();
     }
 
@@ -90,6 +90,6 @@ public class Track : MonoBehaviour
         Update();
         trackNameText.text = track.name;
         volumeSlider.value = track.volume;
-        instrumentNameText.text = track.instrument.displayName;
+        instrumentNameText.text = track.instrument.id;
     }
 }

@@ -1,4 +1,6 @@
 using DSP;
+using DTO;
+using Mono.Cecil;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -8,20 +10,20 @@ namespace NodeGraph
     public class GraphEditor : MonoBehaviour
     {
         [SerializeField] private Canvas canvas;
+        [SerializeField] private RectTransform viewFrame;
         [SerializeField] private RectTransform contentParent;
         [SerializeField] private RectTransform nodeParent, connectionParent;
         [SerializeField] private AddNodeDialog addNodeDialog;
         [SerializeField] private GraphDatabase graphDatabase;
-        [SerializeField] private GraphEditorUI ui;
 
-        public Graph graphPrefab;
+        [SerializeField] private Graph graph;
         public GraphNode nodePrefab;
         public GraphConnection connectionPrefab;
 
         public NodeIOLabel inputLabelPrefab;
         public NodeIOLabel outputLabelPrefab;
 
-        private GraphConnection currentlyConnecting;
+        public GraphMouseConnection currentlyConnecting;
         private readonly HashSet<(GraphNode, int)> connectionTargets = new();
         private readonly HashSet<GraphNode> selectedNodes = new();
         private readonly Dictionary<GraphNode, Vector2> dragOffsets = new();
@@ -32,10 +34,31 @@ namespace NodeGraph
         private float scrollAccumulator = 0;
         private readonly float scrollThreshold = 0.1f;
         private readonly float scrollStep = 1.1f;
-        private Graph graph;
+
+        private GraphID graphId;
 
         public Graph Graph => graph;
 
+        public void Show()
+        {
+            var main = Globals<Main>.Instance;
+            graphId = main.CurrentGraphId;
+            graph.ShowGraph(main.CurrentGraph);
+            viewFrame.gameObject.SetActive(true);
+        }
+
+        public void Hide()
+        {
+            graphId = null;
+
+            addNodeDialog.Close();
+            graph.HideGraph();
+            selectedNodes.Clear();
+            currentlyConnecting.Hide();
+            connectionTargets.Clear();
+            dragOffsets.Clear();
+            viewFrame.gameObject.SetActive(false);
+        }
 
         public List<NodeResource> GetPlaceableNodes()
         {
@@ -46,35 +69,24 @@ namespace NodeGraph
                 if (kvp.Key.id == "invalid") continue;
                 allNodes.Add(kvp.Key);
             }
-            foreach (var graph in graphDatabase.GetGraphs())
+            foreach (var (id, _) in graphDatabase.GetGraphs())
             {
-                if (!GetNodeFromTypeId(graph.id, out _)) continue;
-                allNodes.Add(graph.id);
+                var resource = new NodeResource(id.path, false);
+                if (!GetNodeFromTypeId(resource, out _)) continue;
+                allNodes.Add(resource);
             }
             return allNodes;
         }
 
         public bool GetNodeFromTypeId(NodeResource typeId, out AudioNode audioNode)
         {
-            return graphDatabase.GetNodeFromTypeId(typeId, graph.id, out audioNode);
+            return graphDatabase.GetNodeFromTypeId(typeId, new(graphId.path, false), out audioNode);
         }
 
         public bool IsInteractable()
         {
-            return graph != null && !ui.IsDialogOpen();
+            return graph != null;
         }
-
-        public bool TryGetGraphDisplayName(out string displayName)
-        {
-            if (graph == null)
-            {
-                displayName = null;
-                return false;
-            }
-            displayName = graph.id.displayName;
-            return true;
-        }
-
 
         private void Update()
         {
@@ -116,61 +128,6 @@ namespace NodeGraph
                     AddSelectedNode(node, true);
                 }
             }
-        }
-
-        public void DeleteGraph()
-        {
-            if (graph == null) return;
-            graphDatabase.DeleteGraph(graph.id);
-            CloseGraph();
-        }
-
-        public void CloseGraph()
-        {
-            addNodeDialog.Close();
-            graph.DestroySelf();
-            selectedNodes.Clear();
-            if (currentlyConnecting != null)
-            {
-                Destroy(currentlyConnecting.gameObject);
-            }
-            currentlyConnecting = null;
-            connectionTargets.Clear();
-            dragOffsets.Clear();
-            graph = null;
-        }
-
-        public void OpenGraph(NodeResource graphId)
-        {
-            if (graph != null)
-            {
-                SaveGraph();
-                CloseGraph();
-            }
-            if (!graphDatabase.TryGetGraph(graphId, out var loadedGraph))
-            {
-                throw new System.Exception($"Failed to load graph: {graphId}.");
-            }
-            graph = Instantiate(graphPrefab, contentParent);
-            graph.Deserialize(loadedGraph);
-        }
-
-        public void NewGraph(NodeResource id)
-        {
-            if (graph != null)
-            {
-                SaveGraph();
-                CloseGraph();
-            }
-            graph = Instantiate(graphPrefab, contentParent);
-            graph.Initialize(id);
-        }
-
-        public void SaveGraph()
-        {
-            if (graph == null) return;
-            var serializedGraph = graph.Serialize();
-            graphDatabase.SaveGraph(serializedGraph);
         }
 
         public GraphNode CreateNodeInstance()
@@ -224,7 +181,7 @@ namespace NodeGraph
             dragOffsets.Clear();
             foreach (var node in selectedNodes)
             {
-                var offset = mousePos - node.position;
+                var offset = mousePos - node.Position;
                 dragOffsets.Add(node, offset);
             }
         }
@@ -235,8 +192,7 @@ namespace NodeGraph
             {
                 if (!dragOffsets.ContainsKey(node)) continue;
                 var pos = mousePos - dragOffsets[node];
-                node.position = pos;
-                node.rectTransform.localPosition = pos;
+                node.SetPosition(pos);
             }
         }
 
@@ -272,7 +228,7 @@ namespace NodeGraph
 
         public bool TryPickConnection(GraphNode to, int index)
         {
-            if (currentlyConnecting != null)
+            if (IsConnecting())
             {
                 throw new System.Exception("Already connecting");
             }
@@ -281,57 +237,57 @@ namespace NodeGraph
             {
                 return false;
             }
-            var connection = incoming.FirstOrDefault(c => c.toNodeInput == index);
+            var connection = incoming.FirstOrDefault(c => c.ToNodeInput == index);
             if (connection == null)
             {
                 return false;
             }
             graph.RemoveConnection(connection);
-            currentlyConnecting = connection;
-            currentlyConnecting.UnsetConnection(false);
-            currentlyConnecting.connectToMouse = true;
+            currentlyConnecting.Show(connection.fromNode, connection.FromNodeOutput);
             connectionTargets.Clear();
+            Destroy(connection.gameObject);
             return true;
         }
 
         public void StartConnection(GraphNode from, int index)
         {
-            if (currentlyConnecting != null)
+            if (IsConnecting())
             {
                 throw new System.Exception("Already connecting");
             }
-            currentlyConnecting = Instantiate(connectionPrefab, connectionParent);
-            currentlyConnecting.SetConnection(true, from, index);
-            currentlyConnecting.connectToMouse = true;
+            currentlyConnecting.Show(from, index);
             connectionTargets.Clear();
+            graph.UpdateAllNodeIndices();
         }
 
         public void ReleaseConnection()
         {
-            if (currentlyConnecting == null)
+            if (!IsConnecting())
             {
                 throw new System.Exception("Not connecting");
             }
             var validTargets = connectionTargets.Where(x => graph.IsValidConnection(currentlyConnecting.fromNode, x.Item1, currentlyConnecting.fromNodeOutput, x.Item2)).ToList();
             if (validTargets.Count == 0)
             {
-                Destroy(currentlyConnecting.gameObject);
-                currentlyConnecting = null;
+                currentlyConnecting.Hide();
             }
             else
             {
                 var (node, index) = validTargets[0];
-                currentlyConnecting.SetConnection(false, node, index);
-                currentlyConnecting.connectToMouse = false;
-                graph.AddConnection(currentlyConnecting);
-                currentlyConnecting = null;
+                var nodeMap = graph.GetNodeMap();
+                var fromIndex = nodeMap[currentlyConnecting.fromNode];
+                var toIndex = nodeMap[node];
+
+                var connection = Instantiate(connectionPrefab, connectionParent);
+                connection.Initialize(graph.GetNodes(), new DTO.Connection(fromIndex, currentlyConnecting.fromNodeOutput, toIndex, index));
+                graph.AddConnection(connection);
+                currentlyConnecting.Hide();
             }
         }
 
-
         public bool IsConnecting()
         {
-            return currentlyConnecting != null;
+            return currentlyConnecting.visible;
         }
 
         public void AddConnectionTarget(GraphNode to, int index)
@@ -344,11 +300,28 @@ namespace NodeGraph
             connectionTargets.Remove((to, index));
         }
 
+        public Rect ViewRectScreen()
+        {
+            Vector3[] corners = new Vector3[4];
+            viewFrame.GetWorldCorners(corners);
+
+            // Calculate the screen space rectangle
+            float minX = Mathf.Min(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
+            float minY = Mathf.Min(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
+            float width = Mathf.Max(corners[0].x, corners[1].x, corners[2].x, corners[3].x) - minX;
+            float height = Mathf.Max(corners[0].y, corners[1].y, corners[2].y, corners[3].y) - minY;
+
+            // Display the screen space rectangle
+            Rect screenRect = new(minX, minY, width, height);
+            return screenRect;
+        }
+
         public Vector2 ScreenToNodePosition(Vector2 screenPosition)
         {
             var cam = Globals<MainCamera>.Instance.cam;
             var canvasRect = canvas.GetComponent<RectTransform>().rect;
-            var viewportPoint = cam.ScreenToViewportPoint(screenPosition);
+            var viewRect = ViewRectScreen();
+            var viewportPoint = cam.ScreenToViewportPoint(screenPosition - viewRect.min);
             var canvasPos = canvasRect.size * viewportPoint / scale - offset;
             return canvasPos;
         }

@@ -9,6 +9,9 @@ namespace DSP
         {
             if (Input.GetKeyDown(KeyCode.Space))
             {
+                var main = Globals<Main>.Instance;
+                if (main.CurrentSongId == null) return;
+
                 var noteEditor = Globals<PianoRoll.NoteEditor>.Instance;
                 var dsp = Globals<DSP>.Instance;
                 if (noteEditor.isPlaying)
@@ -20,7 +23,6 @@ namespace DSP
                 noteEditor.StartPlaying();
 
                 var startTime = noteEditor.GetPlayStartTime();
-                var main = Globals<Main>.Instance;
                 var node = main.CurrentSong.BuildAudioNode(startTime);
 
                 dsp.Initialize(node);

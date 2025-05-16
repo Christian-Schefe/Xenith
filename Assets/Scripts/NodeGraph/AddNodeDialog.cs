@@ -61,10 +61,10 @@ namespace NodeGraph
             var nodeTypes = graphEditor.GetPlaceableNodes();
             foreach (var nodeType in nodeTypes)
             {
-                if (searchText == "" || nodeType.displayName.ToLower().Contains(searchText.ToLower()))
+                if (searchText == "" || nodeType.id.ToLower().Contains(searchText.ToLower()))
                 {
                     var entry = Instantiate(itemPrefab, scrollContent);
-                    entry.SetText(nodeType.displayName);
+                    entry.SetText(nodeType.id);
                     entry.SetOnClickListener(() =>
                     {
                         graphEditor.Graph.AddNode(position, nodeType);

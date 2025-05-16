@@ -36,12 +36,12 @@ namespace DTO
 
         public static bool operator ==(SongID a, SongID b)
         {
-            return a.Equals(b);
+            return a is null ? b is null : a.Equals(b);
         }
 
         public static bool operator !=(SongID a, SongID b)
         {
-            return !a.Equals(b);
+            return a is null ? b is not null : !a.Equals(b);
         }
     }
 
@@ -172,7 +172,7 @@ namespace DTO
 
         public static Track Default()
         {
-            return new Track("New Track", new NodeResource("Piano", "piano", false), false, false, 0.9f, 0.0f, new());
+            return new Track("New Track", new NodeResource("piano", false), false, false, 0.9f, 0.0f, new());
         }
 
         public AudioNode BuildAudioNode(float startTime, List<TempoEvent> tempoEvents)

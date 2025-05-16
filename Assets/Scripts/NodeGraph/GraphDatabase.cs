@@ -1,4 +1,5 @@
 using DSP;
+using DTO;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -6,19 +7,19 @@ namespace NodeGraph
 {
     public class GraphDatabase : MonoBehaviour
     {
-        public PersistentBox<Dictionary<NodeResource, SerializedGraph>> graphs = new("graphs", new Dictionary<NodeResource, SerializedGraph>());
+        public PersistentBox<Dictionary<GraphID, DTO.Graph>> graphs = new("graphs", new Dictionary<GraphID, DTO.Graph>());
 
         public Dictionary<NodeResource, System.Func<AudioNode>> GetBuiltinNodeTypes() => new()
         {
-            { new NodeResource("Invalid", "invalid", true), () => new EmptyNode() },
-            { new NodeResource("Add", "add", true), () => Prelude.Add(2) },
-            { new NodeResource("Multiply", "multiply", true), () => Prelude.Multiply(2) },
-            { new NodeResource("Vibrato", "vibrato", true), () => Prelude.Vibrato(0.5f) },
-            { new NodeResource("ADSR", "adsr", true), () => new ADSR() },
-            { new NodeResource("Oscillator", "oscillator", true), () => new Oscillator() },
-            { new NodeResource("Float", "const_float", true), () => new ConstFloatNode() },
-            { new NodeResource("Input", "input", true), () => new GraphEdgeNode(true) },
-            { new NodeResource("Output", "output", true), () => new GraphEdgeNode(false) },
+            { new NodeResource( "invalid", true), () => new EmptyNode() },
+            { new NodeResource("add", true), () => Prelude.Add(2) },
+            { new NodeResource("multiply", true), () => Prelude.Multiply(2) },
+            { new NodeResource("vibrato", true), () => Prelude.Vibrato(0.5f) },
+            { new NodeResource("adsr", true), () => new ADSR() },
+            { new NodeResource("oscillator", true), () => new Oscillator() },
+            { new NodeResource("const_float", true), () => new ConstFloatNode() },
+            { new NodeResource("input", true), () => new GraphEdgeNode(true) },
+            { new NodeResource("output", true), () => new GraphEdgeNode(false) },
         };
 
         private void Awake()
@@ -29,26 +30,26 @@ namespace NodeGraph
             }, false);
         }
 
-        public IEnumerable<SerializedGraph> GetGraphs()
+        public IEnumerable<KeyValuePair<GraphID, DTO.Graph>> GetGraphs()
         {
             var dict = graphs.Value;
-            return dict.Values;
+            return dict;
         }
 
-        public bool TryGetGraph(NodeResource id, out SerializedGraph graph)
+        public bool TryGetGraph(GraphID id, out DTO.Graph graph)
         {
             var dict = graphs.Value;
             return dict.TryGetValue(id, out graph);
         }
 
-        public void SaveGraph(SerializedGraph graph)
+        public void SaveGraph(GraphID id, DTO.Graph graph)
         {
             var dict = graphs.Value;
-            dict[graph.id] = graph;
+            dict[id] = graph;
             graphs.TriggerChange();
         }
 
-        public void DeleteGraph(NodeResource id)
+        public void DeleteGraph(GraphID id)
         {
             var dict = graphs.Value;
             if (dict.ContainsKey(id))
@@ -58,22 +59,21 @@ namespace NodeGraph
             }
         }
 
-        public void RenameGraph(NodeResource oldId, NodeResource newId)
+        public void RenameGraph(GraphID oldId, GraphID newId)
         {
             var dict = graphs.Value;
             var graph = dict[oldId];
             dict.Add(newId, graph);
             dict.Remove(oldId);
-            graph.id = newId;
 
             foreach (var otherGraph in dict)
             {
                 var nodes = otherGraph.Value.nodes;
                 for (int i = 0; i < nodes.Count; i++)
                 {
-                    if (nodes[i].id == oldId)
+                    if (!nodes[i].id.builtIn && (nodes[i].id.id == oldId.path))
                     {
-                        nodes[i] = nodes[i].WithId(newId);
+                        nodes[i].id = new(oldId.path, false);
                     }
                 }
             }
@@ -112,7 +112,7 @@ namespace NodeGraph
                 }
                 visited.Add(typeId);
                 bool success = false;
-                if (TryGetGraph(typeId, out var graph))
+                if (TryGetGraph(new GraphID(typeId.id), out var graph))
                 {
                     success = graph.TryCreateAudioNode(this, visited, out audioNode);
                 }

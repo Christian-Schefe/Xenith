@@ -1,9 +1,7 @@
 using DTO;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace PianoRoll
 {
@@ -92,6 +90,8 @@ namespace PianoRoll
 
         private void Update()
         {
+            if (activeSong == null) return;
+
             if (Input.GetKeyDown(KeyCode.Alpha1))
             {
                 DoZoom(new(1.1f, 1));
@@ -331,6 +331,22 @@ namespace PianoRoll
             var mouseWorldY = PianoToWorldCoords(mousePiano).y;
             var yDist = camWorldY - mouseWorldY;
             return xDist < 0.2f || (yDist < 1f && yDist >= 0);
+        }
+
+        public Rect ViewRectScreen()
+        {
+            Vector3[] corners = new Vector3[4];
+            viewFrame.GetWorldCorners(corners);
+
+            // Calculate the screen space rectangle
+            float minX = Mathf.Min(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
+            float minY = Mathf.Min(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
+            float width = Mathf.Max(corners[0].x, corners[1].x, corners[2].x, corners[3].x) - minX;
+            float height = Mathf.Max(corners[0].y, corners[1].y, corners[2].y, corners[3].y) - minY;
+
+            // Display the screen space rectangle
+            Rect screenRect = new(minX, minY, width, height);
+            return screenRect;
         }
 
         public Rect ViewRectWorld()
@@ -605,22 +621,6 @@ namespace PianoRoll
             var cam = Globals<CameraController>.Instance;
             var world = PianoToWorldCoords(piano);
             return cam.Cam.WorldToScreenPoint(world);
-        }
-
-        public Rect ViewRectScreen()
-        {
-            Vector3[] corners = new Vector3[4];
-            viewFrame.GetWorldCorners(corners);
-
-            // Calculate the screen space rectangle
-            float minX = Mathf.Min(corners[0].x, corners[1].x, corners[2].x, corners[3].x);
-            float minY = Mathf.Min(corners[0].y, corners[1].y, corners[2].y, corners[3].y);
-            float width = Mathf.Max(corners[0].x, corners[1].x, corners[2].x, corners[3].x) - minX;
-            float height = Mathf.Max(corners[0].y, corners[1].y, corners[2].y, corners[3].y) - minY;
-
-            // Display the screen space rectangle
-            Rect screenRect = new(minX, minY, width, height);
-            return screenRect;
         }
 
         public Vector2 WorldToPianoCoords(Vector2 world)

@@ -24,6 +24,12 @@ namespace NodeGraph
 
         private void Awake()
         {
+            BuildPrefabDict();
+        }
+
+        private void BuildPrefabDict()
+        {
+            if (nodeOptionPrefabsDict != null) return;
             nodeOptionPrefabsDict = new Dictionary<SettingType, NodeOption>();
             foreach (var prefab in nodeOptionPrefabs)
             {
@@ -38,17 +44,13 @@ namespace NodeGraph
                 Destroy(option.gameObject);
             }
             options.Clear();
-            parentNode = parent;
 
+            BuildPrefabDict();
             if (node is SettingsNode settingsNode)
             {
                 void OnChange()
                 {
-                    settingsNode.OnSettingsChanged();
-                    if (parentNode.NeedsRebuild())
-                    {
-                        parentNode.Rebuild();
-                    }
+                    parent.OnSettingsChanged();
                 }
                 var settings = settingsNode.Settings;
                 foreach (var setting in settings.settings)

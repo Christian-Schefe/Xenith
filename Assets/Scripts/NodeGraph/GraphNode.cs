@@ -1,4 +1,5 @@
 using DSP;
+using DTO;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -15,8 +16,11 @@ namespace NodeGraph
         [SerializeField] private NodeSettingsContainer settingsContainer;
         [SerializeField] private float headerHeight, labelWidth, labelHeight;
 
-        private NodeResource id;
-        public Vector2 position;
+        public Node node;
+
+        public Vector2 Position => node.position;
+        public NodeResource Id => node.id;
+        public string SerializedSettings => node.serializedSettings;
 
         private readonly List<NodeIOLabel> inputLabels = new();
         private readonly List<NodeIOLabel> outputLabels = new();
@@ -32,6 +36,25 @@ namespace NodeGraph
         private void Awake()
         {
             rectTransform = GetComponent<RectTransform>();
+        }
+
+        public void SetPosition(Vector2 position)
+        {
+            node.position = position;
+            rectTransform.localPosition = node.position;
+        }
+
+        public void OnSettingsChanged()
+        {
+            if (audioNode is SettingsNode settingsNode)
+            {
+                settingsNode.OnSettingsChanged();
+                node.serializedSettings = settingsNode.Settings.Serialize();
+            }
+            if (NeedsRebuild())
+            {
+                Rebuild();
+            }
         }
 
         public bool NeedsRebuild()
@@ -72,19 +95,18 @@ namespace NodeGraph
             isRebuilding = false;
         }
 
-        public void Initialize(NodeResource nodeId, Vector2 position, string serializedSettings)
+        public void Initialize(Node node)
         {
-            id = nodeId;
-            this.position = position;
+            this.node = node;
             var graphEditor = Globals<GraphEditor>.Instance;
-            if (!graphEditor.GetNodeFromTypeId(nodeId, out audioNode))
+            if (!graphEditor.GetNodeFromTypeId(node.id, out audioNode))
             {
-                id = new("Invalid", "invalid", true);
-                graphEditor.GetNodeFromTypeId(id, out audioNode);
+                node.id = new("invalid", true);
+                graphEditor.GetNodeFromTypeId(node.id, out audioNode);
             }
-            if (serializedSettings != null && audioNode is SettingsNode settingsNode)
+            if (node.serializedSettings != null && audioNode is SettingsNode settingsNode)
             {
-                settingsNode.DeserializeSettings(serializedSettings);
+                settingsNode.DeserializeSettings(node.serializedSettings);
             }
 
             try
@@ -93,8 +115,8 @@ namespace NodeGraph
             }
             catch
             {
-                id = new("Invalid", "invalid", true);
-                graphEditor.GetNodeFromTypeId(id, out audioNode);
+                node.id = new("invalid", true);
+                graphEditor.GetNodeFromTypeId(node.id, out audioNode);
             }
 
             UpdateVisuals();
@@ -149,8 +171,8 @@ namespace NodeGraph
 
             footer.offsetMax = new Vector2(0, -headerHeight - settingsHeight);
 
-            label.text = id.displayName;
-            rectTransform.localPosition = position;
+            label.text = node.id.id;
+            rectTransform.localPosition = node.position;
         }
 
         public void SetSelected(bool selected)
@@ -205,7 +227,7 @@ namespace NodeGraph
         public Rect GetRect()
         {
             var size = rectTransform.sizeDelta;
-            var pos = position - size / 2;
+            var pos = node.position - size / 2;
             return new Rect(pos, size);
         }
 
@@ -239,26 +261,6 @@ namespace NodeGraph
             graphEditor.AddSelectedNode(this, keepPrevious);
         }
 
-        public SerializedGraphNode Serialize()
-        {
-            string serializedSettings = null;
-            if (audioNode is SettingsNode settingsNode)
-            {
-                serializedSettings = settingsNode.Settings.Serialize();
-            }
-            return new()
-            {
-                position = position,
-                id = id,
-                serializedSettings = serializedSettings
-            };
-        }
-
-        public void Deserialize(SerializedGraphNode node)
-        {
-            Initialize(node.id, node.position, node.serializedSettings);
-        }
-
         public void OnPointerEnter(PointerEventData eventData)
         {
             isHovered = true;
@@ -269,23 +271,6 @@ namespace NodeGraph
         {
             isHovered = false;
             UpdateOutline();
-        }
-    }
-
-    public struct SerializedGraphNode
-    {
-        public Vector2 position;
-        public NodeResource id;
-        public string serializedSettings;
-
-        public readonly SerializedGraphNode WithId(NodeResource id)
-        {
-            return new SerializedGraphNode
-            {
-                position = position,
-                id = id,
-                serializedSettings = serializedSettings
-            };
         }
     }
 }
