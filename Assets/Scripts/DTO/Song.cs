@@ -128,6 +128,12 @@ namespace DTO
             }
             return graph;
         }
+
+        public float GetDuration()
+        {
+            if (tracks.Count == 0) return 0;
+            return tracks.Select(t => t.GetDuration(tempoEvents)).Max();
+        }
     }
 
     public class Track
@@ -190,6 +196,14 @@ namespace DTO
             }).ToList();
             var sequencerNotes = TempoController.ConvertNotes(unsortedTempoNotes, tempoEvents);
             return sequencerNotes;
+        }
+
+        public float GetDuration(List<TempoEvent> tempoEvents)
+        {
+            var notes = BuildNotes(tempoEvents);
+            if (notes.Count == 0) return 0;
+            var lastNote = notes[^1];
+            return lastNote.time + lastNote.duration;
         }
     }
 

@@ -1,4 +1,5 @@
 using ActionMenu;
+using DSP;
 using DTO;
 using System.Collections;
 using System.Collections.Generic;
@@ -24,6 +25,7 @@ public class Main : MonoBehaviour
                 new ActionType.Button("Open", OpenSong),
                 new ActionType.Button("Save", () => SaveOpenSong(false, null)),
                 new ActionType.Button("Save As", () => SaveOpenSong(true, null)),
+                new ActionType.Button("Export", () => ExportOpenSong()),
             }),
 
             new("Graph", new() {
@@ -67,6 +69,27 @@ public class Main : MonoBehaviour
         SaveSong(openSong, alwaysAsk, onFinishSave);
     }
 
+    private void ExportOpenSong()
+    {
+        if (openSong == null)
+        {
+            return;
+        }
+
+        var fileBrowser = Globals<FileBrowser>.Instance;
+        fileBrowser.Save(path =>
+        {
+            var dsp = Globals<DPSTest>.Instance;
+            dsp.Render(wavFile =>
+            {
+                wavFile.WriteToFile(path);
+            });
+        }, () =>
+        {
+            Debug.Log("Export cancelled");
+        });
+    }
+
     private void AddSongTab(SongID id)
     {
         var actionBar = Globals<ActionBar>.Instance;
@@ -86,6 +109,10 @@ public class Main : MonoBehaviour
         tab.onSelect = () => OnSongShow(newId);
         tab.onDeselect = () => OnSongHide();
         tab.onTryClose = (callback) => OnSongClose(newId, callback);
+        if (openSong == oldId)
+        {
+            openSong = newId;
+        }
         actionBar.UpdateTab(tab);
     }
 
