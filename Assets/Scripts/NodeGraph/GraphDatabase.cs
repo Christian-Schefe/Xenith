@@ -11,10 +11,10 @@ namespace NodeGraph
 
         public Dictionary<NodeResource, System.Func<AudioNode>> GetBuiltinNodeTypes() => new()
         {
-            { new NodeResource( "invalid", true), () => new EmptyNode() },
-            { new NodeResource("add", true), () => Prelude.Add(2) },
-            { new NodeResource("multiply", true), () => Prelude.Multiply(2) },
-            { new NodeResource("vibrato", true), () => Prelude.Vibrato(0.5f) },
+            { new NodeResource("invalid", true), () => new EmptyNode() },
+            { new NodeResource("float_binary", true), () => new FloatBinaryNode() },
+            { new NodeResource("bool_binary", true), () => new BoolBinaryNode() },
+            { new NodeResource("vibrato", true), () => Prelude.Vibrato() },
             { new NodeResource("adsr", true), () => new ADSR() },
             { new NodeResource("oscillator", true), () => new Oscillator() },
             { new NodeResource("const_float", true), () => new ConstFloatNode() },
@@ -56,26 +56,6 @@ namespace NodeGraph
             {
                 dict.Remove(id);
                 graphs.TriggerChange();
-            }
-        }
-
-        public void RenameGraph(GraphID oldId, GraphID newId)
-        {
-            var dict = graphs.Value;
-            var graph = dict[oldId];
-            dict.Add(newId, graph);
-            dict.Remove(oldId);
-
-            foreach (var otherGraph in dict)
-            {
-                var nodes = otherGraph.Value.nodes;
-                for (int i = 0; i < nodes.Count; i++)
-                {
-                    if (!nodes[i].id.builtIn && (nodes[i].id.id == oldId.path))
-                    {
-                        nodes[i].id = new(oldId.path, false);
-                    }
-                }
             }
         }
 

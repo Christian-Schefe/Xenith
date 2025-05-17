@@ -44,11 +44,11 @@ namespace DSP
             var templateInputs = template.BuildInputs();
             if (templateInputs.Count != 2)
             {
-                throw new System.Exception("Invalid Input");
+                throw new System.Exception("Invalid Input: node doesn't have exactly two inputs");
             }
             if (templateInputs[0].Value.Type != ValueType.Float || templateInputs[1].Value.Type != ValueType.Bool)
             {
-                throw new System.Exception("Invalid Input");
+                throw new System.Exception("Invalid Input: node inputs aren't of the correct type");
             }
 
             var templateOutputs = template.BuildOutputs();

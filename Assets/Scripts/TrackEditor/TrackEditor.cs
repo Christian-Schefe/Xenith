@@ -17,6 +17,7 @@ public class TrackEditor : MonoBehaviour
     private readonly List<Track> tracks = new();
 
     private TopLevelAction trackAction = null;
+    private bool isVisible = false;
 
     private TopLevelAction BuildAction()
     {
@@ -25,6 +26,12 @@ public class TrackEditor : MonoBehaviour
 
     public void Show()
     {
+        if (isVisible)
+        {
+            Debug.LogWarning("Track editor is already visible");
+            return;
+        }
+        isVisible = true;
         uiRoot.gameObject.SetActive(true);
 
         var actionBar = Globals<ActionBar>.Instance;
@@ -50,6 +57,7 @@ public class TrackEditor : MonoBehaviour
 
     public void Hide()
     {
+        isVisible = false;
         uiRoot.gameObject.SetActive(false);
 
         var actionBar = Globals<ActionBar>.Instance;

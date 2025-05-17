@@ -9,27 +9,28 @@ namespace NodeGraph
 
         public DTO.Connection connection;
 
-        public GraphNode fromNode;
+        public int FromNodeIndex => connection.fromNodeIndex;
+        public GraphNode FromNode => Globals<Graph>.Instance.Nodes[connection.fromNodeIndex];
         public int FromNodeOutput => connection.fromNodeOutput;
-        public GraphNode toNode;
+        public int ToNodeIndex => connection.toNodeIndex;
+        public GraphNode ToNode => Globals<Graph>.Instance.Nodes[connection.toNodeIndex];
         public int ToNodeInput => connection.toNodeInput;
 
         private Vector2? fromPosition = null;
         private Vector2? toPosition = null;
 
-        public void Initialize(List<GraphNode> nodes, DTO.Connection connection)
+        public void Initialize(DTO.Connection connection)
         {
             this.connection = connection;
-            fromNode = nodes[connection.fromNodeIndex];
-            toNode = nodes[connection.toNodeIndex];
 
             UpdatePositions();
         }
 
-        public void UpdateNodeIndices(Dictionary<GraphNode, int> indexMap)
+        public void SetNodes(int newFromNode, int newToNode)
         {
-            connection.fromNodeIndex = indexMap[fromNode];
-            connection.toNodeIndex = indexMap[toNode];
+            connection.fromNodeIndex = newFromNode;
+            connection.toNodeIndex = newToNode;
+            UpdatePositions();
         }
 
         private void Update()
@@ -37,14 +38,14 @@ namespace NodeGraph
             var oldFromPosition = fromPosition;
             var oldToPosition = toPosition;
 
-            fromPosition = fromNode.GetConnectorPosition(false, FromNodeOutput);
-            toPosition = toNode.GetConnectorPosition(true, ToNodeInput);
+            fromPosition = FromNode.GetConnectorPosition(false, FromNodeOutput);
+            toPosition = ToNode.GetConnectorPosition(true, ToNodeInput);
 
             if (oldFromPosition != fromPosition || oldToPosition != toPosition)
             {
                 UpdatePositions();
             }
-            line.color = fromNode.GetConnector(false, FromNodeOutput).GetConnectorColor();
+            line.color = FromNode.GetConnector(false, FromNodeOutput).GetConnectorColor();
         }
 
         private void UpdatePositions()

@@ -37,6 +37,122 @@ namespace DSP
         }
     }
 
+    public class BoolBinaryNode : SettingsNode
+    {
+        public enum Operation
+        {
+            And, Or, Nand, Nor, Xor, Xnor
+        }
+
+        public static BoolBinaryNode New(Operation value)
+        {
+            var node = new BoolBinaryNode();
+            node.operationSetting.value = (int)value;
+            node.OnSettingsChanged();
+            return node;
+        }
+
+        private readonly NamedValue<BoolValue> a = new("A", new());
+        private readonly NamedValue<BoolValue> b = new("B", new());
+        private readonly NamedValue<BoolValue> outVal = new("Out", new());
+
+        public readonly EnumSetting<Operation> operationSetting = new("Operation", Operation.Or);
+
+        private Operation operation = Operation.Or;
+
+        public override NodeSettings DefaultSettings => new(operationSetting);
+
+        public override void OnSettingsChanged()
+        {
+            operation = (Operation)operationSetting.value;
+        }
+
+        public override List<NamedValue> BuildInputs() => new() { a, b };
+        public override List<NamedValue> BuildOutputs() => new() { outVal };
+
+        public override void Process(Context context)
+        {
+            var aVal = a.value.value;
+            var bVal = b.value.value;
+
+            outVal.value.value = operation switch
+            {
+                Operation.And => aVal && bVal,
+                Operation.Or => aVal || bVal,
+                Operation.Nand => !(aVal && bVal),
+                Operation.Nor => !(aVal || bVal),
+                Operation.Xor => aVal ^ bVal,
+                Operation.Xnor => !(aVal ^ bVal),
+                _ => throw new System.Exception($"Invalid operation {operation} for BoolBinaryNode")
+            };
+        }
+
+        public override void ResetState() { }
+
+        protected override SettingsNode CloneWithoutSettings()
+        {
+            return new BoolBinaryNode();
+        }
+    }
+
+    public class FloatBinaryNode : SettingsNode
+    {
+        public enum Operation
+        {
+            Add, Sub, Mul, Div, Mod, Min, Max
+        }
+
+        public static FloatBinaryNode New(Operation value)
+        {
+            var node = new FloatBinaryNode();
+            node.operationSetting.value = (int)value;
+            node.OnSettingsChanged();
+            return node;
+        }
+
+        private readonly NamedValue<FloatValue> a = new("A", new());
+        private readonly NamedValue<FloatValue> b = new("B", new());
+        private readonly NamedValue<FloatValue> outVal = new("Out", new());
+
+        public readonly EnumSetting<Operation> operationSetting = new("Operation", Operation.Add);
+
+        private Operation operation = Operation.Add;
+
+        public override NodeSettings DefaultSettings => new(operationSetting);
+
+        public override void OnSettingsChanged()
+        {
+            operation = (Operation)operationSetting.value;
+        }
+
+        public override List<NamedValue> BuildInputs() => new() { a, b };
+        public override List<NamedValue> BuildOutputs() => new() { outVal };
+
+        public override void Process(Context context)
+        {
+            var aVal = a.value.value;
+            var bVal = b.value.value;
+
+            outVal.value.value = operation switch
+            {
+                Operation.Add => aVal + bVal,
+                Operation.Sub => aVal - bVal,
+                Operation.Mul => aVal * bVal,
+                Operation.Div => aVal / bVal,
+                Operation.Mod => aVal % bVal,
+                Operation.Min => aVal < bVal ? aVal : bVal,
+                Operation.Max => aVal > bVal ? aVal : bVal,
+                _ => throw new System.Exception($"Invalid operation {operation} for FloatBinaryNode")
+            };
+        }
+
+        public override void ResetState() { }
+
+        protected override SettingsNode CloneWithoutSettings()
+        {
+            return new FloatBinaryNode();
+        }
+    }
 
     public class TransformerNode<T1, T2> : AudioNode where T1 : Value, new() where T2 : Value, new()
     {

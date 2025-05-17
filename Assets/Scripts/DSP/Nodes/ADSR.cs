@@ -18,7 +18,7 @@ namespace DSP
 
         private readonly NamedValue<BoolValue> gate = new("Gate", new BoolValue());
         private readonly NamedValue<FloatValue> output = new("Output", new FloatValue());
-        private readonly NamedValue<FloatValue> timeSinceGateVal = new("Time Since Gate", new FloatValue());
+        private readonly NamedValue<FloatValue> timeSinceTriggerVal = new("Time Since Trigger", new FloatValue());
 
         private readonly FloatSetting attackSetting = new("Attack", 0.1f);
         private readonly FloatSetting decaySetting = new("Decay", 0.1f);
@@ -34,6 +34,7 @@ namespace DSP
         private float prevOutput = 0f;
         private float timeSinceGate = 0f;
         private float ampAtGate = 0f;
+        private float timeSinceTrigger = 0f;
 
         public override NodeSettings DefaultSettings => new(attackSetting, decaySetting, sustainSetting, releaseSetting);
 
@@ -52,7 +53,7 @@ namespace DSP
 
         public override List<NamedValue> BuildInputs() => new() { gate };
 
-        public override List<NamedValue> BuildOutputs() => new() { output, timeSinceGateVal };
+        public override List<NamedValue> BuildOutputs() => new() { output, timeSinceTriggerVal };
 
         public override void Process(Context context)
         {
@@ -62,9 +63,11 @@ namespace DSP
                 prevGate = curGate;
                 timeSinceGate = 0f;
                 ampAtGate = prevOutput;
+                if (curGate) timeSinceTrigger = 0f;
             }
 
             timeSinceGate += context.deltaTime;
+            timeSinceTrigger += context.deltaTime;
             float val;
             if (curGate)
             {
@@ -85,13 +88,14 @@ namespace DSP
             }
             output.value.value = val;
             prevOutput = val;
-            timeSinceGateVal.value.value = timeSinceGate;
+            timeSinceTriggerVal.value.value = timeSinceTrigger;
         }
 
         public override void ResetState()
         {
             prevGate = false;
             timeSinceGate = 0f;
+            timeSinceTrigger = 0f;
             ampAtGate = 0f;
         }
     }

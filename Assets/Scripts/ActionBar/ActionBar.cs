@@ -59,6 +59,15 @@ namespace ActionMenu
             }
         }
 
+        public void CloseTab(ActionTab tab)
+        {
+            int index = tabs.IndexOf(tab);
+            if (index != -1)
+            {
+                OnTabClose(index);
+            }
+        }
+
         public void AddTab(ActionTab tab, bool setActive)
         {
             tabs.Add(tab);
@@ -85,6 +94,10 @@ namespace ActionMenu
             if (index != -1)
             {
                 tabButtons[index].Initialize(index, tab.name, (i) => OnTabClick(i), (i) => OnTabClose(i));
+                if (openTabIndex == index)
+                {
+                    tabButtons[index].SetSelected(true);
+                }
             }
         }
 
@@ -116,6 +129,7 @@ namespace ActionMenu
         {
             void CloseInternal()
             {
+                bool openTabChanged = openTabIndex == index;
                 if (index == openTabIndex)
                 {
                     DeselectTab(index);
@@ -130,7 +144,7 @@ namespace ActionMenu
                 }
                 if (openTabIndex >= index && openTabIndex > 0) openTabIndex--;
 
-                if (openTabIndex != -1)
+                if (openTabChanged && openTabIndex != -1)
                 {
                     SelectTab(openTabIndex);
                 }

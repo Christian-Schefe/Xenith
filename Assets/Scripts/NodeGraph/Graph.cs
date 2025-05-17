@@ -13,12 +13,9 @@ namespace NodeGraph
         private readonly Dictionary<GraphNode, HashSet<GraphConnection>> incomingConnections = new();
         private readonly Dictionary<GraphNode, HashSet<GraphConnection>> outgoingConnections = new();
 
-        public DTO.Graph openGraph;
+        public DTO.Graph OpenGraph => Globals<Main>.Instance.CurrentGraph;
 
-        public List<GraphNode> GetNodes()
-        {
-            return nodes;
-        }
+        public List<GraphNode> Nodes => nodes;
 
         public Dictionary<GraphNode, int> GetNodeMap()
         {
@@ -51,25 +48,21 @@ namespace NodeGraph
             var dtoNode = new Node(position, type, null);
             node.Initialize(dtoNode);
             nodes.Add(node);
-            openGraph.nodes.Add(dtoNode);
-            UpdateAllNodeIndices();
+            OpenGraph.nodes.Add(dtoNode);
         }
 
         public void RemoveNode(GraphNode node)
         {
             BreakAllConnections(node);
-            nodes.Remove(node);
+            int index = nodes.IndexOf(node);
+            nodes.RemoveAt(index);
             Destroy(node.gameObject);
-            openGraph.nodes.Remove(node.node);
-            UpdateAllNodeIndices();
-        }
-
-        public void UpdateAllNodeIndices()
-        {
-            var indexMap = GetNodeMap();
-            foreach (var connection in connections)
+            OpenGraph.nodes.Remove(node.node);
+            foreach (var conn in connections)
             {
-                connection.UpdateNodeIndices(indexMap);
+                int newFromNode = conn.FromNodeIndex >= index ? conn.FromNodeIndex - 1 : conn.FromNodeIndex;
+                int newToNode = conn.ToNodeIndex >= index ? conn.ToNodeIndex - 1 : conn.ToNodeIndex;
+                conn.SetNodes(newFromNode, newToNode);
             }
         }
 
@@ -96,7 +89,7 @@ namespace NodeGraph
 
             foreach (var conn in allConnections)
             {
-                if (!IsValidExistingConnection(conn.fromNode, conn.toNode, conn.FromNodeOutput, conn.ToNodeInput))
+                if (!IsValidExistingConnection(conn.FromNode, conn.ToNode, conn.FromNodeOutput, conn.ToNodeInput))
                 {
                     RemoveConnection(conn);
                     Destroy(conn.gameObject);
@@ -112,8 +105,7 @@ namespace NodeGraph
             dtoNode.position += new Vector2(30, -30);
             newNode.Initialize(dtoNode);
             nodes.Add(newNode);
-            openGraph.nodes.Add(dtoNode);
-            UpdateAllNodeIndices();
+            OpenGraph.nodes.Add(dtoNode);
             return newNode;
         }
 
@@ -136,7 +128,7 @@ namespace NodeGraph
                 {
                     foreach (var conn in incoming)
                     {
-                        if (ContainsUpstream(conn.fromNode))
+                        if (ContainsUpstream(conn.FromNode))
                         {
                             return true;
                         }
@@ -161,11 +153,11 @@ namespace NodeGraph
             if (!connections.Add(connection)) return;
             if (!isLoading)
             {
-                openGraph.connections.Add(connection.connection);
+                OpenGraph.connections.Add(connection.connection);
             }
 
-            var from = connection.fromNode;
-            var to = connection.toNode;
+            var from = connection.FromNode;
+            var to = connection.ToNode;
             if (!incomingConnections.ContainsKey(to))
             {
                 incomingConnections[to] = new();
@@ -181,10 +173,10 @@ namespace NodeGraph
         public void RemoveConnection(GraphConnection connection)
         {
             if (!connections.Remove(connection)) return;
-            openGraph.connections.Remove(connection.connection);
+            OpenGraph.connections.Remove(connection.connection);
 
-            var from = connection.fromNode;
-            var to = connection.toNode;
+            var from = connection.FromNode;
+            var to = connection.ToNode;
             if (incomingConnections.ContainsKey(to))
             {
                 incomingConnections[to].Remove(connection);
@@ -203,25 +195,19 @@ namespace NodeGraph
             }
         }
 
-        public void ShowGraph(DTO.Graph graph)
-        {
-            openGraph = graph;
-            LoadGraph();
-        }
-
-        private void LoadGraph()
+        public void ShowGraph()
         {
             var graphEditor = Globals<GraphEditor>.Instance;
-            foreach (var node in openGraph.nodes)
+            foreach (var node in OpenGraph.nodes)
             {
                 var nodeObj = graphEditor.CreateNodeInstance();
                 nodeObj.Initialize(node);
                 nodes.Add(nodeObj);
             }
-            foreach (var connection in openGraph.connections)
+            foreach (var connection in OpenGraph.connections)
             {
                 var connectionObj = graphEditor.CreateConnectionInstance();
-                connectionObj.Initialize(nodes, connection);
+                connectionObj.Initialize(connection);
                 AddConnection(connectionObj, true);
             }
             foreach (var node in nodes)
@@ -232,8 +218,6 @@ namespace NodeGraph
 
         public void HideGraph()
         {
-            openGraph = null;
-
             foreach (var node in nodes)
             {
                 Destroy(node.gameObject);

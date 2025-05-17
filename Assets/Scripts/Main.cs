@@ -2,6 +2,7 @@ using ActionMenu;
 using DSP;
 using DTO;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 public class Main : MonoBehaviour
@@ -26,6 +27,10 @@ public class Main : MonoBehaviour
 
         actionBar.AddActions(new()
         {
+            new("Editor", new() {
+                new ActionType.Button("Quit", OnQuit)
+            }),
+
             new("Song", new() {
                 new ActionType.Button("New", NewSong),
                 new ActionType.Button("Open", OpenSong),
@@ -39,6 +44,7 @@ public class Main : MonoBehaviour
                 new ActionType.Button("Open", OpenGraph),
                 new ActionType.Button("Save", () => SaveOpenGraph(false)),
                 new ActionType.Button("Save As", () => SaveOpenGraph(true)),
+                new ActionType.Button("Delete", () => DeleteOpenGraph())
             }),
         });
 
@@ -46,6 +52,51 @@ public class Main : MonoBehaviour
 
         var trackEditor = Globals<TrackEditor>.Instance;
         trackEditor.Hide();
+    }
+
+    private void Update()
+    {
+        if (Input.GetKeyDown(KeyCode.S) && Input.GetKey(KeyCode.LeftControl))
+        {
+            Debug.Log("Saving");
+            SaveOpenSong(false);
+            SaveOpenGraph(false);
+        }
+    }
+
+    private void OnQuit()
+    {
+        void Quit()
+        {
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+        }
+        var songEntries = songTabs.Keys.ToList();
+        var graphEntries = graphTabs.Keys.ToList();
+        void SaveSongEntry(int i)
+        {
+            Debug.Log($"Saving song {i}/{songEntries.Count}");
+            if (i >= songEntries.Count)
+            {
+                SaveGraphEntry(0);
+                return;
+            }
+            SaveSong(songEntries[i], false, () => SaveSongEntry(i + 1));
+        }
+        void SaveGraphEntry(int i)
+        {
+            Debug.Log($"Saving graph {i}/{graphEntries.Count}");
+            if (i >= graphEntries.Count)
+            {
+                Quit();
+                return;
+            }
+            SaveGraph(graphEntries[i], false, () => SaveGraphEntry(i + 1));
+        }
+        SaveSongEntry(0);
     }
 
     private void NewSong()
@@ -110,7 +161,7 @@ public class Main : MonoBehaviour
     private void AddGraphTab(GraphID id)
     {
         var actionBar = Globals<ActionBar>.Instance;
-        var name = id.path;
+        var name = id.GetName();
         var tab = new ActionTab(name, () => OnGraphShow(id), () => OnGraphHide(), (callback) => OnGraphClose(id, callback));
         graphTabs.Add(id, tab);
         actionBar.AddTab(tab, true);
@@ -128,7 +179,10 @@ public class Main : MonoBehaviour
         tab.onTryClose = (callback) => OnSongClose(newId, callback);
         if (openSong == oldId)
         {
+            var trackEditor = Globals<TrackEditor>.Instance;
+            trackEditor.Hide();
             openSong = newId;
+            trackEditor.Show();
         }
         actionBar.UpdateTab(tab);
     }
@@ -139,13 +193,17 @@ public class Main : MonoBehaviour
         var tab = graphTabs[oldId];
         graphTabs.Remove(oldId);
         graphTabs.Add(newId, tab);
-        tab.name = newId.path;
+        tab.name = newId.GetName();
         tab.onSelect = () => OnGraphShow(newId);
         tab.onDeselect = () => OnGraphHide();
         tab.onTryClose = (callback) => OnGraphClose(newId, callback);
         if (openGraph == oldId)
         {
+            Debug.Log("Changing graph id");
+            var graphEditor = Globals<NodeGraph.GraphEditor>.Instance;
+            graphEditor.Hide();
             openGraph = newId;
+            graphEditor.Show();
         }
         actionBar.UpdateTab(tab);
     }
@@ -154,6 +212,8 @@ public class Main : MonoBehaviour
     {
         SaveSong(id, false, () =>
         {
+            songController.UnloadSong(id);
+            songTabs.Remove(id);
             callback();
         });
     }
@@ -229,6 +289,22 @@ public class Main : MonoBehaviour
         SaveGraph(openGraph, alwaysAsk, null);
     }
 
+    private void DeleteOpenGraph()
+    {
+        if (openGraph == null)
+        {
+            return;
+        }
+        var idToDelete = openGraph;
+        var actionBar = Globals<ActionBar>.Instance;
+        var tab = graphTabs[openGraph];
+        tab.onTryClose = callback => callback();
+        graphTabs.Remove(openGraph);
+        actionBar.CloseTab(tab);
+
+        graphController.DeleteGraph(idToDelete);
+    }
+
     private void OnGraphShow(GraphID id)
     {
         openGraph = id;
@@ -249,6 +325,8 @@ public class Main : MonoBehaviour
     {
         SaveGraph(id, false, () =>
         {
+            graphController.UnloadGraph(id);
+            graphTabs.Remove(id);
             callback();
         });
     }

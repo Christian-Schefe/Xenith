@@ -52,6 +52,11 @@ namespace DTO
             this.path = path;
         }
 
+        public virtual string GetName()
+        {
+            return path;
+        }
+
         public override bool Equals(object obj)
         {
             if (obj is GraphID other)
@@ -79,6 +84,11 @@ namespace DTO
         public UnsavedGraphID(int index) : base(null)
         {
             this.index = index;
+        }
+
+        public override string GetName()
+        {
+            return $"Untitled {index}";
         }
 
         public override bool Equals(object obj)

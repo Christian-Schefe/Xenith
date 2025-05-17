@@ -104,9 +104,16 @@ namespace NodeGraph
                 node.id = new("invalid", true);
                 graphEditor.GetNodeFromTypeId(node.id, out audioNode);
             }
-            if (node.serializedSettings != null && audioNode is SettingsNode settingsNode)
+            if (audioNode is SettingsNode settingsNode)
             {
-                settingsNode.DeserializeSettings(node.serializedSettings);
+                if (node.serializedSettings != null)
+                {
+                    settingsNode.DeserializeSettings(node.serializedSettings);
+                }
+                else
+                {
+                    node.serializedSettings = settingsNode.Settings.Serialize();
+                }
             }
 
             try

@@ -15,10 +15,10 @@ public class FileOpenBrowser : MonoBehaviour
     {
         if (isOpen && Input.GetKeyDown(KeyCode.Escape))
         {
-            onCancel?.Invoke();
             gameObject.SetActive(false);
             CleanEntries();
             isOpen = false;
+            onCancel?.Invoke();
         }
     }
 
@@ -72,9 +72,9 @@ public class FileOpenBrowser : MonoBehaviour
 
     private void OnClickFile<T>(System.Action<T> onConfirm, T value)
     {
-        onConfirm?.Invoke(value);
         gameObject.SetActive(false);
         CleanEntries();
         isOpen = false;
+        onConfirm?.Invoke(value);
     }
 }

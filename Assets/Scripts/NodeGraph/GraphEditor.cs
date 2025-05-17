@@ -1,6 +1,5 @@
 using DSP;
 using DTO;
-using Mono.Cecil;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -35,21 +34,25 @@ namespace NodeGraph
         private readonly float scrollThreshold = 0.1f;
         private readonly float scrollStep = 1.1f;
 
-        private GraphID graphId;
+        private bool isVisible = false;
 
         public Graph Graph => graph;
 
         public void Show()
         {
-            var main = Globals<Main>.Instance;
-            graphId = main.CurrentGraphId;
-            graph.ShowGraph(main.CurrentGraph);
+            if (isVisible)
+            {
+                Debug.LogWarning("Graph editor is already visible");
+                return;
+            }
+            isVisible = true;
+            graph.ShowGraph();
             viewFrame.gameObject.SetActive(true);
         }
 
         public void Hide()
         {
-            graphId = null;
+            isVisible = false;
 
             addNodeDialog.Close();
             graph.HideGraph();
@@ -71,7 +74,7 @@ namespace NodeGraph
             }
             foreach (var (id, _) in graphDatabase.GetGraphs())
             {
-                var resource = new NodeResource(id.path, false);
+                var resource = id.ToResource();
                 if (!GetNodeFromTypeId(resource, out _)) continue;
                 allNodes.Add(resource);
             }
@@ -80,12 +83,14 @@ namespace NodeGraph
 
         public bool GetNodeFromTypeId(NodeResource typeId, out AudioNode audioNode)
         {
-            return graphDatabase.GetNodeFromTypeId(typeId, new(graphId.path, false), out audioNode);
+            var main = Globals<Main>.Instance;
+            NodeResource? origin = main.CurrentGraphId.path != null ? main.CurrentGraphId.ToResource() : null;
+            return graphDatabase.GetNodeFromTypeId(typeId, origin, out audioNode);
         }
 
         public bool IsInteractable()
         {
-            return graph != null;
+            return isVisible;
         }
 
         private void Update()
@@ -166,7 +171,7 @@ namespace NodeGraph
                 DeselectAll();
             }
 
-            foreach (var node in graph.GetNodes())
+            foreach (var node in graph.Nodes)
             {
                 if (rect.Overlaps(node.GetRect()))
                 {
@@ -243,7 +248,7 @@ namespace NodeGraph
                 return false;
             }
             graph.RemoveConnection(connection);
-            currentlyConnecting.Show(connection.fromNode, connection.FromNodeOutput);
+            currentlyConnecting.Show(connection.FromNode, connection.FromNodeOutput);
             connectionTargets.Clear();
             Destroy(connection.gameObject);
             return true;
@@ -257,7 +262,6 @@ namespace NodeGraph
             }
             currentlyConnecting.Show(from, index);
             connectionTargets.Clear();
-            graph.UpdateAllNodeIndices();
         }
 
         public void ReleaseConnection()
@@ -279,7 +283,7 @@ namespace NodeGraph
                 var toIndex = nodeMap[node];
 
                 var connection = Instantiate(connectionPrefab, connectionParent);
-                connection.Initialize(graph.GetNodes(), new DTO.Connection(fromIndex, currentlyConnecting.fromNodeOutput, toIndex, index));
+                connection.Initialize(new(fromIndex, currentlyConnecting.fromNodeOutput, toIndex, index));
                 graph.AddConnection(connection);
                 currentlyConnecting.Hide();
             }

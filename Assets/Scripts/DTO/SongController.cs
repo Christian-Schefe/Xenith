@@ -24,6 +24,18 @@ namespace DTO
             return id;
         }
 
+        public void UnloadSong(SongID id)
+        {
+            if (songs.ContainsKey(id))
+            {
+                songs.Remove(id);
+            }
+            else
+            {
+                Debug.LogError($"Failed to unload song {id}");
+            }
+        }
+
         public bool TryLoadSong(string path, out SongID id)
         {
             id = new SongID(path);

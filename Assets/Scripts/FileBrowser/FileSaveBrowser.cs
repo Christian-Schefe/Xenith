@@ -39,10 +39,10 @@ public class FileSaveBrowser : MonoBehaviour
 
     private void OnCancel()
     {
-        onCancel?.Invoke();
         gameObject.SetActive(false);
         CleanEntries();
         isOpen = false;
+        onCancel?.Invoke();
     }
 
     private void OnConfirm()
@@ -50,10 +50,11 @@ public class FileSaveBrowser : MonoBehaviour
         if (!string.IsNullOrEmpty(fileNameInputField.text))
         {
             var fileName = fileNameInputField.text;
-            onConfirm?.Invoke(pwd, fileName);
+            var pwd = this.pwd;
             gameObject.SetActive(false);
             CleanEntries();
             isOpen = false;
+            onConfirm?.Invoke(pwd, fileName);
         }
     }
 

@@ -26,6 +26,18 @@ namespace DTO
             return id;
         }
 
+        public void UnloadGraph(GraphID id)
+        {
+            if (graphs.ContainsKey(id))
+            {
+                graphs.Remove(id);
+            }
+            else
+            {
+                Debug.LogWarning($"Graph {id} not found in GraphController.");
+            }
+        }
+
         public bool TryLoadGraph(GraphID id)
         {
             if (graphs.ContainsKey(id))
@@ -44,14 +56,22 @@ namespace DTO
         public bool SaveGraph(GraphID id, GraphID newId)
         {
             var graph = graphs[id];
+            var graphDatabase = Globals<GraphDatabase>.Instance;
             if (id != newId)
             {
                 graphs.Remove(id);
+                graph = graph.ToJson().FromJson<Graph>();
                 graphs.Add(newId, graph);
             }
-            var graphDatabase = Globals<GraphDatabase>.Instance;
             graphDatabase.SaveGraph(newId, graph);
             return newId != id;
+        }
+
+        public void DeleteGraph(GraphID id)
+        {
+            graphs.Remove(id);
+            var graphDatabase = Globals<GraphDatabase>.Instance;
+            graphDatabase.DeleteGraph(id);
         }
     }
 }
