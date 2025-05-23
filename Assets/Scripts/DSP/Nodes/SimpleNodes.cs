@@ -2,6 +2,37 @@ using System.Collections.Generic;
 
 namespace DSP
 {
+    public class TimeKeeperNode : AudioNode
+    {
+        private readonly FloatValue timeVal;
+        private float time = 0;
+
+        public TimeKeeperNode(FloatValue time)
+        {
+            timeVal = time;
+        }
+
+        public override List<NamedValue> BuildInputs() => new();
+
+        public override List<NamedValue> BuildOutputs() => new();
+
+        public override AudioNode Clone()
+        {
+            return new TimeKeeperNode((FloatValue)timeVal.Clone());
+        }
+
+        public override void Process(Context context)
+        {
+            time += context.deltaTime;
+            timeVal.value = time;
+        }
+
+        public override void ResetState()
+        {
+            time = 0;
+        }
+    }
+
     public class ConstFloatNode : SettingsNode
     {
         public static ConstFloatNode New(float value)

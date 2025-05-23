@@ -7,12 +7,14 @@ namespace DSP
         private AudioNode node;
         private bool isInitialized;
         private Context context;
+        public FloatValue playTime = new();
 
         public float volume = 1.0f;
 
         public void Initialize(AudioNode node)
         {
             this.node = node;
+            playTime.value = 0;
             context = new Context(AudioSettings.outputSampleRate);
             node.Initialize();
             isInitialized = true;
@@ -42,6 +44,7 @@ namespace DSP
 
             for (int i = 0; i < frameCount; i++)
             {
+                playTime.value += context.deltaTime;
                 node.Process(context);
                 for (int c = 0; c < channels; c++)
                 {

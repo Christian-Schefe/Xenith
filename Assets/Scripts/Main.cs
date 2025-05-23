@@ -138,10 +138,12 @@ public class Main : MonoBehaviour
         {
             var dsp = Globals<DPSTest>.Instance;
             exportingModal.SetActive(true);
+            float exportStartTime = Time.time; ;
             dsp.Render(wavFile =>
             {
                 wavFile.WriteToFile(path);
                 exportingModal.SetActive(false);
+                Debug.Log($"Exported in {Time.time - exportStartTime} seconds");
             });
         }, () =>
         {

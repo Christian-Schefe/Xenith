@@ -1,10 +1,10 @@
 using ActionMenu;
 using DSP;
 using DTO;
+using FileFormat;
 using PianoRoll;
 using System.Collections.Generic;
-using System.Linq;
-using Unity.VisualScripting;
+using System.IO;
 using UnityEngine;
 
 public class TrackEditor : MonoBehaviour
@@ -21,7 +21,10 @@ public class TrackEditor : MonoBehaviour
 
     private TopLevelAction BuildAction()
     {
-        return new("Track", new() { new ActionType.Button("Add Track", () => AddTrack()) });
+        return new("Track", new() {
+            new ActionType.Button("Add Track", () => AddTrack()),
+            new ActionType.Button("Import Midi", () => ImportMidi()),
+        });
     }
 
     public void Show()
@@ -79,12 +82,54 @@ public class TrackEditor : MonoBehaviour
 
     private void AddTrack()
     {
+        AddTrack(DTO.Track.Default());
+    }
+
+    private void AddTrack(DTO.Track track)
+    {
         var main = Globals<Main>.Instance;
         var song = main.CurrentSong;
-        var track = DTO.Track.Default();
         song.tracks.Add(track);
         var trackInstance = Instantiate(trackPrefab, trackContainer);
         trackInstance.Initialize(track);
         tracks.Add(trackInstance);
+    }
+
+    private void ImportMidi()
+    {
+        var fileBrowser = Globals<FileBrowser>.Instance;
+        fileBrowser.OpenFile(path =>
+        {
+            try
+            {
+                var midiFile = SimpleMidi.ReadFromFile(path);
+                AddMidiData(midiFile);
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogError($"Failed to read midi file: {e}");
+            }
+        }, () => { });
+    }
+
+    private void AddMidiData(SimpleMidi midi)
+    {
+        foreach (var track in midi.tracks)
+        {
+            var dtoTrack = DTO.Track.Default();
+            foreach (var note in track.notes)
+            {
+                dtoTrack.notes.Add(new DTO.Note(note.start, note.pitch, note.duration));
+            }
+            AddTrack(dtoTrack);
+        }
+
+        var main = Globals<Main>.Instance;
+        var song = main.CurrentSong;
+        song.tempoEvents.Clear();
+        foreach (var tempo in midi.tempoEvents)
+        {
+            song.tempoEvents.Add(new TempoEvent(tempo.time, tempo.bpm / 60f));
+        }
     }
 }

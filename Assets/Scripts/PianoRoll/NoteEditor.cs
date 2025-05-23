@@ -111,7 +111,7 @@ namespace PianoRoll
 
             if (isPlaying)
             {
-                var timePlaying = Time.time - startPlayTime;
+                var timePlaying = Globals<DSP.DSP>.Instance.playTime.value;
                 var playPosition = Globals<PlayPosition>.Instance;
                 var playTime = startPlayPlayTime + timePlaying;
                 var playBeat = TempoController.GetBeatFromTime(playTime, activeSong.tempoEvents);
@@ -194,6 +194,7 @@ namespace PianoRoll
                 }
                 notes[noteData.y].Add(note);
             }
+            BuildStepsList();
         }
 
         private void MoveSelectedNotes(int deltaY)

@@ -144,7 +144,7 @@ namespace DTO
         public bool isSoloed;
         public float volume;
         public float pan;
-        public HashSet<Note> notes;
+        public List<Note> notes;
 
         [System.NonSerialized]
         private ConstFloatNode volumeNode = null;
@@ -152,7 +152,7 @@ namespace DTO
 
         public Track() { }
 
-        public Track(string name, NodeResource instrument, bool isMuted, bool isSoloed, float volume, float pan, HashSet<Note> notes)
+        public Track(string name, NodeResource instrument, bool isMuted, bool isSoloed, float volume, float pan, List<Note> notes)
         {
             this.name = name;
             this.instrument = instrument;
