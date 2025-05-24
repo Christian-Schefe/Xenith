@@ -102,7 +102,48 @@ namespace DTO
             return track.notes.Count == 0;
         }
 
-        public AudioNode BuildAudioNode(float startTime)
+        public AudioNode[] BuildInstrumentNodes(float startTime)
+        {
+            var hasSoloTracks = tracks.Any(t => t.isSoloed);
+            var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed) && !t.isMuted).ToList();
+            var nodes = new AudioNode[filteredTracks.Count];
+
+            for (int i = 0; i < filteredTracks.Count; i++)
+            {
+                var track = filteredTracks[i];
+                nodes[i] = track.BuildAudioNode(startTime, tempoEvents);
+            }
+
+            return nodes;
+        }
+
+        public AudioNode BuildMixerNode()
+        {
+            var hasSoloTracks = tracks.Any(t => t.isSoloed);
+            var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed) && !t.isMuted).ToList();
+
+            var graph = new DSP.NodeGraph();
+            int outLeft = graph.AddOutput<FloatValue>("Left", 0);
+            int outRight = graph.AddOutput<FloatValue>("Right", 1);
+            int mixLeft = graph.AddNode(Prelude.Mix(filteredTracks.Count));
+            int mixRight = graph.AddNode(Prelude.Mix(filteredTracks.Count));
+            graph.AddConnection(new(mixLeft, 0, outLeft, 0));
+            graph.AddConnection(new(mixRight, 0, outRight, 0));
+
+            for (int i = 0; i < filteredTracks.Count; i++)
+            {
+                var volume = graph.AddNode(filteredTracks[i].VolumeNode);
+                int inLeft = graph.AddInput<FloatValue>($"Left {i}", 2 * i);
+                int inRight = graph.AddInput<FloatValue>($"Right {i}", 2 * i + 1);
+                graph.AddConnection(new(inLeft, 0, mixLeft, 2 * i));
+                graph.AddConnection(new(inRight, 0, mixRight, 2 * i));
+                graph.AddConnection(new(volume, 0, mixLeft, 2 * i + 1));
+                graph.AddConnection(new(volume, 0, mixRight, 2 * i + 1));
+            }
+            return graph;
+        }
+
+        public AudioNode BuildRenderNode(float startTime)
         {
             var hasSoloTracks = tracks.Any(t => t.isSoloed);
             var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed) && !t.isMuted).ToList();

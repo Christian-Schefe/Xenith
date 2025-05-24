@@ -24,16 +24,18 @@ namespace DSP
                 noteEditor.StartPlaying();
 
                 var startTime = noteEditor.GetPlayStartTime();
-                var node = main.CurrentSong.BuildAudioNode(startTime);
+                var instruments = main.CurrentSong.BuildInstrumentNodes(startTime);
+                var mixer = main.CurrentSong.BuildMixerNode();
 
-                dsp.Initialize(node);
+                dsp.Initialize(instruments, mixer);
             }
         }
 
+        //TODO: Multithread instrument rendering
         public void Render(System.Action<WavFile> callback)
         {
             var main = Globals<Main>.Instance;
-            var node = main.CurrentSong.BuildAudioNode(0);
+            var node = main.CurrentSong.BuildRenderNode(0);
             var sampleRate = 44100;
             var duration = main.CurrentSong.GetDuration() + 5;
             var task = RenderWAV(node, duration, sampleRate).GetAwaiter();
