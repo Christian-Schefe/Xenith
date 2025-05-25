@@ -32,9 +32,10 @@ namespace DSP
 
         private bool prevGate = false;
         private float prevOutput = 0f;
-        private float timeSinceGate = 0f;
         private float ampAtGate = 0f;
-        private float timeSinceTrigger = 0f;
+
+        private long ticksSinceGate = 0;
+        private long ticksSinceTrigger = 0;
 
         public override NodeSettings DefaultSettings => new(attackSetting, decaySetting, sustainSetting, releaseSetting);
 
@@ -61,13 +62,16 @@ namespace DSP
             if (prevGate != curGate)
             {
                 prevGate = curGate;
-                timeSinceGate = 0f;
+                ticksSinceGate = 0;
                 ampAtGate = prevOutput;
-                if (curGate) timeSinceTrigger = 0f;
+                if (curGate) ticksSinceTrigger = 0;
             }
 
-            timeSinceGate += context.deltaTime;
-            timeSinceTrigger += context.deltaTime;
+            ticksSinceGate += 1;
+            ticksSinceTrigger += 1;
+            var timeSinceGate = ticksSinceGate * context.deltaTime;
+            var timeSinceTrigger = ticksSinceTrigger * context.deltaTime;
+
             float val;
             if (curGate)
             {
@@ -94,8 +98,8 @@ namespace DSP
         public override void ResetState()
         {
             prevGate = false;
-            timeSinceGate = 0f;
-            timeSinceTrigger = 0f;
+            ticksSinceGate = 0;
+            ticksSinceTrigger = 0;
             ampAtGate = 0f;
         }
     }

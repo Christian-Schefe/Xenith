@@ -29,13 +29,12 @@ namespace DSP
         private readonly List<SequencerNote> notes;
 
         private int noteIndex = 0;
-        private float time = 0;
         private readonly float startTime;
+        private long ticks = 0;
 
         public Sequencer(float startTime, List<SequencerNote> notes, System.Func<AudioNode> voiceFactory)
         {
             this.startTime = startTime;
-            time = startTime;
             this.voiceFactory = voiceFactory;
             this.notes = notes.Where(n => n.time >= startTime).OrderBy(n => n.time).ToList();
             floatOutputs = new();
@@ -68,7 +67,8 @@ namespace DSP
 
         public override void Process(Context context)
         {
-            time += context.deltaTime;
+            ticks += 1;
+            var time = (float)(ticks * context.deltaTimeDouble) + startTime;
 
             if (noteIndex < notes.Count)
             {
@@ -119,7 +119,7 @@ namespace DSP
             voiceInputs.Clear();
 
             noteIndex = 0;
-            time = startTime;
+            ticks = 0;
         }
 
         public override AudioNode Clone()

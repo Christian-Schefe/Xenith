@@ -1,14 +1,17 @@
 using FileFormat;
-using System.Threading.Tasks;
+using System.Collections;
 using UnityEngine;
 
 namespace DSP
 {
     public class DPSTest : MonoBehaviour
     {
+        private DSPPlayer player;
+        private bool isRendering;
+
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (!isRendering && Input.GetKeyDown(KeyCode.Space))
             {
                 var main = Globals<Main>.Instance;
                 if (main.CurrentSongId == null) return;
@@ -18,7 +21,12 @@ namespace DSP
                 if (noteEditor.isPlaying)
                 {
                     noteEditor.StopPlaying();
-                    dsp.ResetDSP();
+                    dsp.StopStreaming();
+                    if (player != null)
+                    {
+                        player.Stop();
+                        player = null;
+                    }
                     return;
                 }
                 noteEditor.StartPlaying();
@@ -27,52 +35,70 @@ namespace DSP
                 var instruments = main.CurrentSong.BuildInstrumentNodes(startTime);
                 var mixer = main.CurrentSong.BuildMixerNode();
 
-                dsp.Initialize(instruments, mixer);
+                player = new DSPPlayer(instruments, mixer, 2, 65536);
+                var context = new Context(AudioSettings.outputSampleRate);
+                player.Start(context);
+
+                dsp.StartStreaming(player, context);
             }
         }
 
-        //TODO: Multithread instrument rendering
         public void Render(System.Action<WavFile> callback)
         {
+            if (isRendering)
+            {
+                Debug.LogWarning("Rendering is already in progress.");
+                return;
+            }
+            isRendering = true;
             var main = Globals<Main>.Instance;
-            var node = main.CurrentSong.BuildRenderNode(0);
+            var instruments = main.CurrentSong.BuildInstrumentNodes(0);
+            var mixer = main.CurrentSong.BuildMixerNode();
             var sampleRate = 44100;
             var duration = main.CurrentSong.GetDuration() + 5;
-            var task = RenderWAV(node, duration, sampleRate).GetAwaiter();
-            task.OnCompleted(() => callback(task.GetResult()));
+            StartCoroutine(RenderWAV(instruments, mixer, duration, sampleRate, callback));
         }
 
-
-        private async Awaitable<WavFile> RenderWAV(AudioNode node, float duration, int sampleRate)
+        private void OnApplicationQuit()
         {
-            node.Initialize();
-            int channels = 2;
-            var context = new Context(sampleRate);
-
-            FloatValue[] outputValues = new FloatValue[channels];
-            for (int i = 0; i < channels; i++)
+            Globals<DSP>.Instance.StopStreaming();
+            if (player != null)
             {
-                outputValues[i] = (FloatValue)node.outputs[i].Value;
+                player.Stop();
+                player = null;
             }
+        }
+
+        private IEnumerator RenderWAV(AudioNode[] instruments, AudioNode mixer, float duration, int sampleRate, System.Action<WavFile> callback)
+        {
+            int channels = 2;
 
             int frameCount = (int)(duration * sampleRate);
             var data = new float[frameCount * channels];
+            int framesPerRead = frameCount / 100;
 
-            await Task.Run(() =>
+            var player = new DSPPlayer(instruments, mixer, channels, framesPerRead * 2);
+            var context = new Context(sampleRate);
+            player.Start(context);
+
+            int framesRead = 0;
+
+            while (framesRead < frameCount)
             {
-                for (int i = 0; i < frameCount; i++)
+                int framesToRead = Mathf.Min(framesPerRead, frameCount - framesRead);
+
+                while (!player.TakeData(data, framesRead * channels, channels, framesToRead, 1.0f))
                 {
-                    node.Process(context);
-                    for (int c = 0; c < channels; c++)
-                    {
-                        data[i * channels + c] = outputValues[c].value;
-                    }
+                    yield return null;
                 }
-            });
+                framesRead += framesToRead;
+                Debug.Log($"Rendered {framesRead} frames out of {frameCount} ({(float)framesRead / frameCount * 100:F2}%)");
+            }
 
             var wav = new WavFile(WavFormat.IEEEFloat, sampleRate, channels, data);
             wav.Rescale(0.95f);
-            return wav;
+            isRendering = false;
+            callback?.Invoke(wav);
         }
     }
 }

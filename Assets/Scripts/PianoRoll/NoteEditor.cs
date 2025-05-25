@@ -15,6 +15,8 @@ namespace PianoRoll
         private Vector2 zoom = new(1f, 0.33f);
         public Vector2 Zoom => zoom;
 
+        private float xSnap = 2f;
+
         private readonly HashSet<Note> selectedNotes = new();
         private readonly Dictionary<int, List<Note>> notes = new();
         private readonly Dictionary<Note, Vector2> dragOffsets = new();
@@ -31,7 +33,6 @@ namespace PianoRoll
         public bool isPlaying;
         private float startPlayPosition;
         private float startPlayPlayTime;
-        private float startPlayTime;
 
         private Song activeSong = null;
         private DTO.Track activeTrack = null;
@@ -117,6 +118,9 @@ namespace PianoRoll
                 var playBeat = TempoController.GetBeatFromTime(playTime, activeSong.tempoEvents);
                 playPosition.SetPosition(playBeat);
 
+                var cam = Globals<CameraController>.Instance;
+                cam.SetCenterXPosition(playBeat);
+
                 return;
             }
 
@@ -169,8 +173,6 @@ namespace PianoRoll
         {
             ClearAll();
             activeTrack = newActiveTrack;
-            var camera = Globals<CameraController>.Instance;
-            camera.ResetPosition();
 
             LoadTrack();
         }
@@ -222,7 +224,6 @@ namespace PianoRoll
             isPlaying = true;
             var playPosition = Globals<PlayPosition>.Instance;
             startPlayPosition = playPosition.position;
-            startPlayTime = Time.time;
             startPlayPlayTime = GetPlayStartTime();
 
             isDragging = false;
@@ -319,7 +320,7 @@ namespace PianoRoll
             }
             else
             {
-                AddNote(Mathf.FloorToInt(mousePiano.x), Mathf.FloorToInt(mousePiano.y), lastSelectedLength);
+                AddNote(SnapX(mousePiano.x, true), Mathf.FloorToInt(mousePiano.y), lastSelectedLength);
                 ClearSelection();
             }
         }
@@ -456,14 +457,17 @@ namespace PianoRoll
             }
         }
 
-        private float SnapX(float x)
+        private float SnapX(float x, bool forceSnapDown = false)
         {
-            var lowerSubdivision = Mathf.FloorToInt(x);
-            var upperSubdivision = Mathf.CeilToInt(x);
+            var lowerSubdivision = Mathf.FloorToInt(x * xSnap) / xSnap;
+            var upperSubdivision = Mathf.CeilToInt(x * xSnap) / xSnap;
             var lowerDistance = Mathf.Abs(x - lowerSubdivision);
             var upperDistance = Mathf.Abs(x - upperSubdivision);
-            var snapX = lowerDistance < 0.2f ? lowerSubdivision : (upperDistance < 0.2f ? upperSubdivision : x);
-            return snapX;
+            float threshold = 0.2f / zoom.x;
+            bool closeToLower = lowerDistance < threshold || forceSnapDown;
+            bool closeToUpper = upperDistance < threshold && !forceSnapDown;
+            return (closeToLower && closeToUpper) ? (lowerDistance < upperDistance ? lowerSubdivision : upperSubdivision)
+                : (closeToLower ? lowerSubdivision : (closeToUpper ? upperSubdivision : x));
         }
 
         private void SetNotePosition(Note note, float x, int y)

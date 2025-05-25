@@ -10,35 +10,42 @@ namespace PianoRoll
 
         private Vector2 mouseDownPos;
 
-        public void ResetPosition()
+        private Vector2 pianoPos;
+
+        public void SetCenterXPosition(float pianoPosX)
         {
-            cam.transform.position = new Vector3(0, 0, cam.transform.position.z);
+            var noteEditor = Globals<NoteEditor>.Instance;
+            var viewSize = noteEditor.ViewRectPiano().size;
+            pianoPos = new(Mathf.Max(0, pianoPosX - viewSize.x / 2f), pianoPos.y);
+            Update();
         }
 
         private void Update()
         {
+            var noteEditor = Globals<NoteEditor>.Instance;
             if (Input.GetMouseButtonDown(1))
             {
-                mouseDownPos = cam.ScreenToWorldPoint(Input.mousePosition);
+                mouseDownPos = noteEditor.ScreenToPianoCoords(Input.mousePosition);
             }
-            var pos = cam.transform.position;
             if (Input.GetMouseButton(1))
             {
-                Vector2 mousePos = cam.ScreenToWorldPoint(Input.mousePosition);
+                Vector2 mousePos = noteEditor.ScreenToPianoCoords(Input.mousePosition);
                 Vector2 delta = mousePos - mouseDownPos;
 
-                pos -= (Vector3)delta;
+                pianoPos -= delta;
             }
+            pianoPos = Vector2.Max(pianoPos, Vector2.zero);
+            var viewRect = noteEditor.ViewRectWorld();
+            var pianoYSize = noteEditor.ViewRectPiano().size.y;
+            int maxY = noteEditor.stepsList.Count;
+            if (pianoPos.y + pianoYSize > maxY)
+            {
+                pianoPos.y = Mathf.Max(0, maxY - pianoYSize);
+            }
+            var worldPos = noteEditor.PianoToWorldCoords(pianoPos);
 
-            var noteEditor = Globals<NoteEditor>.Instance;
-            var rect = noteEditor.ViewRectWorld();
-            var offset = (Vector2)cam.transform.position - rect.min;
-            var maxYWorld = noteEditor.PianoToWorldCoords(new(0, noteEditor.stepsList.Count)).y;
-
-            pos.x = Mathf.Max(pos.x, offset.x);
-            pos.y = Mathf.Min(pos.y, maxYWorld - rect.height + offset.y);
-            pos.y = Mathf.Max(pos.y, offset.y);
-            cam.transform.position = pos;
+            var posDiff = worldPos - viewRect.min;
+            cam.transform.position += new Vector3(posDiff.x, posDiff.y);
         }
     }
 }

@@ -90,7 +90,6 @@ namespace DTO
             var song = new Song();
             song.tracks.Add(Track.Default());
             song.tempoEvents.Add(new(0, 2));
-            song.tempoEvents.Add(new(12, 3));
             return song;
         }
 
@@ -137,33 +136,6 @@ namespace DTO
                 int inRight = graph.AddInput<FloatValue>($"Right {i}", 2 * i + 1);
                 graph.AddConnection(new(inLeft, 0, mixLeft, 2 * i));
                 graph.AddConnection(new(inRight, 0, mixRight, 2 * i));
-                graph.AddConnection(new(volume, 0, mixLeft, 2 * i + 1));
-                graph.AddConnection(new(volume, 0, mixRight, 2 * i + 1));
-            }
-            return graph;
-        }
-
-        public AudioNode BuildRenderNode(float startTime)
-        {
-            var hasSoloTracks = tracks.Any(t => t.isSoloed);
-            var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed) && !t.isMuted).ToList();
-
-            var graph = new DSP.NodeGraph();
-            int outLeft = graph.AddOutput<FloatValue>("Left", 0);
-            int outRight = graph.AddOutput<FloatValue>("Right", 1);
-            int mixLeft = graph.AddNode(Prelude.Mix(filteredTracks.Count));
-            int mixRight = graph.AddNode(Prelude.Mix(filteredTracks.Count));
-            graph.AddConnection(new(mixLeft, 0, outLeft, 0));
-            graph.AddConnection(new(mixRight, 0, outRight, 0));
-
-            for (int i = 0; i < filteredTracks.Count; i++)
-            {
-                var track = filteredTracks[i];
-                var node = track.BuildAudioNode(startTime, tempoEvents);
-                int nodeIndex = graph.AddNode(node);
-                int volume = graph.AddNode(track.VolumeNode);
-                graph.AddConnection(new(nodeIndex, 0, mixLeft, 2 * i));
-                graph.AddConnection(new(nodeIndex, 1, mixRight, 2 * i));
                 graph.AddConnection(new(volume, 0, mixLeft, 2 * i + 1));
                 graph.AddConnection(new(volume, 0, mixRight, 2 * i + 1));
             }
