@@ -21,6 +21,7 @@ namespace DSP
         public abstract void Process(Context context);
         public abstract void ResetState();
         public abstract AudioNode Clone();
+        public virtual void Dispose() { }
     }
 
     public class EmptyNode : AudioNode

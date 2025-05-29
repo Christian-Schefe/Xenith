@@ -7,6 +7,7 @@ namespace DSP
         public FloatValue playTime = new();
         public float volume = 1.0f;
 
+        private long playTicks = 0;
         private bool isStreaming;
         private DSPPlayer player;
         private Context context;
@@ -14,6 +15,7 @@ namespace DSP
         public void StartStreaming(DSPPlayer player, Context context)
         {
             playTime.value = 0;
+            playTicks = 0;
             this.context = context;
             this.player = player;
             isStreaming = true;
@@ -35,7 +37,8 @@ namespace DSP
             int frameCount = data.Length / channels;
             if (player.TakeData(data, 0, channels, frameCount, volume))
             {
-                playTime.value += context.deltaTime * frameCount;
+                playTicks += frameCount;
+                playTime.value = (float)(playTicks * context.deltaTimeDouble);
             }
             else
             {

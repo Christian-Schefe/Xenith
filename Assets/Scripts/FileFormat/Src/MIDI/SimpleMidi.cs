@@ -30,6 +30,9 @@ namespace FileFormat
                 int time = 0;
                 Dictionary<(int, int), SimpleMidiNote> onNotes = new();
                 List<SimpleMidiNote> notes = new();
+                string trackName = null;
+                string instrumentName = null;
+                (int, bool)? keySignature = null;
 
                 void TurnOnNote(int channel, int pitch, int velocity, float start)
                 {
@@ -80,12 +83,38 @@ namespace FileFormat
                             float bpm = 60000000f / microsecondsPerBeat;
                             tempoEvents.Add(new SimpleMidiTempoEvent(time / (float)division, bpm));
                         }
+                        else if (metaEvent.metaType == 0x03) // Track Name
+                        {
+                            if (string.IsNullOrEmpty(trackName))
+                            {
+                                trackName = System.Text.Encoding.UTF8.GetString(metaEvent.metaData);
+                            }
+                        }
+                        else if (metaEvent.metaType == 0x04) // Instrument Name
+                        {
+                            if (string.IsNullOrEmpty(instrumentName))
+                            {
+                                instrumentName = System.Text.Encoding.UTF8.GetString(metaEvent.metaData);
+                            }
+                        }
+                        else if (metaEvent.metaType == 0x59) // Key Signature
+                        {
+                            if (keySignature == null)
+                            {
+                                int key = metaEvent.metaData[0];
+                                bool isMajor = metaEvent.metaData[1] == 0;
+                                keySignature = (key, isMajor);
+                                Debug.Log($"Key Signature: {key} {(isMajor ? "Major" : "Minor")} at time {time / (float)division} seconds");
+                            }
+                        }
                     }
                 }
 
                 if (notes.Count == 0) continue;
 
-                tracks.Add(new SimpleMidiTrack(notes));
+                if (string.IsNullOrEmpty(trackName)) trackName = string.IsNullOrEmpty(instrumentName) ? "Unnamed Track" : instrumentName;
+                var signature = keySignature ?? (0, true); // Default to C Major if no key signature is found
+                tracks.Add(new SimpleMidiTrack(trackName, signature, notes));
             }
 
             return new SimpleMidi(tracks, tempoEvents);
@@ -94,10 +123,14 @@ namespace FileFormat
 
     public class SimpleMidiTrack
     {
+        public string name;
+        public (int key, bool isMajor) keySignature;
         public List<SimpleMidiNote> notes;
 
-        public SimpleMidiTrack(List<SimpleMidiNote> notes)
+        public SimpleMidiTrack(string name, (int key, bool isMajor) keySignature, List<SimpleMidiNote> notes)
         {
+            this.name = name;
+            this.keySignature = keySignature;
             this.notes = notes;
         }
     }

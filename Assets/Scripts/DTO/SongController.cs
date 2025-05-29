@@ -1,4 +1,5 @@
 using Persistence;
+using ReactiveData.App;
 using System.Collections.Generic;
 using UnityEngine;
 using Yeast;
@@ -7,10 +8,10 @@ namespace DTO
 {
     public class SongController : MonoBehaviour
     {
-        private readonly Dictionary<SongID, Song> songs = new();
+        private readonly Dictionary<SongID, ReactiveSong> songs = new();
         private int unsavedSongIndex = 0;
 
-        public Song GetSong(SongID id)
+        public ReactiveSong GetSong(SongID id)
         {
             return songs[id];
         }
@@ -19,7 +20,7 @@ namespace DTO
         {
             var id = new UnsavedSongID(unsavedSongIndex);
             unsavedSongIndex++;
-            var song = Song.Default();
+            var song = ReactiveSong.Default;
             songs.Add(id, song);
             return id;
         }
@@ -51,7 +52,7 @@ namespace DTO
 
             if (json.TryFromJson(out Song song))
             {
-                songs.Add(id, song);
+                songs.Add(id, DTOConverter.Deserialize(song));
                 return true;
             }
             Debug.LogError($"Failed to parse song from {path}");
@@ -68,7 +69,7 @@ namespace DTO
                 newId = new SongID(path);
                 songs.Add(newId, song);
             }
-            FilePersistence.SaveFullPath(path, song.ToJson());
+            FilePersistence.SaveFullPath(path, DTOConverter.Serialize(song).ToJson());
             return newId != id;
         }
 

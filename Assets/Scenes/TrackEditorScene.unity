@@ -370,6 +370,7 @@ GameObject:
   - component: {fileID: 151940116}
   - component: {fileID: 151940118}
   - component: {fileID: 151940117}
+  - component: {fileID: 151940119}
   m_Layer: 5
   m_Name: TempoBar
   m_TagString: Untagged
@@ -409,7 +410,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.1792453, g: 0.1792453, b: 0.1792453, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -434,6 +435,19 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 151940115}
   m_CullTransparentMesh: 1
+--- !u!114 &151940119
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 151940115}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 31a19414c41e5ae4aae2af33fee712f6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  m_ShowMaskGraphic: 1
 --- !u!1 &181864828
 GameObject:
   m_ObjectHideFlags: 0
@@ -1439,7 +1453,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   canvasRT: {fileID: 1064005956}
   viewFrame: {fileID: 797187902}
+  tempoMarkerParent: {fileID: 151940116}
   notePrefab: {fileID: 1266996197338630004, guid: e4ceb3a9e51b88f42bc9b5322bd5d23d, type: 3}
+  tempoMarkerPrefab: {fileID: 1799530559499025670, guid: e43b342653a00314bb08af2beb47a88b, type: 3}
   selector: {fileID: 1223979882}
   isPlaying: 0
   stepsList: 
@@ -5924,7 +5940,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7875460cb10e314479e701c19a3a816d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  volume: 0.3
+  volume: 0.1
 --- !u!82 &1720594163
 AudioSource:
   m_ObjectHideFlags: 0

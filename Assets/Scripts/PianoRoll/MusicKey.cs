@@ -1,9 +1,10 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace PianoRoll
 {
-    public class MusicKey
+    public struct MusicKey
     {
         public int edo;
         public float basePitch;
@@ -22,9 +23,19 @@ namespace PianoRoll
             return baseFreq * Mathf.Pow(2, halfSteps / edo);
         }
 
-        public float StepsToFreq(int steps)
+        public readonly float StepsToFreq(int steps)
         {
             return HalfSteps(edo, basePitch, steps);
+        }
+
+        public static MusicKey FromMidi(int sharps, bool isMajor)
+        {
+            var steps = isMajor
+                ? new List<int> { 0, 2, 4, 5, 7, 9, 11 }
+                : new List<int> { 0, 2, 3, 5, 7, 8, 10 };
+            int stepOffset = ((sharps * 7 % 12) + 12) % 12;
+            steps = steps.Select(s => (s + stepOffset) % 12).ToList();
+            return new MusicKey(12, C0, steps);
         }
 
         public static float C0 = HalfSteps(12, 27.5f, -9);

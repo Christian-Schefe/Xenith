@@ -3,25 +3,40 @@ using DSP;
 using DTO;
 using FileFormat;
 using PianoRoll;
-using System.Collections.Generic;
-using System.IO;
+using ReactiveData.App;
+using ReactiveData.Core;
 using UnityEngine;
 
 public class TrackEditor : MonoBehaviour
 {
     [SerializeField] private RectTransform uiRoot;
     [SerializeField] private RectTransform trackContainer;
-
-    [SerializeField] private Track trackPrefab;
-
-    private readonly List<Track> tracks = new();
+    [SerializeField] private TrackUI trackPrefab;
 
     private TopLevelAction trackAction = null;
     private bool isVisible = false;
 
+    private ReactiveSong song;
+    private ReactiveListBinder<ReactiveTrack, TrackUI> trackBinder = null;
+
+    public ReactiveSong Song => song;
+
+    private void BindSong(ReactiveSong song)
+    {
+        this.song = song;
+        trackBinder = new(song.tracks, _ => Instantiate(trackPrefab, trackContainer), track => Destroy(track.gameObject));
+    }
+
+    private void UnbindSong()
+    {
+        trackBinder?.Dispose();
+        trackBinder = null;
+        song = null;
+    }
+
     private TopLevelAction BuildAction()
     {
-        return new("Track", new() {
+        return new("Tracks", new() {
             new ActionType.Button("Add Track", () => AddTrack()),
             new ActionType.Button("Import Midi", () => ImportMidi()),
         });
@@ -46,16 +61,10 @@ public class TrackEditor : MonoBehaviour
         trackAction ??= BuildAction();
 
         actionBar.AddActions(new() { trackAction });
-        noteEditor.SetSong(song);
-        noteEditor.ShowTrack(song.tracks[0]);
+        noteEditor.Show(song);
         pianoRollVisuals.SetVisible(true);
 
-        for (int i = 0; i < song.tracks.Count; i++)
-        {
-            var trackInstance = Instantiate(trackPrefab, trackContainer);
-            trackInstance.Initialize(song.tracks[i]);
-            tracks.Add(trackInstance);
-        }
+        BindSong(song);
     }
 
     public void Hide()
@@ -70,29 +79,15 @@ public class TrackEditor : MonoBehaviour
         trackAction ??= BuildAction();
 
         actionBar.RemoveAction(trackAction);
-        noteEditor.HideTrack();
+        noteEditor.Hide();
         pianoRollVisuals.SetVisible(false);
 
-        foreach (var track in tracks)
-        {
-            Destroy(track.gameObject);
-        }
-        tracks.Clear();
+        UnbindSong();
     }
 
     private void AddTrack()
     {
-        AddTrack(DTO.Track.Default());
-    }
-
-    private void AddTrack(DTO.Track track)
-    {
-        var main = Globals<Main>.Instance;
-        var song = main.CurrentSong;
-        song.tracks.Add(track);
-        var trackInstance = Instantiate(trackPrefab, trackContainer);
-        trackInstance.Initialize(track);
-        tracks.Add(trackInstance);
+        song.tracks.Add(ReactiveTrack.Default);
     }
 
     private void ImportMidi()
@@ -114,22 +109,22 @@ public class TrackEditor : MonoBehaviour
 
     private void AddMidiData(SimpleMidi midi)
     {
-        foreach (var track in midi.tracks)
+        foreach (var midiTrack in midi.tracks)
         {
-            var dtoTrack = DTO.Track.Default();
-            foreach (var note in track.notes)
+            var track = ReactiveTrack.Default;
+            track.name.Value = midiTrack.name;
+            track.keySignature.Value = MusicKey.FromMidi(midiTrack.keySignature.key, midiTrack.keySignature.isMajor);
+            foreach (var midiNote in midiTrack.notes)
             {
-                dtoTrack.notes.Add(new DTO.Note(note.start, note.pitch, note.duration));
+                track.notes.Add(new ReactiveNote(midiNote.start, midiNote.pitch, midiNote.velocity, midiNote.duration));
             }
-            AddTrack(dtoTrack);
+            song.tracks.Add(track);
         }
 
-        var main = Globals<Main>.Instance;
-        var song = main.CurrentSong;
         song.tempoEvents.Clear();
         foreach (var tempo in midi.tempoEvents)
         {
-            song.tempoEvents.Add(new TempoEvent(tempo.time, tempo.bpm / 60f));
+            song.tempoEvents.Add(new ReactiveTempoEvent(tempo.time, tempo.bpm / 60f));
         }
     }
 }

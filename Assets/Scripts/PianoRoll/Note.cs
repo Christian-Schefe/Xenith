@@ -1,66 +1,97 @@
+using ReactiveData.App;
+using ReactiveData.Core;
 using UnityEngine;
 
 namespace PianoRoll
 {
-    public class Note : MonoBehaviour
+    public class Note : MonoBehaviour, IReactor<ReactiveNote>
     {
         [SerializeField] private SpriteRenderer sprite;
-        [SerializeField] private Color normalColor, selectedColor;
+        [SerializeField] private Gradient velocityGradient;
+        [SerializeField] private Color selectedColor;
 
-        public DTO.Note note;
-
-        public float Length => note.length;
-        public float X => note.x;
-        public int Y => note.y;
+        public ReactiveNote note;
 
         const float border = 0.1f;
 
-        public Vector2 Position => new(note.x, GetYPos());
-        public float EndX => note.x + note.length;
+        public float Beat => note.beat.Value;
+        public int Pitch => note.pitch.Value;
+        public float Velocity => note.velocity.Value;
+        public float Length => note.length.Value;
+        public Vector2 Position => new(note.beat.Value, GetYPos());
+        public float EndBeat => note.beat.Value + note.length.Value;
 
-        public Rect Rect => new(note.x, GetYPos(), note.length, 1f);
+        public Rect Rect => new(note.beat.Value, GetYPos(), note.length.Value, 1f);
 
         public int GetYPos()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            return noteEditor.StepsToPiano(note.y);
-        }
-
-        public void Initialize(DTO.Note note)
-        {
-            this.note = note;
-            SetSelected(false);
-            Update();
-        }
-
-        public void SetPosition(float xPos, int ySteps)
-        {
-            note.x = xPos;
-            note.y = ySteps;
-            Update();
-        }
-
-        public void SetSelected(bool selected)
-        {
-            sprite.color = selected ? selectedColor : normalColor;
+            return noteEditor.StepsToPiano(note.pitch.Value);
         }
 
         public bool IsWithin(float x)
         {
-            return note.x <= x && x < EndX;
+            return note.beat.Value <= x && x < EndBeat;
         }
 
         private void Update()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
-            var pianoPos = new Vector2(note.x + note.length * 0.5f, GetYPos() + 0.5f);
+            var pianoPos = new Vector2(note.beat.Value + note.length.Value * 0.5f, GetYPos() + 0.5f);
             transform.position = noteEditor.PianoToWorldCoords(pianoPos);
-            sprite.size = noteEditor.Zoom * new Vector2(note.length, 1f - border) / sprite.transform.localScale;
+            sprite.size = noteEditor.Zoom * new Vector2(note.length.Value, 1f - border) / sprite.transform.localScale;
         }
 
-        public void SetLength(float length)
+        public void Bind(ReactiveNote note)
         {
-            note.length = Mathf.Max(0.01f, length);
+            this.note = note;
+            note.beat.Add(OnBeatChanged);
+            note.pitch.Add(OnPitchChanged);
+            note.velocity.Add(OnVelocityChanged);
+            note.length.Add(OnLengthChanged);
+
+            var noteEditor = Globals<NoteEditor>.Instance;
+            noteEditor.selectedNotes.OnChanged += OnSelectionChanged;
+            OnSelectionChanged();
+            Update();
+        }
+
+        public void Unbind()
+        {
+            note.beat.Remove(OnBeatChanged);
+            note.pitch.Remove(OnPitchChanged);
+            note.velocity.Remove(OnVelocityChanged);
+            note.length.Remove(OnLengthChanged);
+            note = null;
+            var noteEditor = Globals<NoteEditor>.Instance;
+            noteEditor.selectedNotes.OnChanged -= OnSelectionChanged;
+        }
+
+        private void OnSelectionChanged()
+        {
+            var noteEditor = Globals<NoteEditor>.Instance;
+            var selected = noteEditor.selectedNotes.Contains(this);
+            sprite.color = selected ? selectedColor : velocityGradient.Evaluate(note.velocity.Value);
+        }
+
+        private void OnBeatChanged(float beat)
+        {
+            Update();
+        }
+
+        private void OnPitchChanged(int pitch)
+        {
+            Update();
+        }
+
+        private void OnVelocityChanged(float velocity)
+        {
+            Update();
+            OnSelectionChanged();
+        }
+
+        private void OnLengthChanged(float length)
+        {
             Update();
         }
     }

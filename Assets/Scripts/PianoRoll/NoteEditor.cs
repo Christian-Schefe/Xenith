@@ -1,4 +1,6 @@
 using DTO;
+using ReactiveData.App;
+using ReactiveData.Core;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -9,7 +11,9 @@ namespace PianoRoll
     {
         [SerializeField] private RectTransform canvasRT;
         [SerializeField] private RectTransform viewFrame;
+        [SerializeField] private RectTransform tempoMarkerParent;
         [SerializeField] private Note notePrefab;
+        [SerializeField] private TempoMarker tempoMarkerPrefab;
         [SerializeField] private SpriteRenderer selector;
 
         private Vector2 zoom = new(1f, 0.33f);
@@ -17,8 +21,7 @@ namespace PianoRoll
 
         private float xSnap = 2f;
 
-        private readonly HashSet<Note> selectedNotes = new();
-        private readonly Dictionary<int, List<Note>> notes = new();
+        public readonly ReactiveHashSet<Note> selectedNotes = new();
         private readonly Dictionary<Note, Vector2> dragOffsets = new();
 
         private bool isDragging;
@@ -34,18 +37,17 @@ namespace PianoRoll
         private float startPlayPosition;
         private float startPlayPlayTime;
 
-        private Song activeSong = null;
-        private DTO.Track activeTrack = null;
-        public DTO.Track ActiveTrack => activeTrack;
-
-        private MusicKey musicKey = MusicKey.CMajor;
-        public MusicKey Key => musicKey;
+        private ReactiveSong activeSong;
 
         public List<int> stepsList;
         private Dictionary<int, int> pianoStepsMap;
 
         private float lastSelectedLength = 1f;
 
+        public MusicKey Key => activeSong?.activeTrack.Value.keySignature.Value ?? MusicKey.CMajor;
+
+        private ReactiveListBinder<ReactiveNote, Note> noteBinder = null;
+        private ReactiveListBinder<ReactiveTempoEvent, TempoMarker> tempoEventBinder = null;
 
         private void Start()
         {
@@ -55,34 +57,32 @@ namespace PianoRoll
         private void BuildStepsList()
         {
             stepsList = new List<int>();
+            pianoStepsMap = new Dictionary<int, int>();
             int octaves = 12;
 
-            for (int i = 0; i < octaves; i++)
+            if (activeSong != null)
             {
-                int stepOffset = i * musicKey.edo;
-                for (int j = 0; j < musicKey.pitches.Count; j++)
+                for (int i = 0; i < octaves; i++)
                 {
-                    int steps = musicKey.pitches[j] + stepOffset;
-                    stepsList.Add(steps);
+                    int stepOffset = i * Key.edo;
+                    for (int j = 0; j < Key.pitches.Count; j++)
+                    {
+                        int steps = Key.pitches[j] + stepOffset;
+                        stepsList.Add(steps);
+                    }
+                }
+
+                foreach (var note in activeSong.activeTrack.Value.notes)
+                {
+                    if (!stepsList.Contains(note.pitch.Value))
+                    {
+                        stepsList.Add(note.pitch.Value);
+                    }
                 }
             }
 
-            var accidentalRows = new List<int>();
-            foreach (var row in notes)
-            {
-                if (!stepsList.Contains(row.Key) && row.Value.Count > 0)
-                {
-                    accidentalRows.Add(row.Key);
-                }
-            }
-
-            foreach (var accidental in accidentalRows)
-            {
-                stepsList.Add(accidental);
-            }
             stepsList.Sort();
 
-            pianoStepsMap = new Dictionary<int, int>();
             for (int i = 0; i < stepsList.Count; i++)
             {
                 pianoStepsMap[stepsList[i]] = i;
@@ -137,9 +137,10 @@ namespace PianoRoll
             {
                 foreach (var note in selectedNotes)
                 {
-                    DeleteNote(note);
+                    activeSong.activeTrack.Value.notes.Remove(note.note);
                 }
                 selectedNotes.Clear();
+                BuildStepsList();
             }
 
             if (Input.GetKeyDown(KeyCode.D) && selectedNotes.Count > 0)
@@ -156,66 +157,58 @@ namespace PianoRoll
             var isShift = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
             if (Input.GetKeyDown(KeyCode.UpArrow))
             {
-                MoveSelectedNotes(isShift ? musicKey.edo : 1);
+                MoveSelectedNotes(isShift ? Key.edo : 1);
             }
             if (Input.GetKeyDown(KeyCode.DownArrow))
             {
-                MoveSelectedNotes(isShift ? -musicKey.edo : -1);
+                MoveSelectedNotes(isShift ? -Key.edo : -1);
             }
         }
 
-        public void SetSong(Song song)
+        public void Show(ReactiveSong song)
         {
             activeSong = song;
+            song.activeTrack.AddAndCall(OnActiveTrackChanged);
+            tempoEventBinder?.Dispose();
+            tempoEventBinder = new(song.tempoEvents, _ => Instantiate(tempoMarkerPrefab, tempoMarkerParent), marker => Destroy(marker.gameObject));
         }
 
-        public void ShowTrack(DTO.Track newActiveTrack)
+        private void OnActiveTrackChanged(ReactiveTrack newActiveTrack)
         {
+            noteBinder?.Dispose();
             ClearAll();
-            activeTrack = newActiveTrack;
+            noteBinder = new(newActiveTrack.notes, _ => Instantiate(notePrefab, transform), note => Destroy(note.gameObject));
 
-            LoadTrack();
+            BuildStepsList();
         }
 
-        public void HideTrack()
+        public void Hide()
         {
             activeSong = null;
-            activeTrack = null;
+            noteBinder?.Dispose();
+            noteBinder = null;
+            tempoEventBinder?.Dispose();
+            tempoEventBinder = null;
             ClearAll();
-        }
-
-        public void LoadTrack()
-        {
-            foreach (var noteData in activeTrack.notes)
-            {
-                var note = Instantiate(notePrefab, transform);
-                note.Initialize(noteData);
-                if (!notes.ContainsKey(noteData.y))
-                {
-                    notes[noteData.y] = new List<Note>();
-                }
-                notes[noteData.y].Add(note);
-            }
-            BuildStepsList();
         }
 
         private void MoveSelectedNotes(int deltaY)
         {
             foreach (var note in selectedNotes)
             {
-                SetNoteSteps(note, note.Y + deltaY);
+                SetNoteSteps(note, note.Pitch + deltaY);
             }
             BuildStepsList();
         }
 
         public bool IsSpecialRow(int steps)
         {
-            return steps % musicKey.edo == 0;
+            return steps % Key.edo == 0;
         }
 
         public bool IsAccidentalRow(int steps)
         {
-            return !musicKey.pitches.Contains(steps % musicKey.edo);
+            return !Key.pitches.Contains(steps % Key.edo);
         }
 
         public void StartPlaying()
@@ -230,7 +223,7 @@ namespace PianoRoll
             isSelecting = false;
             selector.gameObject.SetActive(false);
             isDraggingPlayPosition = false;
-            ClearSelection();
+            selectedNotes.Clear();
         }
 
         public float GetPlayStartTime()
@@ -315,13 +308,13 @@ namespace PianoRoll
 
             if (!isShift)
             {
-                ClearSelection();
+                selectedNotes.Clear();
                 StartSelecting(mousePiano);
             }
             else
             {
                 AddNote(SnapX(mousePiano.x, true), Mathf.FloorToInt(mousePiano.y), lastSelectedLength);
-                ClearSelection();
+                selectedNotes.Clear();
             }
         }
 
@@ -391,7 +384,7 @@ namespace PianoRoll
 
                 foreach (var note in selectedNotes)
                 {
-                    note.SetLength(length + dragOffsets[note].x);
+                    note.note.length.Value = Mathf.Max(0.01f, length + dragOffsets[note].x);
                 }
                 lastSelectedLength = primaryDragNote.Length;
             }
@@ -402,7 +395,7 @@ namespace PianoRoll
             isDragging = true;
             primaryDragNote = source;
             dragOffsets.Clear();
-            var distToRight = Mathf.Abs(primaryDragNote.EndX - mousePiano.x);
+            var distToRight = Mathf.Abs(primaryDragNote.EndBeat - mousePiano.x);
             isDraggingLengths = distToRight < 0.2f;
 
             var primaryOffset = primaryDragNote.Length - (mousePiano.x - primaryDragNote.Position.x);
@@ -435,26 +428,19 @@ namespace PianoRoll
             selector.transform.localPosition = PianoToWorldCoords(rect.center);
             selector.transform.localScale = new Vector3(rect.width * zoom.x, rect.height * zoom.y, 1);
 
-            ClearSelection();
+            selectedNotes.Clear();
 
-            foreach (var row in notes)
+            var newSelection = new List<Note>();
+
+            foreach (var note in noteBinder.UIElements)
             {
-                var yMin = StepsToPiano(row.Key);
-                var yMax = yMin + 1;
-                if (yMin > rect.yMax || yMax < rect.yMin)
+                var noteRect = note.Rect;
+                if (rect.Overlaps(noteRect))
                 {
-                    continue;
-                }
-
-                foreach (var note in row.Value)
-                {
-                    var noteRect = note.Rect;
-                    if (rect.Overlaps(noteRect))
-                    {
-                        SelectNote(note, true);
-                    }
+                    newSelection.Add(note);
                 }
             }
+            selectedNotes.AddRange(newSelection);
         }
 
         private float SnapX(float x, bool forceSnapDown = false)
@@ -472,116 +458,49 @@ namespace PianoRoll
 
         private void SetNotePosition(Note note, float x, int y)
         {
-            x = Mathf.Max(x, 0);
-            y = Mathf.Max(y, 0);
-
-            var steps = PianoToSteps(y);
-
-            if (steps != note.Y)
-            {
-                var oldRow = notes[note.Y];
-                oldRow.Remove(note);
-                if (!notes.ContainsKey(steps))
-                {
-                    notes[steps] = new List<Note>();
-                }
-                notes[steps].Add(note);
-                if (oldRow.Count == 0)
-                {
-                    notes.Remove(note.Y);
-                }
-            }
-            note.SetPosition(x, steps);
+            note.note.beat.Value = Mathf.Max(x, 0);
+            note.note.pitch.Value = PianoToSteps(Mathf.Max(y, 0));
         }
-
 
         private void SetNoteSteps(Note note, int steps)
         {
-            int ySteps = Mathf.Max(steps, 0);
-
-            if (ySteps != note.Y)
-            {
-                var oldRow = notes[note.Y];
-                oldRow.Remove(note);
-                if (!notes.ContainsKey(ySteps))
-                {
-                    notes[ySteps] = new List<Note>();
-                }
-                notes[ySteps].Add(note);
-                if (oldRow.Count == 0)
-                {
-                    notes.Remove(note.Y);
-                }
-            }
-            note.SetPosition(note.X, ySteps);
+            note.note.pitch.Value = Mathf.Max(steps, 0);
         }
 
         private void SelectNote(Note note, bool keepPrevious)
         {
             if (!keepPrevious)
             {
-                ClearSelection();
+                selectedNotes.Clear();
             }
-            note.SetSelected(true);
             selectedNotes.Add(note);
-        }
-
-        private void ClearSelection()
-        {
-            foreach (var note in selectedNotes)
-            {
-                note.SetSelected(false);
-            }
-            selectedNotes.Clear();
-        }
-
-        private void DeleteNote(Note note)
-        {
-            var row = notes[note.Y];
-            row.Remove(note);
-            activeTrack.notes.Remove(note.note);
-            Destroy(note.gameObject);
-            if (row.Count == 0)
-            {
-                notes.Remove(note.Y);
-            }
         }
 
         private bool TryGetHoveredNote(out Note note)
         {
             var pianoPos = ScreenToPianoCoords(Input.mousePosition);
             var yPos = PianoToSteps(Mathf.FloorToInt(pianoPos.y));
-            if (!notes.TryGetValue(yPos, out var noteRow))
+
+            foreach (var n in noteBinder.UIElements)
             {
-                note = null;
-                return false;
-            }
-            foreach (var n in noteRow)
-            {
-                if (n.IsWithin(pianoPos.x))
+                if (n.Pitch == yPos && n.IsWithin(pianoPos.x))
                 {
                     note = n;
                     return true;
                 }
             }
+
             note = null;
             return false;
         }
 
         private void AddNote(float xPos, int yPos, float length)
         {
-            var noteGO = Instantiate(notePrefab, transform);
             var clampedX = Mathf.Max(xPos, 0);
             var clampedY = Mathf.Max(yPos, 0);
             var yIndex = PianoToSteps(clampedY);
-            var note = new DTO.Note(clampedX, yIndex, length);
-            activeTrack.notes.Add(note);
-            noteGO.Initialize(note);
-            if (!notes.ContainsKey(yIndex))
-            {
-                notes[yIndex] = new List<Note>();
-            }
-            notes[yIndex].Add(noteGO);
+            var note = new ReactiveNote(clampedX, yIndex, 1.0f, length);
+            activeSong.activeTrack.Value.notes.Add(note);
         }
 
         public int StepsToPiano(int steps)
@@ -592,6 +511,7 @@ namespace PianoRoll
         public int PianoToSteps(float piano)
         {
             var m = stepsList.Count;
+            if (m == 0) return 0;
             return stepsList[((Mathf.FloorToInt(piano) % m) + m) % m];
         }
 
@@ -650,14 +570,6 @@ namespace PianoRoll
 
         public void ClearAll()
         {
-            foreach (var row in notes)
-            {
-                foreach (var note in row.Value)
-                {
-                    Destroy(note.gameObject);
-                }
-            }
-            notes.Clear();
             selectedNotes.Clear();
             isDragging = false;
             isSelecting = false;

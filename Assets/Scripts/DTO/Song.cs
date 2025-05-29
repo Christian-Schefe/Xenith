@@ -1,8 +1,5 @@
-using DSP;
-using NodeGraph;
 using PianoRoll;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace DTO
 {
@@ -74,82 +71,19 @@ namespace DTO
         }
     }
 
-    public class Song
+    public struct Song
     {
         public List<Track> tracks;
         public List<TempoEvent> tempoEvents;
 
-        public Song()
+        public Song(List<Track> tracks, List<TempoEvent> tempoEvents)
         {
-            tracks = new List<Track>();
-            tempoEvents = new List<TempoEvent>();
-        }
-
-        public static Song Default()
-        {
-            var song = new Song();
-            song.tracks.Add(Track.Default());
-            song.tempoEvents.Add(new(0, 2));
-            return song;
-        }
-
-        public bool IsEmpty()
-        {
-            if (tracks.Count == 0) return true;
-            if (tracks.Count > 1) return false;
-            var track = tracks[0];
-            return track.notes.Count == 0;
-        }
-
-        public AudioNode[] BuildInstrumentNodes(float startTime)
-        {
-            var hasSoloTracks = tracks.Any(t => t.isSoloed);
-            var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed) && !t.isMuted).ToList();
-            var nodes = new AudioNode[filteredTracks.Count];
-
-            for (int i = 0; i < filteredTracks.Count; i++)
-            {
-                var track = filteredTracks[i];
-                nodes[i] = track.BuildAudioNode(startTime, tempoEvents);
-            }
-
-            return nodes;
-        }
-
-        public AudioNode BuildMixerNode()
-        {
-            var hasSoloTracks = tracks.Any(t => t.isSoloed);
-            var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed) && !t.isMuted).ToList();
-
-            var graph = new DSP.NodeGraph();
-            int outLeft = graph.AddOutput<FloatValue>("Left", 0);
-            int outRight = graph.AddOutput<FloatValue>("Right", 1);
-            int mixLeft = graph.AddNode(Prelude.Mix(filteredTracks.Count));
-            int mixRight = graph.AddNode(Prelude.Mix(filteredTracks.Count));
-            graph.AddConnection(new(mixLeft, 0, outLeft, 0));
-            graph.AddConnection(new(mixRight, 0, outRight, 0));
-
-            for (int i = 0; i < filteredTracks.Count; i++)
-            {
-                var volume = graph.AddNode(filteredTracks[i].VolumeNode);
-                int inLeft = graph.AddInput<FloatValue>($"Left {i}", 2 * i);
-                int inRight = graph.AddInput<FloatValue>($"Right {i}", 2 * i + 1);
-                graph.AddConnection(new(inLeft, 0, mixLeft, 2 * i));
-                graph.AddConnection(new(inRight, 0, mixRight, 2 * i));
-                graph.AddConnection(new(volume, 0, mixLeft, 2 * i + 1));
-                graph.AddConnection(new(volume, 0, mixRight, 2 * i + 1));
-            }
-            return graph;
-        }
-
-        public float GetDuration()
-        {
-            if (tracks.Count == 0) return 0;
-            return tracks.Select(t => t.GetDuration(tempoEvents)).Max();
+            this.tracks = tracks;
+            this.tempoEvents = tempoEvents;
         }
     }
 
-    public class Track
+    public struct Track
     {
         public string name;
         public NodeResource instrument;
@@ -157,15 +91,10 @@ namespace DTO
         public bool isSoloed;
         public float volume;
         public float pan;
+        public MusicKey keySignature;
         public List<Note> notes;
 
-        [System.NonSerialized]
-        private ConstFloatNode volumeNode = null;
-        public ConstFloatNode VolumeNode => volumeNode ??= ConstFloatNode.New(volume);
-
-        public Track() { }
-
-        public Track(string name, NodeResource instrument, bool isMuted, bool isSoloed, float volume, float pan, List<Note> notes)
+        public Track(string name, NodeResource instrument, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, List<Note> notes)
         {
             this.name = name;
             this.instrument = instrument;
@@ -173,54 +102,12 @@ namespace DTO
             this.isSoloed = isSoloed;
             this.volume = volume;
             this.pan = pan;
+            this.keySignature = keySignature;
             this.notes = notes;
-        }
-
-        public void SetVolume(float volume)
-        {
-            this.volume = volume;
-            VolumeNode.valueSetting.value = volume;
-            VolumeNode.OnSettingsChanged();
-        }
-
-        public static Track Default()
-        {
-            return new Track("New Track", new NodeResource("piano", false), false, false, 0.9f, 0.0f, new());
-        }
-
-        public AudioNode BuildAudioNode(float startTime, List<TempoEvent> tempoEvents)
-        {
-            var graphDatabase = Globals<GraphDatabase>.Instance;
-            if (!graphDatabase.GetNodeFromTypeId(instrument, null, out var audioNode))
-            {
-                throw new System.Exception($"Failed to create audio node of type {instrument}");
-            }
-            var sequencer = new Sequencer(startTime, BuildNotes(tempoEvents), () => audioNode.Clone());
-            return sequencer;
-        }
-
-        private List<SequencerNote> BuildNotes(List<TempoEvent> tempoEvents)
-        {
-            var noteEditor = Globals<NoteEditor>.Instance;
-            var unsortedTempoNotes = notes.Select(note =>
-            {
-                var pitch = noteEditor.Key.StepsToFreq(note.y);
-                return new TempoNote(note.x, note.length, pitch);
-            }).ToList();
-            var sequencerNotes = TempoController.ConvertNotes(unsortedTempoNotes, tempoEvents);
-            return sequencerNotes;
-        }
-
-        public float GetDuration(List<TempoEvent> tempoEvents)
-        {
-            var notes = BuildNotes(tempoEvents);
-            if (notes.Count == 0) return 0;
-            var lastNote = notes[^1];
-            return lastNote.time + lastNote.duration;
         }
     }
 
-    public class TempoEvent
+    public struct TempoEvent
     {
         public float beat;
         public float bps;
@@ -230,23 +117,21 @@ namespace DTO
             this.beat = beat;
             this.bps = bps;
         }
-
-        public TempoEvent() { }
     }
 
-    public class Note
+    public struct Note
     {
-        public float x;
-        public int y;
+        public float beat;
+        public int pitch;
+        public float velocity;
         public float length;
 
-        public Note(float x, int y, float length)
+        public Note(float beat, int pitch, float velocity, float length)
         {
-            this.x = x;
-            this.y = y;
+            this.beat = beat;
+            this.pitch = pitch;
             this.length = length;
+            this.velocity = velocity;
         }
-
-        public Note() { }
     }
 }

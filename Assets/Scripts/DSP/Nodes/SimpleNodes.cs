@@ -37,6 +37,40 @@ namespace DSP
         }
     }
 
+    public class ReactiveFloatNode : AudioNode
+    {
+        private readonly NamedValue<FloatValue> value = new("Value", new());
+        private readonly ReactiveData.Core.Reactive<float> reactive;
+
+        public ReactiveFloatNode(ReactiveData.Core.Reactive<float> reactive)
+        {
+            reactive.AddAndCall(OnChanged);
+        }
+
+        private void OnChanged(float val)
+        {
+            value.value.value = val;
+        }
+
+        public override List<NamedValue> BuildInputs() => new();
+
+        public override List<NamedValue> BuildOutputs() => new() { value };
+
+        public override AudioNode Clone()
+        {
+            return new ReactiveFloatNode(reactive);
+        }
+
+        public override void Process(Context context) { }
+
+        public override void ResetState() { }
+
+        public override void Dispose()
+        {
+            reactive.Remove(OnChanged);
+        }
+    }
+
     public class BoolBinaryNode : SettingsNode
     {
         public enum Operation

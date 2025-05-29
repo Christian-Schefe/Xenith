@@ -1,6 +1,7 @@
 using ActionMenu;
 using DSP;
 using DTO;
+using ReactiveData.App;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -19,7 +20,7 @@ public class Main : MonoBehaviour
     public GraphID CurrentGraphId => openGraph;
     public SongID CurrentSongId => openSong;
     public Graph CurrentGraph => graphController.GetGraph(openGraph);
-    public Song CurrentSong => songController.GetSong(openSong);
+    public ReactiveSong CurrentSong => songController.GetSong(openSong);
 
     private void Start()
     {
