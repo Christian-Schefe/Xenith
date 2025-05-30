@@ -17,7 +17,8 @@ namespace DSP
         private const int BUFFER_FRAMES = 512;
         private readonly int ringBufferFrames;
 
-        private float[][] instrumentBuffers;
+        private float[][] instrumentBuffer, mixBuffer;
+
         private float[] ringBuffer;
         private int writeIndex;
         private int readIndex;
@@ -41,8 +42,12 @@ namespace DSP
         public void Start(Context context)
         {
             int instrumentCount = instruments.Length;
-            instrumentBuffers = new float[instrumentCount][];
-            instrumentsDone = new Barrier(instrumentCount + 1);
+            instrumentBuffer = new float[instrumentCount][];
+            mixBuffer = new float[instrumentCount][];
+            instrumentsDone = new Barrier(instrumentCount + 1, _ =>
+            {
+                (mixBuffer, instrumentBuffer) = (instrumentBuffer, mixBuffer);
+            });
             allShutdown = new CountdownEvent(instrumentCount + 1);
             ringBuffer = new float[ringBufferFrames * channels];
             readIndex = 0;
@@ -50,7 +55,8 @@ namespace DSP
 
             for (int i = 0; i < instrumentCount; i++)
             {
-                instrumentBuffers[i] = new float[BUFFER_FRAMES * channels];
+                instrumentBuffer[i] = new float[BUFFER_FRAMES * channels];
+                mixBuffer[i] = new float[BUFFER_FRAMES * channels];
             }
 
             this.context = context;
@@ -91,12 +97,11 @@ namespace DSP
             try
             {
                 var instrument = instruments[id];
-                var buffer = instrumentBuffers[id];
-
                 var outputValues = instrument.outputs.Select(o => (FloatValue)o.Value).ToArray();
 
                 while (!token.IsCancellationRequested && running)
                 {
+                    var buffer = instrumentBuffer[id];
                     for (int i = 0; i < BUFFER_FRAMES; i++)
                     {
                         instrument.Process(context);
@@ -106,8 +111,6 @@ namespace DSP
                         }
                     }
 
-                    if (token.IsCancellationRequested || !running) break;
-                    instrumentsDone.SignalAndWait(token);
                     if (token.IsCancellationRequested || !running) break;
                     instrumentsDone.SignalAndWait(token);
                 }
@@ -134,12 +137,11 @@ namespace DSP
                 FloatValue[] outputValues = mixer.outputs.Select(o => (FloatValue)o.Value).ToArray();
                 FloatValue[] inputValues = mixer.inputs.Select(i => (FloatValue)i.Value).ToArray();
 
+                if (token.IsCancellationRequested || !running) return;
+                instrumentsDone.SignalAndWait(token);
+
                 while (!token.IsCancellationRequested && running)
                 {
-                    if (token.IsCancellationRequested || !running) break;
-                    instrumentsDone.SignalAndWait(token);
-                    if (token.IsCancellationRequested || !running) break;
-
                     int required = BUFFER_FRAMES * channels;
                     while (RingBufferFreeSpace() < required)
                     {
@@ -153,10 +155,11 @@ namespace DSP
                     {
                         for (int inst = 0; inst < instruments.Length; inst++)
                         {
+                            var buffer = mixBuffer[inst];
                             for (int c = 0; c < channels; c++)
                             {
                                 int index = i * channels + c;
-                                inputValues[inst * channels + c].value = instrumentBuffers[inst][index];
+                                inputValues[inst * channels + c].value = buffer[index];
                             }
                         }
 

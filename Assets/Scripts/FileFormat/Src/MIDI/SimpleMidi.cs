@@ -28,26 +28,43 @@ namespace FileFormat
             foreach (var track in midi.trackChunks)
             {
                 int time = 0;
-                Dictionary<(int, int), SimpleMidiNote> onNotes = new();
-                List<SimpleMidiNote> notes = new();
+                Dictionary<int, Dictionary<int, SimpleMidiNote>> onNotes = new();
+                Dictionary<int, List<SimpleMidiNote>> notes = new();
+                Dictionary<int, string> instrumentName = new();
+                Dictionary<int, string> patchName = new();
+                Dictionary<int, (int, bool)> keySignature = new();
                 string trackName = null;
-                string instrumentName = null;
-                (int, bool)? keySignature = null;
+                int? currentChannel = null;
+
+                int[] GetChannels() => currentChannel.HasValue ? new int[] { currentChannel.Value } : new int[] { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
 
                 void TurnOnNote(int channel, int pitch, int velocity, float start)
                 {
-                    var noteKey = (channel, pitch);
-                    onNotes[noteKey] = new SimpleMidiNote(pitch, velocity / 127f, start, 0f);
+                    if (!onNotes.TryGetValue(channel, out var channelNotes))
+                    {
+                        channelNotes = new Dictionary<int, SimpleMidiNote>();
+                        onNotes[channel] = channelNotes;
+                    }
+                    channelNotes[pitch] = new SimpleMidiNote(pitch, velocity / 127f, start, 0f);
                 }
 
                 void TurnOffNote(int channel, int pitch, float end)
                 {
-                    var noteKey = (channel, pitch);
-                    if (onNotes.TryGetValue(noteKey, out var note))
+                    if (!onNotes.TryGetValue(channel, out var channelNotes))
+                    {
+                        channelNotes = new Dictionary<int, SimpleMidiNote>();
+                        onNotes[channel] = channelNotes;
+                    }
+                    if (channelNotes.TryGetValue(pitch, out var note))
                     {
                         note.duration = end - note.start;
-                        onNotes.Remove(noteKey);
-                        notes.Add(note);
+                        channelNotes.Remove(pitch);
+                        if (!notes.TryGetValue(channel, out var channelNoteList))
+                        {
+                            channelNoteList = new List<SimpleMidiNote>();
+                            notes[channel] = channelNoteList;
+                        }
+                        channelNoteList.Add(note);
                     }
                 }
 
@@ -74,6 +91,15 @@ namespace FileFormat
                             int pitch = channelEvent.eventData[0];
                             TurnOffNote(channelEvent.channel, pitch, time / (float)division);
                         }
+                        else if (channelEvent.type == MidiChannelEventType.ProgramChange)
+                        {
+                            int program = channelEvent.eventData[0];
+                            if (MidiPatchInfo.GetPatchName(program, out var name))
+                            {
+                                patchName[channelEvent.channel] = name;
+                            }
+                            Debug.Log($"Program Change: {program} ({patchName.GetValueOrDefault(channelEvent.channel, program.ToString())}) at time {time / (float)division} seconds for channel {channelEvent.channel}");
+                        }
                     }
                     else if (e is MidiMetaEvent metaEvent)
                     {
@@ -88,33 +114,48 @@ namespace FileFormat
                             if (string.IsNullOrEmpty(trackName))
                             {
                                 trackName = System.Text.Encoding.UTF8.GetString(metaEvent.metaData);
+                                Debug.Log($"Track Name: {trackName} at time {time / (float)division} seconds");
                             }
+                        }
+                        else if (metaEvent.metaType == 0x20) // MIDI Channel Prefix
+                        {
+                            currentChannel = metaEvent.metaData[0];
                         }
                         else if (metaEvent.metaType == 0x04) // Instrument Name
                         {
-                            if (string.IsNullOrEmpty(instrumentName))
+                            foreach (var channel in GetChannels())
                             {
-                                instrumentName = System.Text.Encoding.UTF8.GetString(metaEvent.metaData);
+                                instrumentName[channel] = System.Text.Encoding.UTF8.GetString(metaEvent.metaData);
+                                Debug.Log($"Instrument Name: {instrumentName[channel]} at time {time / (float)division} seconds for channel {channel}");
                             }
                         }
                         else if (metaEvent.metaType == 0x59) // Key Signature
                         {
-                            if (keySignature == null)
+                            foreach (var channel in GetChannels())
                             {
-                                int key = metaEvent.metaData[0];
-                                bool isMajor = metaEvent.metaData[1] == 0;
-                                keySignature = (key, isMajor);
-                                Debug.Log($"Key Signature: {key} {(isMajor ? "Major" : "Minor")} at time {time / (float)division} seconds");
+                                if (!keySignature.ContainsKey(channel))
+                                {
+                                    int key = metaEvent.metaData[0];
+                                    bool isMajor = metaEvent.metaData[1] == 0;
+                                    keySignature.Add(channel, (key, isMajor));
+                                    Debug.Log($"Key Signature: {key} {(isMajor ? "Major" : "Minor")} at time {time / (float)division} seconds");
+                                }
                             }
                         }
                     }
                 }
 
-                if (notes.Count == 0) continue;
+                foreach (var (channel, noteList) in notes)
+                {
+                    var instName = instrumentName.TryGetValue(channel, out var _instName) && !string.IsNullOrEmpty(_instName) ? _instName : null;
+                    var pName = patchName.TryGetValue(channel, out var _pName) && !string.IsNullOrEmpty(_pName) ? _pName : null;
+                    var tName = string.IsNullOrEmpty(trackName) ? trackName : null;
+                    var specialName = channel == 9 ? "Drums" : null; // Channel 9 is typically used for drums in MIDI files
+                    var name = instName ?? pName ?? tName ?? specialName ?? $"Unnamed Track Ch.{channel + 1}";
 
-                if (string.IsNullOrEmpty(trackName)) trackName = string.IsNullOrEmpty(instrumentName) ? "Unnamed Track" : instrumentName;
-                var signature = keySignature ?? (0, true); // Default to C Major if no key signature is found
-                tracks.Add(new SimpleMidiTrack(trackName, signature, notes));
+                    var signature = keySignature.TryGetValue(channel, out var ks) ? ks : (0, true); // Default to C Major if no key signature is found
+                    tracks.Add(new SimpleMidiTrack(name, signature, noteList));
+                }
             }
 
             return new SimpleMidi(tracks, tempoEvents);

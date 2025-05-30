@@ -22,6 +22,18 @@ namespace ReactiveData.Core
             OnChanged?.Invoke();
         }
 
+        public new void Sort()
+        {
+            base.Sort();
+            OnChanged?.Invoke();
+        }
+
+        public new void Sort(IComparer<T> comparer)
+        {
+            base.Sort(comparer);
+            OnChanged?.Invoke();
+        }
+
         public new void Remove(T item)
         {
             base.Remove(item);

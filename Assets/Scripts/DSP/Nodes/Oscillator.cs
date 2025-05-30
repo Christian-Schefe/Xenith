@@ -18,7 +18,8 @@ namespace DSP
         {
             Sine,
             Square,
-            Sawtooth
+            Sawtooth,
+            Triangle,
         }
 
         private readonly NamedValue<FloatValue> frequency = new("Frequency", new(0));
@@ -50,12 +51,14 @@ namespace DSP
             static float SineWave(float phase) => Mathf.Sin(phase * Mathf.PI * 2);
             static float SquareWave(float phase) => phase < 0.5f ? 1 : -1;
             static float SawtoothWave(float phase) => phase < 0.5f ? (2 * phase) : (2 * phase - 2);
+            static float TriangleWave(float phase) => phase < 0.5f ? (1 - 4 * phase) : (4 * phase - 3);
 
             return type switch
             {
                 WaveformType.Sine => SineWave,
                 WaveformType.Square => SquareWave,
                 WaveformType.Sawtooth => SawtoothWave,
+                WaveformType.Triangle => TriangleWave,
                 _ => throw new System.ArgumentOutOfRangeException(nameof(type), type, "Invalid Waveform Variant")
             };
         }

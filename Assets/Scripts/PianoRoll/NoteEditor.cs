@@ -23,6 +23,7 @@ namespace PianoRoll
 
         public readonly ReactiveHashSet<Note> selectedNotes = new();
         private readonly Dictionary<Note, Vector2> dragOffsets = new();
+        public readonly Reactive<ReactiveTempoEvent> selectedEvent = new(null);
 
         private bool isDragging;
         private Note primaryDragNote;
@@ -37,7 +38,7 @@ namespace PianoRoll
         private float startPlayPosition;
         private float startPlayPlayTime;
 
-        private ReactiveSong activeSong;
+        public ReactiveSong activeSong;
 
         public List<int> stepsList;
         private Dictionary<int, int> pianoStepsMap;
@@ -322,10 +323,8 @@ namespace PianoRoll
         {
             var playPosition = Globals<PlayPosition>.Instance;
             var xDist = Mathf.Abs(mousePiano.x - playPosition.position);
-            var camWorldY = ViewRectWorld().yMax;
-            var mouseWorldY = PianoToWorldCoords(mousePiano).y;
-            var yDist = camWorldY - mouseWorldY;
-            return xDist < 0.2f || (yDist < 1f && yDist >= 0);
+            float threshold = 0.2f / zoom.x;
+            return xDist < threshold;
         }
 
         public Rect ViewRectScreen()
@@ -443,7 +442,7 @@ namespace PianoRoll
             selectedNotes.AddRange(newSelection);
         }
 
-        private float SnapX(float x, bool forceSnapDown = false)
+        public float SnapX(float x, bool forceSnapDown = false)
         {
             var lowerSubdivision = Mathf.FloorToInt(x * xSnap) / xSnap;
             var upperSubdivision = Mathf.CeilToInt(x * xSnap) / xSnap;

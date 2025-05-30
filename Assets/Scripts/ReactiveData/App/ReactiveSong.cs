@@ -24,6 +24,11 @@ namespace ReactiveData.App
 
         public static ReactiveSong Default => new(new() { ReactiveTrack.Default }, new() { new(0, 2) });
 
+        public void SortTempoEvents()
+        {
+            tempoEvents.Sort((a, b) => a.beat.Value.CompareTo(b.beat.Value));
+        }
+
         public bool IsEmpty()
         {
             if (tracks.Count == 0) return true;
