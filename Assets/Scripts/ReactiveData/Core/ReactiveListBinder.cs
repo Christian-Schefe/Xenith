@@ -7,11 +7,11 @@ namespace ReactiveData.Core
     {
         private readonly Dictionary<string, TUI> uiElements = new();
 
-        private ReactiveList<TData> source;
+        private IReactiveEnumerable<TData> source;
         private Func<TData, TUI> createFunc;
         private Action<TUI> destroyFunc;
 
-        public ReactiveListBinder(ReactiveList<TData> source, Func<TData, TUI> createFunc, Action<TUI> destroyFunc)
+        public ReactiveListBinder(IReactiveEnumerable<TData> source, Func<TData, TUI> createFunc, Action<TUI> destroyFunc)
         {
             this.source = source;
             this.createFunc = createFunc;

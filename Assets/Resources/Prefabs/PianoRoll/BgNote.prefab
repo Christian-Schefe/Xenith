@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 1266996197338630004}
   - component: {fileID: 4334661276217716926}
   m_Layer: 0
-  m_Name: Note
+  m_Name: BgNote
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -48,8 +48,8 @@ MonoBehaviour:
   sprite: {fileID: 4334661276217716926}
   velocityGradient:
     serializedVersion: 2
-    key0: {r: 0.5612674, g: 0.16862741, b: 0.9607843, a: 1}
-    key1: {r: 0.11792451, g: 0.4060689, b: 1, a: 1}
+    key0: {r: 0.5471698, g: 0.2491937, b: 0.24519402, a: 1}
+    key1: {r: 0.5471698, g: 0.2491937, b: 0.24519402, a: 1}
     key2: {r: 0, g: 0, b: 0, a: 0}
     key3: {r: 0, g: 0, b: 0, a: 0}
     key4: {r: 0, g: 0, b: 0, a: 0}
@@ -77,7 +77,7 @@ MonoBehaviour:
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
   selectedColor: {r: 1, g: 0.8377491, b: 0, a: 1}
-  alpha: 0.8
+  alpha: 0.4
 --- !u!212 &4334661276217716926
 SpriteRenderer:
   m_ObjectHideFlags: 0
@@ -121,7 +121,7 @@ SpriteRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 1
+  m_SortingOrder: 0
   m_Sprite: {fileID: -5177388603050735206, guid: 625ca245f71c30c4cab705e93be046c7, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0

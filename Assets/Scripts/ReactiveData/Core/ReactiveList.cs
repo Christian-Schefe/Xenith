@@ -1,48 +1,103 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace ReactiveData.Core
 {
-    public class ReactiveList<T> : List<T>
+    public class ReactiveList<T> : IReactiveEnumerable<T>, IList<T>, ICollection<T>
     {
+        private readonly List<T> list;
+
+        public int Count => list.Count;
+
+        public bool IsReadOnly => ((ICollection<T>)list).IsReadOnly;
+
+        public T this[int index]
+        {
+            get => list[index]; set
+            {
+                list[index] = value;
+                OnChanged?.Invoke();
+            }
+        }
+
         public event Action OnChanged;
 
-        public ReactiveList() : base() { }
-        public ReactiveList(IEnumerable<T> collection) : base(collection) { }
-
-        public new void Add(T item)
+        public ReactiveList()
         {
-            base.Add(item);
+            list = new();
+        }
+        public ReactiveList(IEnumerable<T> collection)
+        {
+            list = new(collection);
+        }
+
+        public int IndexOf(T item)
+        {
+            return list.IndexOf(item);
+        }
+
+        public void Insert(int index, T item)
+        {
+            list.Insert(index, item);
             OnChanged?.Invoke();
         }
 
-        public new void AddRange(IEnumerable<T> collection)
+        public void RemoveAt(int index)
         {
-            base.AddRange(collection);
+            list.RemoveAt(index);
             OnChanged?.Invoke();
         }
 
-        public new void Sort()
+        public void Add(T item)
         {
-            base.Sort();
+            list.Add(item);
             OnChanged?.Invoke();
         }
 
-        public new void Sort(IComparer<T> comparer)
+        public void Clear()
         {
-            base.Sort(comparer);
+            list.Clear();
             OnChanged?.Invoke();
         }
 
-        public new void Remove(T item)
+        public void ReplaceAll(IEnumerable<T> collection)
         {
-            base.Remove(item);
+            list.Clear();
+            list.AddRange(collection);
             OnChanged?.Invoke();
         }
 
-        public new void Clear()
+        public bool Contains(T item)
         {
-            base.Clear();
+            return list.Contains(item);
+        }
+
+        public void CopyTo(T[] array, int arrayIndex)
+        {
+            list.CopyTo(array, arrayIndex);
+        }
+
+        public bool Remove(T item)
+        {
+            var result = list.Remove(item);
+            OnChanged?.Invoke();
+            return result;
+        }
+
+        public IEnumerator<T> GetEnumerator()
+        {
+            return list.GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return list.GetEnumerator();
+        }
+
+        public void Sort(Comparison<T> comparer)
+        {
+            list.Sort(comparer);
             OnChanged?.Invoke();
         }
     }

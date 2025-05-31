@@ -19,6 +19,8 @@ namespace ReactiveData.App
         public Reactive<MusicKey> keySignature;
         public ReactiveList<ReactiveNote> notes;
 
+        public Reactive<bool> isBGVisible = new(false);
+
         private readonly ReactiveFloatNode volumeNode;
         public ReactiveFloatNode VolumeNode => volumeNode;
 
@@ -40,7 +42,7 @@ namespace ReactiveData.App
         public string ID { get; private set; } = Guid.NewGuid().ToString();
         public string Key => ID;
 
-        public AudioNode BuildAudioNode(float startTime, List<ReactiveTempoEvent> tempoEvents)
+        public AudioNode BuildAudioNode(float startTime, IList<ReactiveTempoEvent> tempoEvents)
         {
             var graphDatabase = Globals<GraphDatabase>.Instance;
             if (!graphDatabase.GetNodeFromTypeId(instrument.Value, null, out var audioNode))
@@ -51,7 +53,7 @@ namespace ReactiveData.App
             return sequencer;
         }
 
-        private List<SequencerNote> BuildNotes(List<ReactiveTempoEvent> tempoEvents)
+        private List<SequencerNote> BuildNotes(IList<ReactiveTempoEvent> tempoEvents)
         {
             var noteEditor = Globals<NoteEditor>.Instance;
             var unsortedTempoNotes = notes.Select(note =>
@@ -63,7 +65,7 @@ namespace ReactiveData.App
             return sequencerNotes;
         }
 
-        public float GetDuration(List<ReactiveTempoEvent> tempoEvents)
+        public float GetDuration(IList<ReactiveTempoEvent> tempoEvents)
         {
             var notes = BuildNotes(tempoEvents);
             if (notes.Count == 0) return 0;

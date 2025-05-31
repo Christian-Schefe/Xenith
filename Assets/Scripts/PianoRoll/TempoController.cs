@@ -21,7 +21,7 @@ namespace PianoRoll
 
     public class TempoController
     {
-        public static float GetBeatFromTime(float time, List<ReactiveTempoEvent> events)
+        public static float GetBeatFromTime(float time, IList<ReactiveTempoEvent> events)
         {
             var eventTimes = ComputeEventTimes(events);
             int i = 0;
@@ -35,7 +35,7 @@ namespace PianoRoll
             return beat;
         }
 
-        public static float GetTimeFromBeat(float beat, List<ReactiveTempoEvent> events)
+        public static float GetTimeFromBeat(float beat, IList<ReactiveTempoEvent> events)
         {
             var eventTimes = ComputeEventTimes(events);
             int i = 0;
@@ -49,7 +49,7 @@ namespace PianoRoll
             return time;
         }
 
-        public static List<SequencerNote> ConvertNotes(List<TempoNote> notes, List<ReactiveTempoEvent> events)
+        public static List<SequencerNote> ConvertNotes(List<TempoNote> notes, IList<ReactiveTempoEvent> events)
         {
             notes = notes.OrderBy(n => n.beat).ToList();
             events = events.OrderBy(e => e.beat.Value).ToList();
@@ -85,7 +85,7 @@ namespace PianoRoll
             return sequencerNotes;
         }
 
-        private static List<float> ComputeEventTimes(List<ReactiveTempoEvent> events)
+        private static List<float> ComputeEventTimes(IList<ReactiveTempoEvent> events)
         {
             var eventTimes = new List<float>();
 

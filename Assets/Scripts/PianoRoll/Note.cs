@@ -9,6 +9,7 @@ namespace PianoRoll
         [SerializeField] private SpriteRenderer sprite;
         [SerializeField] private Gradient velocityGradient;
         [SerializeField] private Color selectedColor;
+        [SerializeField] private float alpha;
 
         public ReactiveNote note;
 
@@ -34,7 +35,7 @@ namespace PianoRoll
             return note.beat.Value <= x && x < EndBeat;
         }
 
-        private void Update()
+        private void UpdateUI()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
             var pianoPos = new Vector2(note.beat.Value + note.length.Value * 0.5f, GetYPos() + 0.5f);
@@ -52,8 +53,10 @@ namespace PianoRoll
 
             var noteEditor = Globals<NoteEditor>.Instance;
             noteEditor.selectedNotes.OnChanged += OnSelectionChanged;
+            noteEditor.zoom.Add(OnZoomChanged);
+            noteEditor.stepsList.OnChanged += OnStepsListChanged;
             OnSelectionChanged();
-            Update();
+            UpdateUI();
         }
 
         public void Unbind()
@@ -65,34 +68,48 @@ namespace PianoRoll
             note = null;
             var noteEditor = Globals<NoteEditor>.Instance;
             noteEditor.selectedNotes.OnChanged -= OnSelectionChanged;
+            noteEditor.zoom.Remove(OnZoomChanged);
+            noteEditor.stepsList.OnChanged -= OnStepsListChanged;
+        }
+
+        private void OnZoomChanged(Vector2 zoom)
+        {
+            UpdateUI();
+        }
+
+        private void OnStepsListChanged()
+        {
+            UpdateUI();
         }
 
         private void OnSelectionChanged()
         {
             var noteEditor = Globals<NoteEditor>.Instance;
             var selected = noteEditor.selectedNotes.Contains(this);
-            sprite.color = selected ? selectedColor : velocityGradient.Evaluate(note.velocity.Value);
+            var col = selected ? selectedColor : velocityGradient.Evaluate(note.velocity.Value);
+            col.a = alpha;
+            sprite.color = col;
         }
 
         private void OnBeatChanged(float beat)
         {
-            Update();
+            UpdateUI();
         }
 
         private void OnPitchChanged(int pitch)
         {
-            Update();
+            UpdateUI();
         }
 
         private void OnVelocityChanged(float velocity)
         {
-            Update();
+            UpdateUI();
             OnSelectionChanged();
         }
 
         private void OnLengthChanged(float length)
         {
-            Update();
+            UpdateUI();
         }
     }
 }

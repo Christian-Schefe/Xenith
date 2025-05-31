@@ -6,12 +6,14 @@ using PianoRoll;
 using ReactiveData.App;
 using ReactiveData.Core;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class TrackEditor : MonoBehaviour
 {
     [SerializeField] private RectTransform uiRoot;
     [SerializeField] private RectTransform trackContainer;
     [SerializeField] private TrackUI trackPrefab;
+    [SerializeField] private RectTransform addTrackButton;
 
     private TopLevelAction trackAction = null;
     private bool isVisible = false;
@@ -21,10 +23,20 @@ public class TrackEditor : MonoBehaviour
 
     public ReactiveSong Song => song;
 
+    private void Awake()
+    {
+        addTrackButton.GetComponentInChildren<Button>().onClick.AddListener(AddTrack);
+    }
+
     private void BindSong(ReactiveSong song)
     {
         this.song = song;
-        trackBinder = new(song.tracks, _ => Instantiate(trackPrefab, trackContainer), track => Destroy(track.gameObject));
+        trackBinder = new(song.tracks, _ =>
+        {
+            var instance = Instantiate(trackPrefab, trackContainer);
+            addTrackButton.SetAsLastSibling();
+            return instance;
+        }, track => Destroy(track.gameObject));
     }
 
     private void UnbindSong()
@@ -37,7 +49,6 @@ public class TrackEditor : MonoBehaviour
     private TopLevelAction BuildAction()
     {
         return new("Tracks", new() {
-            new ActionType.Button("Add Track", () => AddTrack()),
             new ActionType.Button("Import Midi", () => ImportMidi()),
         });
     }

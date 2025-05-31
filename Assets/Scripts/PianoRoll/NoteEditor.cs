@@ -12,12 +12,12 @@ namespace PianoRoll
         [SerializeField] private RectTransform canvasRT;
         [SerializeField] private RectTransform viewFrame;
         [SerializeField] private RectTransform tempoMarkerParent;
-        [SerializeField] private Note notePrefab;
+        [SerializeField] private Note notePrefab, bgNotePrefab;
         [SerializeField] private TempoMarker tempoMarkerPrefab;
         [SerializeField] private SpriteRenderer selector;
 
-        private Vector2 zoom = new(1f, 0.33f);
-        public Vector2 Zoom => zoom;
+        public Reactive<Vector2> zoom = new(new(1f, 0.33f));
+        public Vector2 Zoom => zoom.Value;
 
         private float xSnap = 2f;
 
@@ -40,13 +40,16 @@ namespace PianoRoll
 
         public ReactiveSong activeSong;
 
-        public List<int> stepsList;
+        public ReactiveList<int> stepsList = new();
         private Dictionary<int, int> pianoStepsMap;
 
         private float lastSelectedLength = 1f;
 
         public MusicKey Key => activeSong?.activeTrack.Value.keySignature.Value ?? MusicKey.CMajor;
 
+        private ReactiveChainedEnumerable<ReactiveNote> bgNotes = null;
+        private ReactiveListBinder<ReactiveTrack, TrackObserver> trackBinder = null;
+        private ReactiveListBinder<ReactiveNote, Note> bgNoteBinder = null;
         private ReactiveListBinder<ReactiveNote, Note> noteBinder = null;
         private ReactiveListBinder<ReactiveTempoEvent, TempoMarker> tempoEventBinder = null;
 
@@ -57,7 +60,7 @@ namespace PianoRoll
 
         private void BuildStepsList()
         {
-            stepsList = new List<int>();
+            var newStepsList = new List<int>();
             pianoStepsMap = new Dictionary<int, int>();
             int octaves = 12;
 
@@ -69,25 +72,34 @@ namespace PianoRoll
                     for (int j = 0; j < Key.pitches.Count; j++)
                     {
                         int steps = Key.pitches[j] + stepOffset;
-                        stepsList.Add(steps);
+                        newStepsList.Add(steps);
                     }
                 }
 
                 foreach (var note in activeSong.activeTrack.Value.notes)
                 {
-                    if (!stepsList.Contains(note.pitch.Value))
+                    if (!newStepsList.Contains(note.pitch.Value))
                     {
-                        stepsList.Add(note.pitch.Value);
+                        newStepsList.Add(note.pitch.Value);
+                    }
+                }
+                foreach (var note in bgNotes)
+                {
+                    if (!newStepsList.Contains(note.pitch.Value))
+                    {
+                        newStepsList.Add(note.pitch.Value);
                     }
                 }
             }
 
-            stepsList.Sort();
+            newStepsList.Sort();
 
-            for (int i = 0; i < stepsList.Count; i++)
+            for (int i = 0; i < newStepsList.Count; i++)
             {
-                pianoStepsMap[stepsList[i]] = i;
+                pianoStepsMap[newStepsList[i]] = i;
             }
+
+            stepsList.ReplaceAll(newStepsList);
         }
 
         private void Update()
@@ -169,9 +181,14 @@ namespace PianoRoll
         public void Show(ReactiveSong song)
         {
             activeSong = song;
-            song.activeTrack.AddAndCall(OnActiveTrackChanged);
+            bgNotes = new();
+            trackBinder?.Dispose();
+            trackBinder = new(song.tracks, _ => new TrackObserver(ChangeBGNoteSources), _ => { });
             tempoEventBinder?.Dispose();
             tempoEventBinder = new(song.tempoEvents, _ => Instantiate(tempoMarkerPrefab, tempoMarkerParent), marker => Destroy(marker.gameObject));
+            bgNoteBinder?.Dispose();
+            bgNoteBinder = new(bgNotes, _ => Instantiate(bgNotePrefab, transform), note => Destroy(note.gameObject));
+            song.activeTrack.AddAndCall(OnActiveTrackChanged);
         }
 
         private void OnActiveTrackChanged(ReactiveTrack newActiveTrack)
@@ -179,17 +196,27 @@ namespace PianoRoll
             noteBinder?.Dispose();
             ClearAll();
             noteBinder = new(newActiveTrack.notes, _ => Instantiate(notePrefab, transform), note => Destroy(note.gameObject));
+            ChangeBGNoteSources();
+        }
 
+        private void ChangeBGNoteSources()
+        {
+            bgNotes.ReplaceSources(activeSong.tracks.Where(t => t != activeSong.activeTrack.Value && t.isBGVisible.Value).Select(t => t.notes));
             BuildStepsList();
         }
 
         public void Hide()
         {
             activeSong = null;
+            trackBinder?.Dispose();
+            trackBinder = null;
             noteBinder?.Dispose();
             noteBinder = null;
+            bgNoteBinder?.Dispose();
+            bgNoteBinder = null;
             tempoEventBinder?.Dispose();
             tempoEventBinder = null;
+            bgNotes = null;
             ClearAll();
         }
 
@@ -323,7 +350,7 @@ namespace PianoRoll
         {
             var playPosition = Globals<PlayPosition>.Instance;
             var xDist = Mathf.Abs(mousePiano.x - playPosition.position);
-            float threshold = 0.2f / zoom.x;
+            float threshold = 0.2f / Zoom.x;
             return xDist < threshold;
         }
 
@@ -425,7 +452,7 @@ namespace PianoRoll
             var rect = new Rect(min, max - min);
             selector.gameObject.SetActive(true);
             selector.transform.localPosition = PianoToWorldCoords(rect.center);
-            selector.transform.localScale = new Vector3(rect.width * zoom.x, rect.height * zoom.y, 1);
+            selector.transform.localScale = new Vector3(rect.width * Zoom.x, rect.height * Zoom.y, 1);
 
             selectedNotes.Clear();
 
@@ -448,7 +475,7 @@ namespace PianoRoll
             var upperSubdivision = Mathf.CeilToInt(x * xSnap) / xSnap;
             var lowerDistance = Mathf.Abs(x - lowerSubdivision);
             var upperDistance = Mathf.Abs(x - upperSubdivision);
-            float threshold = 0.2f / zoom.x;
+            float threshold = 0.2f / Zoom.x;
             bool closeToLower = lowerDistance < threshold || forceSnapDown;
             bool closeToUpper = upperDistance < threshold && !forceSnapDown;
             return (closeToLower && closeToUpper) ? (lowerDistance < upperDistance ? lowerSubdivision : upperSubdivision)
@@ -517,7 +544,7 @@ namespace PianoRoll
         public void DoZoom(Vector2 factor)
         {
             var pianoRect = ViewRectPiano();
-            zoom *= factor;
+            zoom.Value *= factor;
             var cam = Globals<CameraController>.Instance;
             var worldRect = ViewRectWorld();
             Vector3 offset = worldRect.min - PianoToWorldCoords(pianoRect.min);
