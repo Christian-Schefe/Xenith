@@ -1,3 +1,6 @@
+using Colors;
+using ReactiveData.Core;
+using ReactiveData.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -5,57 +8,100 @@ using UnityEngine.UI;
 
 namespace ActionMenu
 {
-    public class TabButton : MonoBehaviour, IPointerClickHandler
+    public class TabButton : MonoBehaviour, IReactor<ActionTab>
     {
         [SerializeField] private TextMeshProUGUI text;
-        [SerializeField] private Image img;
-        [SerializeField] private Color normalColor, selectedColor;
+        [SerializeField] private ReactiveButton button;
+        [SerializeField] private ColorApplierReactiveButton colorApplier;
+        [SerializeField] private ColorPaletteColor normalNormalColor, normalHoveredColor, normalPressedColor;
+        [SerializeField] private ColorPaletteColor selectedNormalColor, selectedHoveredColor, selectedPressedColor;
         [SerializeField] private Button closeButton;
 
-        private int index;
-        private System.Action<int> onClick;
-        private System.Action<int> onClose;
+        private System.Action<ActionTab> onClick;
+        private System.Action<ActionTab> onClose;
 
-        public void Initialize(int index, string text, System.Action<int> onClick, System.Action<int> onClose)
+        private Reactive<ColorPaletteColor> normalColor, hoveredColor, pressedColor;
+        private IReactive<ActionTab> selectedTab;
+
+        private ActionTab tab;
+
+        private void Awake()
         {
-            this.index = index;
-            this.onClick = onClick;
-            this.onClose = onClose;
-            this.text.text = text;
-            SetSelected(false);
+            normalColor = new(normalNormalColor);
+            hoveredColor = new(normalHoveredColor);
+            pressedColor = new(normalPressedColor);
+            colorApplier.Bind(normalColor, hoveredColor, pressedColor, null, null, null, null, null, null);
         }
 
-        public void SetIndex(int index)
+        public void Initialize(IReactive<ActionTab> selectedTab, System.Action<ActionTab> onClick, System.Action<ActionTab> onClose)
         {
-            this.index = index;
+            this.selectedTab = selectedTab;
+            this.onClick = onClick;
+            this.onClose = onClose;
+
+            selectedTab.OnChanged += OnSelectedTabChanged;
+        }
+
+        private void OnDestroy()
+        {
+            if (selectedTab != null)
+            {
+                selectedTab.OnChanged -= OnSelectedTabChanged;
+            }
+        }
+
+        public void OnNameChanged(string name)
+        {
+            text.text = name;
         }
 
         private void OnEnable()
         {
+            button.AddListener(OnClick);
             closeButton.onClick.AddListener(OnClose);
         }
 
         private void OnDisable()
         {
+            button.RemoveListener(OnClick);
             closeButton.onClick.RemoveListener(OnClose);
         }
 
-        public void SetSelected(bool selected)
+        public void OnSelectedTabChanged(ActionTab selected)
         {
-            img.color = selected ? selectedColor : normalColor;
+            if (selected == tab)
+            {
+                normalColor.Value = selectedNormalColor;
+                hoveredColor.Value = selectedHoveredColor;
+                pressedColor.Value = selectedPressedColor;
+            }
+            else
+            {
+                normalColor.Value = normalNormalColor;
+                hoveredColor.Value = normalHoveredColor;
+                pressedColor.Value = normalPressedColor;
+            }
         }
 
-        public void OnPointerClick(PointerEventData eventData)
+        private void OnClick()
         {
-            if (eventData.button == PointerEventData.InputButton.Left)
-            {
-                onClick?.Invoke(index);
-            }
+            onClick?.Invoke(tab);
         }
 
         public void OnClose()
         {
-            onClose?.Invoke(index);
+            onClose?.Invoke(tab);
+        }
+
+        public void Bind(ActionTab data)
+        {
+            tab = data;
+            data.tab.name.AddAndCall(OnNameChanged);
+        }
+
+        public void Unbind()
+        {
+            tab.tab.name.Remove(OnNameChanged);
         }
     }
 }

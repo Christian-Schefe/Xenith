@@ -1,10 +1,12 @@
+using ReactiveData.App;
+using ReactiveData.Core;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
 namespace ActionMenu
 {
-    public class ActionBar : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler
+    public class ActionBar : MonoBehaviour
     {
         [SerializeField] private RectTransform actionParent;
         [SerializeField] private RectTransform tabParent;
@@ -14,14 +16,24 @@ namespace ActionMenu
         [SerializeField] private ActionDropdown actionDropdownPrefab;
 
         private readonly List<TopLevelAction> actions = new();
-        private readonly List<ActionTab> tabs = new();
         private readonly List<ActionButton> buttons = new();
-        private readonly List<TabButton> tabButtons = new();
+
+        private readonly ReactiveList<ActionTab> tabs = new();
+        private ReactiveListBinder<ActionTab, TabButton> tabButtons;
+        private readonly Reactive<ActionTab> openTab = new(null);
 
         private ActionDropdown dropdown;
         private int openButtonIndex = -1;
-        private bool isMouseInside = false;
-        private int openTabIndex = -1;
+
+        private void Awake()
+        {
+            tabButtons = new(tabs, _ =>
+            {
+                var tab = Instantiate(tabButtonPrefab, tabParent);
+                tab.Initialize(openTab, OnTabClick, OnTabClose);
+                return tab;
+            }, tab => Destroy(tab.gameObject));
+        }
 
         public void SetTitle(string title)
         {
@@ -45,8 +57,11 @@ namespace ActionMenu
 
         public void RemoveAction(TopLevelAction action)
         {
-            CloseDropdown();
             int index = actions.IndexOf(action);
+            if (openButtonIndex >= index)
+            {
+                CloseDropdown();
+            }
             if (index != -1)
             {
                 Destroy(buttons[index].gameObject);
@@ -61,97 +76,68 @@ namespace ActionMenu
 
         public void CloseTab(ActionTab tab)
         {
-            int index = tabs.IndexOf(tab);
-            if (index != -1)
-            {
-                OnTabClose(index);
-            }
+            OnTabClose(tab);
         }
 
         public void AddTab(ActionTab tab, bool setActive)
         {
             tabs.Add(tab);
-            var instance = Instantiate(tabButtonPrefab, tabParent);
-            int index = tabs.Count - 1;
-            instance.Initialize(index, tab.name, (i) => OnTabClick(i), (i) => OnTabClose(i));
-            tabButtons.Add(instance);
 
-            if (openTabIndex == -1)
+            if (openTab.Value == null)
             {
-                openTabIndex = index;
-                SelectTab(index);
+                openTab.Value = tab;
+                SelectTab(tab);
             }
 
             if (setActive)
             {
-                OnTabClick(index);
+                OnTabClick(tab);
             }
         }
 
-        public void UpdateTab(ActionTab tab)
+        private void SelectTab(ActionTab tab)
         {
-            var index = tabs.IndexOf(tab);
-            if (index != -1)
+            tab.onSelect?.Invoke();
+        }
+
+        private void DeselectTab(ActionTab tab)
+        {
+            tab.onDeselect?.Invoke();
+        }
+
+        private void OnTabClick(ActionTab tab)
+        {
+            if (tab == openTab.Value) return;
+
+            if (openTab.Value != null)
             {
-                tabButtons[index].Initialize(index, tab.name, (i) => OnTabClick(i), (i) => OnTabClose(i));
-                if (openTabIndex == index)
-                {
-                    tabButtons[index].SetSelected(true);
-                }
+                DeselectTab(openTab.Value);
             }
+            openTab.Value = tab;
+            SelectTab(tab);
         }
 
-        private void SelectTab(int index)
-        {
-            tabs[index].onSelect?.Invoke();
-            tabButtons[index].SetSelected(true);
-        }
-
-        private void DeselectTab(int index)
-        {
-            tabs[index].onDeselect?.Invoke();
-            tabButtons[index].SetSelected(false);
-        }
-
-        private void OnTabClick(int index)
-        {
-            if (index == openTabIndex) return;
-
-            if (openTabIndex != -1)
-            {
-                DeselectTab(openTabIndex);
-            }
-            openTabIndex = index;
-            SelectTab(index);
-        }
-
-        private void OnTabClose(int index)
+        private void OnTabClose(ActionTab tab)
         {
             void CloseInternal()
             {
-                bool openTabChanged = openTabIndex == index;
-                if (index == openTabIndex)
+                if (tab == openTab.Value)
                 {
-                    DeselectTab(index);
-                    openTabIndex = tabs.Count >= 2 ? (index == 0 ? 1 : index - 1) : -1;
+                    DeselectTab(tab);
+                    int index = tabs.IndexOf(tab);
+                    int newIndex = tabs.Count >= 2 ? (index == 0 ? 1 : index - 1) : -1;
+                    openTab.Value = newIndex != -1 ? tabs[newIndex] : null;
+                    if (openTab.Value != null)
+                    {
+                        SelectTab(openTab.Value);
+                    }
                 }
-                Destroy(tabButtons[index].gameObject);
-                tabButtons.RemoveAt(index);
-                tabs.RemoveAt(index);
-                for (int i = index; i < tabButtons.Count; i++)
-                {
-                    tabButtons[i].SetIndex(i);
-                }
-                if (openTabIndex >= index && openTabIndex > 0) openTabIndex--;
-
-                if (openTabChanged && openTabIndex != -1)
-                {
-                    SelectTab(openTabIndex);
-                }
+                tabs.Remove(tab);
             }
-            if (tabs[index].onTryClose != null)
+
+            if (tab.onTryClose != null)
             {
-                tabs[index].onTryClose.Invoke(CloseInternal);
+                tab.onTryClose(CloseInternal);
             }
             else
             {
@@ -182,21 +168,16 @@ namespace ActionMenu
             openButtonIndex = -1;
         }
 
-        public void OnPointerEnter(PointerEventData eventData)
-        {
-            isMouseInside = true;
-        }
-
-        public void OnPointerExit(PointerEventData eventData)
-        {
-            isMouseInside = false;
-        }
-
         private void Update()
         {
-            if (!isMouseInside && Input.GetMouseButtonDown(0))
+            if (dropdown != null)
             {
-                CloseDropdown();
+                var rect = dropdown.elementParent;
+                bool isMouseInside = RectTransformUtility.RectangleContainsScreenPoint(rect, Input.mousePosition, null);
+                if (!isMouseInside && Input.GetMouseButtonDown(0))
+                {
+                    CloseDropdown();
+                }
             }
         }
     }
@@ -213,19 +194,21 @@ namespace ActionMenu
         }
     }
 
-    public class ActionTab
+    public class ActionTab : IKeyed
     {
-        public string name;
+        public ReactiveTab tab;
         public System.Action onSelect;
         public System.Action onDeselect;
         public System.Action<System.Action> onTryClose;
 
-        public ActionTab(string name, System.Action onSelect, System.Action onDeselect, System.Action<System.Action> onTryClose)
+        public ActionTab(ReactiveTab tab, System.Action onSelect, System.Action onDeselect, System.Action<System.Action> onTryClose)
         {
-            this.name = name;
+            this.tab = tab;
             this.onSelect = onSelect;
             this.onDeselect = onDeselect;
             this.onTryClose = onTryClose;
         }
+
+        public string Key => tab.Key;
     }
 }

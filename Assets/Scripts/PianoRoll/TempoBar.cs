@@ -35,6 +35,10 @@ namespace PianoRoll
             {
                 noteEditor.activeSong.tempoEvents.Remove(noteEditor.selectedEvent.Value);
                 noteEditor.selectedEvent.Value = null;
+                if (noteEditor.activeSong.tempoEvents.Count == 0)
+                {
+                    noteEditor.activeSong.tempoEvents.Add(new(0, 2));
+                }
             }
         }
     }

@@ -23,6 +23,11 @@ namespace PianoRoll
     {
         public static float GetBeatFromTime(float time, IList<ReactiveTempoEvent> events)
         {
+            if (events.Count == 0)
+            {
+                events = new List<ReactiveTempoEvent>() { new(0, 2) };
+            }
+
             var eventTimes = ComputeEventTimes(events);
             int i = 0;
             while (i < eventTimes.Count - 1 && eventTimes[i + 1] <= time)
@@ -37,6 +42,11 @@ namespace PianoRoll
 
         public static float GetTimeFromBeat(float beat, IList<ReactiveTempoEvent> events)
         {
+            if (events.Count == 0)
+            {
+                events = new List<ReactiveTempoEvent>() { new(0, 2) };
+            }
+
             var eventTimes = ComputeEventTimes(events);
             int i = 0;
             while (i < eventTimes.Count - 1 && events[i + 1].beat.Value <= beat)
@@ -51,6 +61,11 @@ namespace PianoRoll
 
         public static List<SequencerNote> ConvertNotes(List<TempoNote> notes, IList<ReactiveTempoEvent> events)
         {
+            if (events.Count == 0)
+            {
+                events = new List<ReactiveTempoEvent>() { new(0, 2) };
+            }
+
             notes = notes.OrderBy(n => n.beat).ToList();
             events = events.OrderBy(e => e.beat.Value).ToList();
             var eventTimes = ComputeEventTimes(events);

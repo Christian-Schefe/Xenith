@@ -156,7 +156,8 @@ public class Main : MonoBehaviour
     {
         var actionBar = Globals<ActionBar>.Instance;
         var name = id.GetName();
-        var tab = new ActionTab(name, () => OnSongShow(id), () => OnSongHide(), (callback) => OnSongClose(id, callback));
+        var reactiveTab = new ReactiveTab(name);
+        var tab = new ActionTab(reactiveTab, () => OnSongShow(id), () => OnSongHide(), (callback) => OnSongClose(id, callback));
         songTabs.Add(id, tab);
         actionBar.AddTab(tab, true);
     }
@@ -165,7 +166,8 @@ public class Main : MonoBehaviour
     {
         var actionBar = Globals<ActionBar>.Instance;
         var name = id.GetName();
-        var tab = new ActionTab(name, () => OnGraphShow(id), () => OnGraphHide(), (callback) => OnGraphClose(id, callback));
+        var reactiveTab = new ReactiveTab(name);
+        var tab = new ActionTab(reactiveTab, () => OnGraphShow(id), () => OnGraphHide(), (callback) => OnGraphClose(id, callback));
         graphTabs.Add(id, tab);
         actionBar.AddTab(tab, true);
     }
@@ -176,7 +178,7 @@ public class Main : MonoBehaviour
         var tab = songTabs[oldId];
         songTabs.Remove(oldId);
         songTabs.Add(newId, tab);
-        tab.name = newId.GetName();
+        tab.tab.name.Value = newId.GetName();
         tab.onSelect = () => OnSongShow(newId);
         tab.onDeselect = () => OnSongHide();
         tab.onTryClose = (callback) => OnSongClose(newId, callback);
@@ -187,7 +189,6 @@ public class Main : MonoBehaviour
             openSong = newId;
             trackEditor.Show();
         }
-        actionBar.UpdateTab(tab);
     }
 
     private void ChangeGraphId(GraphID oldId, GraphID newId)
@@ -196,7 +197,7 @@ public class Main : MonoBehaviour
         var tab = graphTabs[oldId];
         graphTabs.Remove(oldId);
         graphTabs.Add(newId, tab);
-        tab.name = newId.GetName();
+        tab.tab.name.Value = newId.GetName();
         tab.onSelect = () => OnGraphShow(newId);
         tab.onDeselect = () => OnGraphHide();
         tab.onTryClose = (callback) => OnGraphClose(newId, callback);
@@ -208,7 +209,6 @@ public class Main : MonoBehaviour
             openGraph = newId;
             graphEditor.Show();
         }
-        actionBar.UpdateTab(tab);
     }
 
     private void OnSongClose(SongID id, System.Action callback)

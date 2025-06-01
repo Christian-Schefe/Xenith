@@ -12,7 +12,7 @@ namespace ActionMenu
             public ActionDropdownElement element;
         }
 
-        [SerializeField] private RectTransform elementParent;
+        public RectTransform elementParent;
         [SerializeField] private List<DropdownEntry> entries;
 
         private readonly Dictionary<ActionType.Variant, ActionDropdownElement> elementPrefabs = new();

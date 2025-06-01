@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
@@ -6,10 +7,12 @@ namespace ReactiveData.UI
     public class ReactiveButton : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerDownHandler, IPointerUpHandler, IPointerClickHandler
     {
         [SerializeField] protected UIImage image;
-        [SerializeField] protected Color normal, hovered, pressed;
-        [SerializeField] protected Color outlineNormal, outlineHovered, outlinePressed;
+        [SerializeField] protected TMP_Text text;
+        public Color normal, hovered, pressed;
+        public Color outlineNormal, outlineHovered, outlinePressed;
+        public Color textNormal, textHovered, textPressed;
 
-        private System.Action onClick;
+        public System.Action OnClick;
 
         private bool isPointerInside;
         private bool isPressed;
@@ -26,12 +29,12 @@ namespace ReactiveData.UI
 
         public void AddListener(System.Action onClick)
         {
-            this.onClick += onClick;
+            OnClick += onClick;
         }
 
         public void RemoveListener(System.Action onClick)
         {
-            this.onClick -= onClick;
+            OnClick -= onClick;
         }
 
         public void OnPointerDown(PointerEventData eventData)
@@ -63,10 +66,10 @@ namespace ReactiveData.UI
 
         public void OnPointerClick(PointerEventData eventData)
         {
-            onClick?.Invoke();
+            OnClick?.Invoke();
         }
 
-        protected void UpdateState()
+        public void UpdateState()
         {
             var state = isPressed ? State.Pressed : (isPointerInside ? State.Hovered : State.Normal);
             UpdateUI(state);
@@ -74,21 +77,34 @@ namespace ReactiveData.UI
 
         protected virtual void UpdateUI(State state)
         {
-            image.color = state switch
+            if (image != null)
             {
-                State.Normal => normal,
-                State.Hovered => hovered,
-                State.Pressed => pressed,
-                _ => image.color
-            };
-            image.outlineColor = state switch
+                image.color = state switch
+                {
+                    State.Normal => normal,
+                    State.Hovered => hovered,
+                    State.Pressed => pressed,
+                    _ => image.color
+                };
+                image.outlineColor = state switch
+                {
+                    State.Normal => outlineNormal,
+                    State.Hovered => outlineHovered,
+                    State.Pressed => outlinePressed,
+                    _ => image.outlineColor
+                };
+                image.outline = image.outlineColor.a > 0.01f;
+            }
+            if (text != null)
             {
-                State.Normal => outlineNormal,
-                State.Hovered => outlineHovered,
-                State.Pressed => outlinePressed,
-                _ => image.outlineColor
-            };
-            image.outline = image.outlineColor.a > 0.01f;
+                text.color = state switch
+                {
+                    State.Normal => textNormal,
+                    State.Hovered => textHovered,
+                    State.Pressed => textPressed,
+                    _ => text.color
+                };
+            }
         }
     }
 }

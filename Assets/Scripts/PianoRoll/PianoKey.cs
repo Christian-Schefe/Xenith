@@ -1,3 +1,4 @@
+using System.Linq;
 using TMPro;
 using UnityEngine;
 
@@ -23,7 +24,7 @@ namespace PianoRoll
             var steps = noteEditor.PianoToSteps(y);
             var octaves = steps / noteEditor.Key.edo;
             var innerSteps = steps % noteEditor.Key.edo;
-            bool showOctave = innerSteps == 0;
+            bool showOctave = innerSteps == noteEditor.Key.pitches[0];
             text.text = showOctave ? $"{octaves} - {innerSteps}" : innerSteps.ToString();
             var screenPos = noteEditor.PianoToScreenCoords(new(0, y));
             var upperScreenPos = noteEditor.PianoToScreenCoords(new(0, y + 1));

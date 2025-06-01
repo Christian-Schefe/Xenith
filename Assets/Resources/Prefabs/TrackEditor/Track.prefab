@@ -168,12 +168,16 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   image: {fileID: 4719033379501123577}
+  text: {fileID: 0}
   normal: {r: 0, g: 0, b: 0, a: 0}
   hovered: {r: 0, g: 0, b: 0, a: 0}
   pressed: {r: 0, g: 0, b: 0, a: 0}
   outlineNormal: {r: 0, g: 0, b: 0, a: 0}
   outlineHovered: {r: 0, g: 0, b: 0, a: 0}
   outlinePressed: {r: 0, g: 0, b: 0, a: 0}
+  textNormal: {r: 0, g: 0, b: 0, a: 0}
+  textHovered: {r: 0, g: 0, b: 0, a: 0}
+  textPressed: {r: 0, g: 0, b: 0, a: 0}
 --- !u!1 &855124024310162231
 GameObject:
   m_ObjectHideFlags: 0
@@ -325,8 +329,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -399,6 +403,7 @@ GameObject:
   - component: {fileID: 4494051070251157319}
   - component: {fileID: 7176544392387721218}
   - component: {fileID: 6420640244632298707}
+  - component: {fileID: 4558811865602588745}
   m_Layer: 5
   m_Name: Solo
   m_TagString: Untagged
@@ -421,11 +426,11 @@ RectTransform:
   - {fileID: 5877121712235829713}
   m_Father: {fileID: 3174715914515944121}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 0}
-  m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -5, y: 5}
+  m_AnchorMin: {x: 1, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: -75, y: -5}
   m_SizeDelta: {x: 30, y: 30}
-  m_Pivot: {x: 1, y: 0}
+  m_Pivot: {x: 1, y: 1}
 --- !u!222 &4494051070251157319
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -433,7 +438,7 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1857553347773265688}
-  m_CullTransparentMesh: 1
+  m_CullTransparentMesh: 0
 --- !u!114 &7176544392387721218
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -480,15 +485,44 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   image: {fileID: 7176544392387721218}
+  text: {fileID: 5401715165069063180}
   normal: {r: 0.23113209, g: 0.5190491, b: 1, a: 1}
   hovered: {r: 0.2027857, g: 0.4530989, b: 0.8773585, a: 1}
   pressed: {r: 0.19579923, g: 0.40396756, b: 0.754717, a: 1}
   outlineNormal: {r: 1, g: 0.8000001, b: 0, a: 0}
   outlineHovered: {r: 1, g: 0.79951954, b: 0, a: 1}
   outlinePressed: {r: 1, g: 0.8000001, b: 0, a: 1}
+  textNormal: {r: 0, g: 0, b: 0, a: 0}
+  textHovered: {r: 0, g: 0, b: 0, a: 0}
+  textPressed: {r: 0, g: 0, b: 0, a: 0}
   offNormal: {r: 1, g: 1, b: 1, a: 1}
   offHovered: {r: 0.8867924, g: 0.8867924, b: 0.8867924, a: 1}
   offPressed: {r: 0.7735849, g: 0.7735849, b: 0.7735849, a: 1}
+--- !u!114 &4558811865602588745
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1857553347773265688}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ca487f1ded1b534690f8925086e8b27, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 6420640244632298707}
+  defaultOffNormalColor: 0
+  defaultOffHoveredColor: 0
+  defaultOffPressedColor: 5
+  defaultOnNormalColor: 3
+  defaultOnHoveredColor: 3
+  defaultOnPressedColor: 3
+  defaultOutlineNormalColor: 0
+  defaultOutlineHoveredColor: 1
+  defaultOutlinePressedColor: 1
+  defaultTextNormalColor: 7
+  defaultTextHoveredColor: 1
+  defaultTextPressedColor: 1
 --- !u!1 &1864780507828878404
 GameObject:
   m_ObjectHideFlags: 0
@@ -858,6 +892,7 @@ GameObject:
   - component: {fileID: 3444252777107559650}
   - component: {fileID: 7575460047548590491}
   - component: {fileID: 837781049013912649}
+  - component: {fileID: 881580127057817472}
   m_Layer: 5
   m_Name: CustomImage
   m_TagString: Untagged
@@ -918,13 +953,28 @@ MonoBehaviour:
   m_ShadowColor:
     serializedVersion: 2
     rgba: 4278190080
-  m_OutlineWidth: 5
-  m_CornerRadius: 5
+  m_OutlineWidth: 2
+  m_CornerRadius: 3
   m_ShadowOffset: {x: 0, y: 0}
   m_ShadowSpread: 0
   m_Fill: 1
   m_Outline: 0
   m_Shadow: 0
+--- !u!114 &881580127057817472
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5743748673394076133}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 887ad9e41b758cc4aa07f438ae7e2a87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  img: {fileID: 837781049013912649}
+  defaultFillColor: 6
+  defaultOutlineColor: 3
 --- !u!1 &7039001100007463858
 GameObject:
   m_ObjectHideFlags: 0
@@ -937,6 +987,7 @@ GameObject:
   - component: {fileID: 6886252954160691224}
   - component: {fileID: 2441659948887512884}
   - component: {fileID: 2585601282503848310}
+  - component: {fileID: 6460620673734752915}
   m_Layer: 5
   m_Name: Mute
   m_TagString: Untagged
@@ -959,11 +1010,11 @@ RectTransform:
   - {fileID: 6697240034631651002}
   m_Father: {fileID: 3174715914515944121}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 1, y: 0}
-  m_AnchorMax: {x: 1, y: 0}
-  m_AnchoredPosition: {x: -40, y: 5}
+  m_AnchorMin: {x: 1, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: -40, y: -5}
   m_SizeDelta: {x: 30, y: 30}
-  m_Pivot: {x: 1, y: 0}
+  m_Pivot: {x: 1, y: 1}
 --- !u!222 &6886252954160691224
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -971,7 +1022,7 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7039001100007463858}
-  m_CullTransparentMesh: 1
+  m_CullTransparentMesh: 0
 --- !u!114 &2441659948887512884
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1018,15 +1069,44 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   image: {fileID: 2441659948887512884}
+  text: {fileID: 1070831567264599964}
   normal: {r: 0.23113209, g: 0.5190491, b: 1, a: 1}
   hovered: {r: 0.2027857, g: 0.4530989, b: 0.8773585, a: 1}
   pressed: {r: 0.19579923, g: 0.40396756, b: 0.754717, a: 1}
   outlineNormal: {r: 1, g: 0.8000001, b: 0, a: 0}
   outlineHovered: {r: 1, g: 0.79951954, b: 0, a: 1}
   outlinePressed: {r: 1, g: 0.8000001, b: 0, a: 1}
+  textNormal: {r: 0, g: 0, b: 0, a: 0}
+  textHovered: {r: 0, g: 0, b: 0, a: 0}
+  textPressed: {r: 0, g: 0, b: 0, a: 0}
   offNormal: {r: 1, g: 1, b: 1, a: 1}
   offHovered: {r: 0.8867924, g: 0.8867924, b: 0.8867924, a: 1}
   offPressed: {r: 0.7735849, g: 0.7735849, b: 0.7735849, a: 1}
+--- !u!114 &6460620673734752915
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7039001100007463858}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ca487f1ded1b534690f8925086e8b27, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 2585601282503848310}
+  defaultOffNormalColor: 0
+  defaultOffHoveredColor: 0
+  defaultOffPressedColor: 5
+  defaultOnNormalColor: 3
+  defaultOnHoveredColor: 3
+  defaultOnPressedColor: 3
+  defaultOutlineNormalColor: 0
+  defaultOutlineHoveredColor: 1
+  defaultOutlinePressedColor: 1
+  defaultTextNormalColor: 7
+  defaultTextHoveredColor: 1
+  defaultTextPressedColor: 1
 --- !u!1 &7053736330472680981
 GameObject:
   m_ObjectHideFlags: 0
@@ -1039,6 +1119,7 @@ GameObject:
   - component: {fileID: 3969697076542346564}
   - component: {fileID: 2685415703338869339}
   - component: {fileID: 4229571233969221655}
+  - component: {fileID: 6302447229401141285}
   m_Layer: 5
   m_Name: BGVisible
   m_TagString: Untagged
@@ -1073,7 +1154,7 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7053736330472680981}
-  m_CullTransparentMesh: 1
+  m_CullTransparentMesh: 0
 --- !u!114 &2685415703338869339
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1120,15 +1201,44 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   image: {fileID: 2685415703338869339}
+  text: {fileID: 6985714086770052911}
   normal: {r: 0.23113209, g: 0.5190491, b: 1, a: 1}
   hovered: {r: 0.2027857, g: 0.4530989, b: 0.8773585, a: 1}
   pressed: {r: 0.19579923, g: 0.40396756, b: 0.754717, a: 1}
   outlineNormal: {r: 1, g: 0.8000001, b: 0, a: 0}
   outlineHovered: {r: 1, g: 0.79951954, b: 0, a: 1}
   outlinePressed: {r: 1, g: 0.8000001, b: 0, a: 1}
+  textNormal: {r: 0, g: 0, b: 0, a: 0}
+  textHovered: {r: 0, g: 0, b: 0, a: 0}
+  textPressed: {r: 0, g: 0, b: 0, a: 0}
   offNormal: {r: 1, g: 1, b: 1, a: 1}
   offHovered: {r: 0.8867924, g: 0.8867924, b: 0.8867924, a: 1}
   offPressed: {r: 0.7735849, g: 0.7735849, b: 0.7735849, a: 1}
+--- !u!114 &6302447229401141285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7053736330472680981}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9ca487f1ded1b534690f8925086e8b27, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  button: {fileID: 4229571233969221655}
+  defaultOffNormalColor: 0
+  defaultOffHoveredColor: 0
+  defaultOffPressedColor: 5
+  defaultOnNormalColor: 3
+  defaultOnHoveredColor: 3
+  defaultOnPressedColor: 3
+  defaultOutlineNormalColor: 0
+  defaultOutlineHoveredColor: 1
+  defaultOutlinePressedColor: 1
+  defaultTextNormalColor: 7
+  defaultTextHoveredColor: 1
+  defaultTextPressedColor: 1
 --- !u!1 &7142326099530816606
 GameObject:
   m_ObjectHideFlags: 0
@@ -1203,8 +1313,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -1475,8 +1585,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4281479730
-  m_fontColor: {r: 0.19607843, g: 0.19607843, b: 0.19607843, a: 1}
+    rgba: 4294967295
+  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -1665,7 +1775,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: -10, y: -10}
+  m_SizeDelta: {x: -8, y: -8}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!1 &8784358542658063811
 GameObject:

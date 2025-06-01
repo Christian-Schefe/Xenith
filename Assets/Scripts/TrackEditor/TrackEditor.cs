@@ -98,7 +98,9 @@ public class TrackEditor : MonoBehaviour
 
     private void AddTrack()
     {
-        song.tracks.Add(ReactiveTrack.Default);
+        var newTrack = ReactiveTrack.Default;
+        song.tracks.Add(newTrack);
+        song.activeTrack.Value = newTrack;
     }
 
     private void ImportMidi()

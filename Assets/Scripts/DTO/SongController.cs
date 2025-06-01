@@ -33,7 +33,7 @@ namespace DTO
             }
             else
             {
-                Debug.LogError($"Failed to unload song {id}");
+                Debug.LogError($"Failed to unload song {id.GetName()}");
             }
         }
 

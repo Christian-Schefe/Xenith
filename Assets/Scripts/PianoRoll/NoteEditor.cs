@@ -231,7 +231,7 @@ namespace PianoRoll
 
         public bool IsSpecialRow(int steps)
         {
-            return steps % Key.edo == 0;
+            return steps % Key.edo == Key.primaryPitch;
         }
 
         public bool IsAccidentalRow(int steps)
