@@ -1,4 +1,5 @@
-using DSP;
+using ReactiveData.App;
+using ReactiveData.Core;
 using System;
 using System.Collections.Generic;
 using TMPro;
@@ -13,65 +14,65 @@ namespace NodeGraph
         [Serializable]
         private struct PrefabEntry
         {
-            public SettingType type;
+            public ReactiveSettingType type;
             public NodeOption prefab;
         }
 
-        private Dictionary<SettingType, NodeOption> nodeOptionPrefabsDict;
+        private Dictionary<ReactiveSettingType, NodeOption> nodeOptionPrefabsDict;
 
-        private List<NodeOption> options = new();
-        private GraphNode parentNode;
+        private ReactiveUIBinder<ReactiveNodeSetting, NodeOption> optionBinder;
+
+        private ReactiveNode node;
+        private Action onSettingsChanged;
 
         private void Awake()
         {
             BuildPrefabDict();
+            optionBinder = new(null, setting =>
+            {
+                var instance = Instantiate(nodeOptionPrefabsDict[setting.Type]);
+                setting.Value.OnChanged += onSettingsChanged;
+                return instance;
+            }, setting =>
+            {
+                setting.setting.Value.OnChanged -= onSettingsChanged;
+                Destroy(setting.gameObject);
+            });
         }
 
         private void BuildPrefabDict()
         {
             if (nodeOptionPrefabsDict != null) return;
-            nodeOptionPrefabsDict = new Dictionary<SettingType, NodeOption>();
+            nodeOptionPrefabsDict = new();
             foreach (var prefab in nodeOptionPrefabs)
             {
                 nodeOptionPrefabsDict[prefab.type] = prefab.prefab;
             }
         }
 
-        public void Initialize(GraphNode parent, AudioNode node)
+        public void Bind(Action onSettingsChanged, ReactiveNode node)
         {
-            foreach (var option in options)
-            {
-                Destroy(option.gameObject);
-            }
-            options.Clear();
+            this.onSettingsChanged = onSettingsChanged;
+            this.node = node;
+            optionBinder.ChangeSource(node.settings.Values);
+        }
 
-            BuildPrefabDict();
-            if (node is SettingsNode settingsNode)
-            {
-                void OnChange()
-                {
-                    parent.OnSettingsChanged();
-                }
-                var settings = settingsNode.Settings;
-                foreach (var setting in settings.settings)
-                {
-                    var optionPrefab = nodeOptionPrefabsDict[setting.Value.Type];
-                    var option = Instantiate(optionPrefab, transform);
-                    option.Initialize(setting.Value, OnChange);
-                    options.Add(option);
-                }
-            }
+        public void Unbind()
+        {
+            optionBinder.ChangeSource(null);
+            onSettingsChanged = null;
+            node = null;
         }
 
         public bool HasSettings()
         {
-            return options.Count > 0;
+            return node.settings.Count > 0;
         }
 
         public float ApplyHeight()
         {
             float height = 0;
-            foreach (var option in options)
+            foreach (var option in optionBinder.UIElements)
             {
                 height += option.GetHeight();
             }
@@ -83,19 +84,33 @@ namespace NodeGraph
         }
     }
 
-    public abstract class NodeOption : MonoBehaviour
+    public abstract class NodeOption : MonoBehaviour, IReactor<ReactiveNodeSetting>
     {
         public TextMeshProUGUI label;
-        public Action onChange;
-        protected NodeSetting setting;
+        public ReactiveNodeSetting setting;
 
         public abstract float GetHeight();
 
-        public virtual void Initialize(NodeSetting setting, Action onChange)
+        protected abstract void OnValueChanged();
+
+        private void OnNameChanged(string name)
         {
-            this.setting = setting;
-            label.text = setting.name;
-            this.onChange = onChange;
+            label.text = name;
+        }
+
+        public void Bind(ReactiveNodeSetting data)
+        {
+            setting = data;
+            data.name.AddAndCall(OnNameChanged);
+            data.Value.OnChanged += OnValueChanged;
+            OnValueChanged();
+        }
+
+        public void Unbind()
+        {
+            setting.name.Remove(OnNameChanged);
+            setting.Value.OnChanged -= OnValueChanged;
+            setting = null;
         }
     }
 }

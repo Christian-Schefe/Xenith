@@ -1,4 +1,5 @@
 using DSP;
+using ReactiveData.App;
 using System;
 using UnityEngine;
 
@@ -11,50 +12,23 @@ namespace NodeGraph
 
         public override float GetHeight() => height;
 
-        public override void Initialize(NodeSetting setting, Action onChange)
-        {
-            base.Initialize(setting, onChange);
-            this.setting = setting;
-            var type = setting.Type;
-            inputField.contentType = type switch
-            {
-                SettingType.Float => TMPro.TMP_InputField.ContentType.Standard,
-                SettingType.Int => TMPro.TMP_InputField.ContentType.IntegerNumber,
-                SettingType.String => TMPro.TMP_InputField.ContentType.Standard,
-                _ => throw new ArgumentOutOfRangeException("Setting Variant", type, "Unsupported SettingType")
-            };
-            inputField.text = setting switch
-            {
-                FloatSetting floatSetting => floatSetting.value.ToString("R"),
-                IntSetting intSetting => intSetting.value.ToString(),
-                StringSetting stringSetting => stringSetting.value,
-                _ => throw new ArgumentOutOfRangeException("Setting Variant", type, "Unsupported SettingType")
-            };
-        }
-
         private void OnEndEditing(string value)
         {
             if (setting == null) return;
-            var finalString = "";
-            if (setting is FloatSetting floatSetting)
+            if (setting is ReactiveFloatSetting floatSetting)
             {
-                var floatVal = float.TryParse(value, out var val) ? val : floatSetting.value;
-                finalString = floatVal.ToString("R");
-                floatSetting.value = floatVal;
+                var floatVal = float.TryParse(value, out var val) ? val : floatSetting.value.Value;
+                floatSetting.value.Value = floatVal;
             }
-            else if (setting is IntSetting intSetting)
+            else if (setting is ReactiveIntSetting intSetting)
             {
-                var intVal = int.TryParse(value, out var result) ? result : intSetting.value;
-                finalString = intVal.ToString();
-                intSetting.value = intVal;
+                var intVal = int.TryParse(value, out var result) ? result : intSetting.value.Value;
+                intSetting.value.Value = intVal;
             }
-            else if (setting is StringSetting stringSetting)
+            else if (setting is ReactiveStringSetting stringSetting)
             {
-                finalString = value;
-                stringSetting.value = value;
+                stringSetting.value.Value = value;
             }
-            inputField.text = finalString;
-            onChange?.Invoke();
         }
 
         private void OnEnable()
@@ -65,6 +39,25 @@ namespace NodeGraph
         private void OnDisable()
         {
             inputField.onEndEdit.RemoveListener(OnEndEditing);
+        }
+
+        protected override void OnValueChanged()
+        {
+            var type = setting.Type;
+            inputField.contentType = type switch
+            {
+                ReactiveSettingType.Float => TMPro.TMP_InputField.ContentType.Standard,
+                ReactiveSettingType.Int => TMPro.TMP_InputField.ContentType.IntegerNumber,
+                ReactiveSettingType.String => TMPro.TMP_InputField.ContentType.Standard,
+                _ => throw new ArgumentOutOfRangeException("Setting Variant", type, "Unsupported SettingType")
+            };
+            inputField.text = setting switch
+            {
+                ReactiveFloatSetting floatSetting => floatSetting.value.Value.ToString("R"),
+                ReactiveIntSetting intSetting => intSetting.value.Value.ToString(),
+                ReactiveStringSetting stringSetting => stringSetting.value.Value,
+                _ => throw new ArgumentOutOfRangeException("Setting Variant", type, "Unsupported SettingType")
+            };
         }
     }
 }

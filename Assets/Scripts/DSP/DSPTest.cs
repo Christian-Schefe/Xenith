@@ -1,4 +1,6 @@
+using DTO;
 using FileFormat;
+using ReactiveData.App;
 using System.Collections;
 using UnityEngine;
 
@@ -14,7 +16,7 @@ namespace DSP
             if (!isRendering && Input.GetKeyDown(KeyCode.Space))
             {
                 var main = Globals<Main>.Instance;
-                if (main.CurrentSongId == null) return;
+                if (!main.app.openElement.Value.TryGet(out ReactiveSong song)) return;
 
                 var noteEditor = Globals<PianoRoll.NoteEditor>.Instance;
                 var dsp = Globals<DSP>.Instance;
@@ -32,8 +34,8 @@ namespace DSP
                 noteEditor.StartPlaying();
 
                 var startTime = noteEditor.GetPlayStartTime();
-                var instruments = main.CurrentSong.BuildInstrumentNodes(startTime);
-                var mixer = main.CurrentSong.BuildMixerNode();
+                var instruments = song.BuildInstrumentNodes(startTime);
+                var mixer = song.BuildMixerNode();
 
                 player = new DSPPlayer(instruments, mixer, 2, 65536);
                 var context = new Context(AudioSettings.outputSampleRate);
@@ -50,12 +52,13 @@ namespace DSP
                 Debug.LogWarning("Rendering is already in progress.");
                 return;
             }
-            isRendering = true;
             var main = Globals<Main>.Instance;
-            var instruments = main.CurrentSong.BuildInstrumentNodes(0);
-            var mixer = main.CurrentSong.BuildMixerNode();
+            if (!main.app.openElement.Value.TryGet(out ReactiveSong song)) return;
+            isRendering = true;
+            var instruments = song.BuildInstrumentNodes(0);
+            var mixer = song.BuildMixerNode();
             var sampleRate = 44100;
-            var duration = main.CurrentSong.GetDuration() + 5;
+            var duration = song.GetDuration() + 5;
             StartCoroutine(RenderWAV(instruments, mixer, duration, sampleRate, callback));
         }
 

@@ -16,22 +16,22 @@ public class TrackEditor : MonoBehaviour
     [SerializeField] private RectTransform addTrackButton;
 
     private TopLevelAction trackAction = null;
-    private bool isVisible = false;
 
     private ReactiveSong song;
-    private ReactiveListBinder<ReactiveTrack, TrackUI> trackBinder = null;
+    private ReactiveUIBinder<ReactiveTrack, TrackUI> trackBinder = null;
 
     public ReactiveSong Song => song;
 
     private void Awake()
     {
         addTrackButton.GetComponentInChildren<Button>().onClick.AddListener(AddTrack);
+        var main = Globals<Main>.Instance;
+        main.app.openElement.AddAndCall(OnOpenElementChanged);
     }
 
-    private void BindSong(ReactiveSong song)
+    private void InitializeBinder()
     {
-        this.song = song;
-        trackBinder = new(song.tracks, _ =>
+        trackBinder ??= new(null, _ =>
         {
             var instance = Instantiate(trackPrefab, trackContainer);
             addTrackButton.SetAsLastSibling();
@@ -39,11 +39,18 @@ public class TrackEditor : MonoBehaviour
         }, track => Destroy(track.gameObject));
     }
 
+    private void BindSong(ReactiveSong song)
+    {
+        this.song = song;
+        InitializeBinder();
+        trackBinder.ChangeSource(song.tracks);
+    }
+
     private void UnbindSong()
     {
-        trackBinder?.Dispose();
-        trackBinder = null;
         song = null;
+        InitializeBinder();
+        trackBinder.ChangeSource(null);
     }
 
     private TopLevelAction BuildAction()
@@ -53,47 +60,23 @@ public class TrackEditor : MonoBehaviour
         });
     }
 
-    public void Show()
+    private void OnOpenElementChanged(Nand<ReactiveSong, ReactiveGraph> element)
     {
-        if (isVisible)
+        bool visible = element.TryGet(out ReactiveSong song);
+        uiRoot.gameObject.SetActive(visible);
+        trackAction ??= BuildAction();
+        var actionBar = Globals<ActionBar>.Instance;
+
+        if (visible)
         {
-            Debug.LogWarning("Track editor is already visible");
-            return;
+            actionBar.AddActions(new() { trackAction });
+            BindSong(song);
         }
-        isVisible = true;
-        uiRoot.gameObject.SetActive(true);
-
-        var actionBar = Globals<ActionBar>.Instance;
-        var noteEditor = Globals<NoteEditor>.Instance;
-        var pianoRollVisuals = Globals<PianoRollVisuals>.Instance;
-        var main = Globals<Main>.Instance;
-        var song = main.CurrentSong;
-
-        trackAction ??= BuildAction();
-
-        actionBar.AddActions(new() { trackAction });
-        noteEditor.Show(song);
-        pianoRollVisuals.SetVisible(true);
-
-        BindSong(song);
-    }
-
-    public void Hide()
-    {
-        isVisible = false;
-        uiRoot.gameObject.SetActive(false);
-
-        var actionBar = Globals<ActionBar>.Instance;
-        var noteEditor = Globals<NoteEditor>.Instance;
-        var pianoRollVisuals = Globals<PianoRollVisuals>.Instance;
-
-        trackAction ??= BuildAction();
-
-        actionBar.RemoveAction(trackAction);
-        noteEditor.Hide();
-        pianoRollVisuals.SetVisible(false);
-
-        UnbindSong();
+        else
+        {
+            actionBar.RemoveAction(trackAction);
+            UnbindSong();
+        }
     }
 
     private void AddTrack()

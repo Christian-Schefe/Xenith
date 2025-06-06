@@ -1,5 +1,6 @@
 using DTO;
 using ReactiveData.Core;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace ReactiveData.App
@@ -29,16 +30,36 @@ namespace ReactiveData.App
             return new(tempoEvent.beat.Value, tempoEvent.bps.Value);
         }
 
-        public static ReactiveSong Deserialize(Song song)
+        public static Graph Serialize(ReactiveGraph graph)
         {
-            var tracks = new ReactiveList<ReactiveTrack>(song.tracks.Select(Deserialize).ToList());
-            var tempoEvents = new ReactiveList<ReactiveTempoEvent>(song.tempoEvents.Select(Deserialize).ToList());
-            return new ReactiveSong(tracks, tempoEvents);
+            var nodesList = graph.nodes.Select(Serialize).ToList();
+            var indices = graph.nodes.Select((node, index) => new { node, index }).ToDictionary(x => x.node, x => x.index);
+            var connectionsList = graph.connections.Select(c => Serialize(indices, c)).ToList();
+            return new Graph(nodesList, connectionsList);
+        }
+
+        public static Connection Serialize(Dictionary<ReactiveNode, int> indices, ReactiveConnection connection)
+        {
+            int fromNode = indices[connection.fromNode.Value];
+            int toNode = indices[connection.toNode.Value];
+            return new(fromNode, connection.fromIndex.Value, toNode, connection.toIndex.Value);
+        }
+
+        public static Node Serialize(ReactiveNode node)
+        {
+            return new(node.position.Value, node.id.Value, node.serializedSettings.Value);
+        }
+
+        public static ReactiveSong Deserialize(string path, Song song)
+        {
+            var tracks = song.tracks.Select(Deserialize);
+            var tempoEvents = song.tempoEvents.Select(Deserialize);
+            return new ReactiveSong(path, tracks, tempoEvents);
         }
 
         public static ReactiveTrack Deserialize(Track track)
         {
-            var notes = new ReactiveList<ReactiveNote>(track.notes.Select(Deserialize).ToList());
+            var notes = track.notes.Select(Deserialize);
             return new ReactiveTrack(track.name, track.instrument, track.isMuted, track.isSoloed, track.volume, track.pan, track.keySignature, notes);
         }
 
@@ -50,6 +71,25 @@ namespace ReactiveData.App
         public static ReactiveTempoEvent Deserialize(TempoEvent tempoEvent)
         {
             return new ReactiveTempoEvent(tempoEvent.beat, tempoEvent.bps);
+        }
+
+        public static ReactiveGraph Deserialize(string path, Graph graph)
+        {
+            var nodes = graph.nodes.Select(Deserialize).ToList();
+            var connections = graph.connections.Select(c => Deserialize(nodes, c));
+            return new ReactiveGraph(path, nodes, connections);
+        }
+
+        public static ReactiveConnection Deserialize(IList<ReactiveNode> nodes, Connection connection)
+        {
+            var fromNode = nodes[connection.fromNodeIndex];
+            var toNode = nodes[connection.toNodeIndex];
+            return new ReactiveConnection(fromNode, toNode, connection.fromNodeOutput, connection.toNodeInput);
+        }
+
+        public static ReactiveNode Deserialize(Node node)
+        {
+            return new ReactiveNode(node.position, node.id, node.serializedSettings);
         }
     }
 }

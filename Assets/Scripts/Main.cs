@@ -2,28 +2,37 @@ using ActionMenu;
 using DSP;
 using DTO;
 using ReactiveData.App;
+using ReactiveData.Core;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
 public class Main : MonoBehaviour
 {
-    public SongController songController;
-    public GraphController graphController;
     public GameObject exportingModal;
 
-    private readonly Dictionary<SongID, ActionTab> songTabs = new();
-    private readonly Dictionary<GraphID, ActionTab> graphTabs = new();
-    private SongID openSong;
-    private GraphID openGraph;
+    public ReactiveApp app = ReactiveApp.Default;
 
-    public GraphID CurrentGraphId => openGraph;
-    public SongID CurrentSongId => openSong;
-    public Graph CurrentGraph => graphController.GetGraph(openGraph);
-    public ReactiveSong CurrentSong => songController.GetSong(openSong);
+    private ReactiveTrackingDict<ReactiveSong, IReactiveTab> songTabs;
+    private ReactiveTrackingDict<ReactiveGraph, IReactiveTab> graphTabs;
 
     private void Start()
     {
+        songTabs = new(app.songs, song =>
+        {
+            return new SongTab(song);
+        });
+        graphTabs = new(app.graphs, graph =>
+        {
+            return new GraphTab(graph);
+        });
+        var openTab = new DerivedReactive<Nand<ReactiveSong, ReactiveGraph>, IReactiveTab>(app.openElement, element =>
+        {
+            if (element.TryGet(out ReactiveSong song)) return songTabs[song];
+            if (element.TryGet(out ReactiveGraph graph)) return graphTabs[graph];
+            return null;
+        });
+        var tabs = new ReactiveChainedEnumerable<IReactiveTab>(new IReactiveEnumerable<IReactiveTab>[] { songTabs, graphTabs });
         var actionBar = Globals<ActionBar>.Instance;
 
         actionBar.AddActions(new()
@@ -51,8 +60,9 @@ public class Main : MonoBehaviour
 
         actionBar.SetTitle("Xenith");
 
-        var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.Hide();
+        actionBar.BindTabs(tabs, openTab);
+        actionBar.onTabClick += OnTabClick;
+        actionBar.onTabClose += OnTabClose;
     }
 
     private void Update()
@@ -75,8 +85,8 @@ public class Main : MonoBehaviour
         Application.Quit();
 #endif
         }
-        var songEntries = songTabs.Keys.ToList();
-        var graphEntries = graphTabs.Keys.ToList();
+        var songEntries = app.songs.ToList();
+        var graphEntries = app.graphs.ToList();
         void SaveSongEntry(int i)
         {
             Debug.Log($"Saving song {i}/{songEntries.Count}");
@@ -100,10 +110,50 @@ public class Main : MonoBehaviour
         SaveSongEntry(0);
     }
 
+    private void OnTabClick(IReactiveTab tab)
+    {
+        if (tab is SongTab songTab)
+        {
+            app.openElement.Value = new(songTab.song);
+        }
+        else if (tab is GraphTab graphTab)
+        {
+            app.openElement.Value = new(graphTab.graph);
+        }
+        else
+        {
+            throw new System.ArgumentException($"Unknown tab type: {tab.GetType()}");
+        }
+    }
+
+    private void OnTabClose(IReactiveTab tab)
+    {
+
+        if (tab is SongTab songTab)
+        {
+            void OnFinishSave()
+            {
+                app.songs.Remove(songTab.song);
+            }
+            OnSongClose(songTab.song, OnFinishSave);
+        }
+        else if (tab is GraphTab graphTab)
+        {
+            void OnFinishSave()
+            {
+                app.graphs.Remove(graphTab.graph);
+            }
+            OnGraphClose(graphTab.graph, OnFinishSave);
+        }
+        else
+        {
+            throw new System.ArgumentException($"Unknown tab type: {tab.GetType()}");
+        }
+    }
+
     private void NewSong()
     {
-        var id = songController.AddSong();
-        AddSongTab(id);
+        app.songs.Add(ReactiveSong.Default);
     }
 
     private void OpenSong()
@@ -111,25 +161,22 @@ public class Main : MonoBehaviour
         var fileBrowser = Globals<FileBrowser>.Instance;
         fileBrowser.OpenFile(path =>
         {
-            if (songController.TryLoadSong(path, out var id))
-            {
-                AddSongTab(id);
-            }
+            app.TryLoadSong(path, out var id);
         }, () => { });
     }
 
     private void SaveOpenSong(bool alwaysAsk)
     {
-        if (openSong == null)
+        if (!app.openElement.Value.TryGet(out ReactiveSong song))
         {
             return;
         }
-        SaveSong(openSong, alwaysAsk, null);
+        SaveSong(song, alwaysAsk, null);
     }
 
     private void ExportOpenSong()
     {
-        if (openSong == null)
+        if (!app.openElement.Value.TryGet(out ReactiveSong _))
         {
             return;
         }
@@ -152,84 +199,24 @@ public class Main : MonoBehaviour
         });
     }
 
-    private void AddSongTab(SongID id)
+    private void OnSongClose(ReactiveSong song, System.Action callback)
     {
-        var actionBar = Globals<ActionBar>.Instance;
-        var name = id.GetName();
-        var reactiveTab = new ReactiveTab(name);
-        var tab = new ActionTab(reactiveTab, () => OnSongShow(id), () => OnSongHide(), (callback) => OnSongClose(id, callback));
-        songTabs.Add(id, tab);
-        actionBar.AddTab(tab, true);
-    }
-
-    private void AddGraphTab(GraphID id)
-    {
-        var actionBar = Globals<ActionBar>.Instance;
-        var name = id.GetName();
-        var reactiveTab = new ReactiveTab(name);
-        var tab = new ActionTab(reactiveTab, () => OnGraphShow(id), () => OnGraphHide(), (callback) => OnGraphClose(id, callback));
-        graphTabs.Add(id, tab);
-        actionBar.AddTab(tab, true);
-    }
-
-    private void ChangeSongId(SongID oldId, SongID newId)
-    {
-        var actionBar = Globals<ActionBar>.Instance;
-        var tab = songTabs[oldId];
-        songTabs.Remove(oldId);
-        songTabs.Add(newId, tab);
-        tab.tab.name.Value = newId.GetName();
-        tab.onSelect = () => OnSongShow(newId);
-        tab.onDeselect = () => OnSongHide();
-        tab.onTryClose = (callback) => OnSongClose(newId, callback);
-        if (openSong == oldId)
+        SaveSong(song, false, () =>
         {
-            var trackEditor = Globals<TrackEditor>.Instance;
-            trackEditor.Hide();
-            openSong = newId;
-            trackEditor.Show();
-        }
-    }
-
-    private void ChangeGraphId(GraphID oldId, GraphID newId)
-    {
-        var actionBar = Globals<ActionBar>.Instance;
-        var tab = graphTabs[oldId];
-        graphTabs.Remove(oldId);
-        graphTabs.Add(newId, tab);
-        tab.tab.name.Value = newId.GetName();
-        tab.onSelect = () => OnGraphShow(newId);
-        tab.onDeselect = () => OnGraphHide();
-        tab.onTryClose = (callback) => OnGraphClose(newId, callback);
-        if (openGraph == oldId)
-        {
-            Debug.Log("Changing graph id");
-            var graphEditor = Globals<NodeGraph.GraphEditor>.Instance;
-            graphEditor.Hide();
-            openGraph = newId;
-            graphEditor.Show();
-        }
-    }
-
-    private void OnSongClose(SongID id, System.Action callback)
-    {
-        SaveSong(id, false, () =>
-        {
-            songController.UnloadSong(id);
-            songTabs.Remove(id);
+            app.songs.Remove(song);
             callback();
         });
     }
 
-    private void SaveSong(SongID id, bool alwaysAsk, System.Action onFinishSave)
+    private void SaveSong(ReactiveSong song, bool alwaysAsk, System.Action onFinishSave)
     {
-        if (!songController.HasUnsavedChanges(id) && !alwaysAsk)
+        if (!song.IsEmpty() && !alwaysAsk)
         {
             onFinishSave?.Invoke();
         }
-        else if (id.path != null && !alwaysAsk)
+        else if (song.path != null && !alwaysAsk)
         {
-            songController.SaveSong(id, id.path, out _);
+            app.SaveSong(song, song.path.Value);
             onFinishSave?.Invoke();
         }
         else
@@ -237,10 +224,7 @@ public class Main : MonoBehaviour
             var fileBrowser = Globals<FileBrowser>.Instance;
             fileBrowser.SaveFile(path =>
             {
-                if (songController.SaveSong(id, path, out var newId))
-                {
-                    ChangeSongId(id, newId);
-                }
+                app.SaveSong(song, path);
                 onFinishSave?.Invoke();
             }, () =>
             {
@@ -249,26 +233,9 @@ public class Main : MonoBehaviour
         }
     }
 
-    private void OnSongShow(SongID id)
-    {
-        openSong = id;
-
-        var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.Show();
-    }
-
-    private void OnSongHide()
-    {
-        openSong = null;
-
-        var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.Hide();
-    }
-
     private void NewGraph()
     {
-        var id = graphController.AddGraph();
-        AddGraphTab(id);
+        app.graphs.Add(ReactiveGraph.Default);
     }
 
     private void OpenGraph()
@@ -276,69 +243,41 @@ public class Main : MonoBehaviour
         var fileBrowser = Globals<FileBrowser>.Instance;
         fileBrowser.OpenGraph(path =>
         {
-            if (graphController.TryLoadGraph(path))
-            {
-                AddGraphTab(path);
-            }
+            app.TryLoadGraph(path);
         }, () => { });
     }
 
     private void SaveOpenGraph(bool alwaysAsk)
     {
-        if (openGraph == null)
+        if (!app.openElement.Value.TryGet(out ReactiveGraph graph))
         {
             return;
         }
-        SaveGraph(openGraph, alwaysAsk, null);
+        SaveGraph(graph, alwaysAsk, null);
     }
 
     private void DeleteOpenGraph()
     {
-        if (openGraph == null)
+        if (!app.openElement.Value.TryGet(out ReactiveGraph graph))
         {
             return;
         }
-        var idToDelete = openGraph;
-        var actionBar = Globals<ActionBar>.Instance;
-        var tab = graphTabs[openGraph];
-        tab.onTryClose = callback => callback();
-        graphTabs.Remove(openGraph);
-        actionBar.CloseTab(tab);
-
-        graphController.DeleteGraph(idToDelete);
+        app.DeleteGraph(graph);
     }
 
-    private void OnGraphShow(GraphID id)
-    {
-        openGraph = id;
-
-        var graphEditor = Globals<NodeGraph.GraphEditor>.Instance;
-        graphEditor.Show();
-    }
-
-    private void OnGraphHide()
-    {
-        openGraph = null;
-
-        var graphEditor = Globals<NodeGraph.GraphEditor>.Instance;
-        graphEditor.Hide();
-    }
-
-    private void OnGraphClose(GraphID id, System.Action callback)
+    private void OnGraphClose(ReactiveGraph id, System.Action callback)
     {
         SaveGraph(id, false, () =>
         {
-            graphController.UnloadGraph(id);
-            graphTabs.Remove(id);
             callback();
         });
     }
 
-    private void SaveGraph(GraphID id, bool alwaysAsk, System.Action onFinishSave)
+    private void SaveGraph(ReactiveGraph id, bool alwaysAsk, System.Action onFinishSave)
     {
         if (id.path != null && !alwaysAsk)
         {
-            graphController.SaveGraph(id, id);
+            app.SaveGraph(id, id.path.Value);
             onFinishSave?.Invoke();
         }
         else
@@ -346,10 +285,7 @@ public class Main : MonoBehaviour
             var fileBrowser = Globals<FileBrowser>.Instance;
             fileBrowser.SaveGraph(newId =>
             {
-                if (graphController.SaveGraph(id, newId))
-                {
-                    ChangeGraphId(id, newId);
-                }
+                app.SaveGraph(id, newId);
                 onFinishSave?.Invoke();
             }, () =>
             {

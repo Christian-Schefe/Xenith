@@ -1,12 +1,14 @@
 using DSP;
 using DTO;
+using ReactiveData.App;
+using ReactiveData.Core;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
 namespace NodeGraph
 {
-    public class GraphNode : MonoBehaviour, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler, IPointerEnterHandler, IPointerExitHandler
+    public class GraphNode : MonoBehaviour, IReactor<ReactiveNode>, IBeginDragHandler, IDragHandler, IEndDragHandler, IPointerDownHandler, IPointerEnterHandler, IPointerExitHandler
     {
         public RectTransform rectTransform;
 
@@ -16,11 +18,9 @@ namespace NodeGraph
         [SerializeField] private NodeSettingsContainer settingsContainer;
         [SerializeField] private float headerHeight, labelWidth, labelHeight;
 
-        public Node node;
+        public ReactiveNode node;
 
-        public Vector2 Position => node.position;
-        public NodeResource Id => node.id;
-        public string SerializedSettings => node.serializedSettings;
+        public Vector2 Position => node.position.Value;
 
         private readonly List<NodeIOLabel> inputLabels = new();
         private readonly List<NodeIOLabel> outputLabels = new();
@@ -40,17 +40,11 @@ namespace NodeGraph
 
         public void SetPosition(Vector2 position)
         {
-            node.position = position;
-            rectTransform.localPosition = node.position;
+            node.position.Value = position;
         }
 
         public void OnSettingsChanged()
         {
-            if (audioNode is SettingsNode settingsNode)
-            {
-                settingsNode.OnSettingsChanged();
-                node.serializedSettings = settingsNode.Settings.Serialize();
-            }
             if (NeedsRebuild())
             {
                 Rebuild();
@@ -90,46 +84,12 @@ namespace NodeGraph
             }
             isRebuilding = true;
             var graphEditor = Globals<GraphEditor>.Instance;
-            UpdateVisuals();
+            RebuildVisuals();
             graphEditor.Graph.BreakInvalidConnections(this);
             isRebuilding = false;
         }
 
-        public void Initialize(Node node)
-        {
-            this.node = node;
-            var graphEditor = Globals<GraphEditor>.Instance;
-            if (!graphEditor.GetNodeFromTypeId(node.id, out audioNode))
-            {
-                node.id = new("invalid", true);
-                graphEditor.GetNodeFromTypeId(node.id, out audioNode);
-            }
-            if (audioNode is SettingsNode settingsNode)
-            {
-                if (node.serializedSettings != null)
-                {
-                    settingsNode.DeserializeSettings(node.serializedSettings);
-                }
-                else
-                {
-                    node.serializedSettings = settingsNode.Settings.Serialize();
-                }
-            }
-
-            try
-            {
-                audioNode.Initialize();
-            }
-            catch
-            {
-                node.id = new("invalid", true);
-                graphEditor.GetNodeFromTypeId(node.id, out audioNode);
-            }
-
-            UpdateVisuals();
-        }
-
-        private void UpdateVisuals()
+        private void RebuildVisuals()
         {
             foreach (var label in inputLabels)
             {
@@ -160,7 +120,6 @@ namespace NodeGraph
                 outputLabel.Initialize(this, i, false, output.name, output.Value.Type);
                 outputLabels.Add(outputLabel);
             }
-            settingsContainer.Initialize(this, audioNode);
             var settingsHeight = settingsContainer.ApplyHeight();
 
             var maxCount = Mathf.Max(inputLabels.Count, outputLabels.Count);
@@ -178,8 +137,8 @@ namespace NodeGraph
 
             footer.offsetMax = new Vector2(0, -headerHeight - settingsHeight);
 
-            label.text = node.id.id;
-            rectTransform.localPosition = node.position;
+            label.text = node.id.Value.id;
+            rectTransform.localPosition = node.position.Value;
         }
 
         public void SetSelected(bool selected)
@@ -234,7 +193,7 @@ namespace NodeGraph
         public Rect GetRect()
         {
             var size = rectTransform.sizeDelta;
-            var pos = node.position - size / 2;
+            var pos = node.position.Value - size / 2;
             return new Rect(pos, size);
         }
 
@@ -278,6 +237,51 @@ namespace NodeGraph
         {
             isHovered = false;
             UpdateOutline();
+        }
+
+        public void Bind(ReactiveNode node)
+        {
+            this.node = node;
+            settingsContainer.Bind(OnSettingsChanged, node);
+
+            node.position.AddAndCall(OnPositionChanged);
+            node.id.AddAndCall(OnNodeIdChanged);
+
+            RebuildVisuals();
+        }
+
+        private void OnPositionChanged(Vector2 position)
+        {
+            transform.localPosition = position;
+        }
+
+        private void OnNodeIdChanged(NodeResource id)
+        {
+            var graphEditor = Globals<GraphEditor>.Instance;
+            if (!graphEditor.GetNodeFromTypeId(id, out audioNode))
+            {
+                graphEditor.GetNodeFromTypeId(new("invalid", true), out audioNode);
+            }
+            if (audioNode is SettingsNode settingsNode)
+            {
+            }
+
+            try
+            {
+                audioNode.Initialize();
+            }
+            catch
+            {
+                graphEditor.GetNodeFromTypeId(new("invalid", true), out audioNode);
+            }
+        }
+
+        public void Unbind()
+        {
+            node.position.Remove(OnPositionChanged);
+            node.id.Remove(OnNodeIdChanged);
+            settingsContainer.Unbind();
+            node = null;
         }
     }
 }

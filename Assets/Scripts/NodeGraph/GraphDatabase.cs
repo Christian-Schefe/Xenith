@@ -7,7 +7,7 @@ namespace NodeGraph
 {
     public class GraphDatabase : MonoBehaviour
     {
-        public PersistentBox<Dictionary<GraphID, DTO.Graph>> graphs = new("graphs", new Dictionary<GraphID, DTO.Graph>());
+        public PersistentBox<Dictionary<string, DTO.Graph>> graphs = new("graphs", new Dictionary<string, DTO.Graph>());
 
         public Dictionary<NodeResource, System.Func<AudioNode>> GetBuiltinNodeTypes() => new()
         {
@@ -30,26 +30,26 @@ namespace NodeGraph
             }, false);
         }
 
-        public IEnumerable<KeyValuePair<GraphID, DTO.Graph>> GetGraphs()
+        public IEnumerable<KeyValuePair<string, DTO.Graph>> GetGraphs()
         {
             var dict = graphs.Value;
             return dict;
         }
 
-        public bool TryGetGraph(GraphID id, out DTO.Graph graph)
+        public bool TryGetGraph(string id, out DTO.Graph graph)
         {
             var dict = graphs.Value;
             return dict.TryGetValue(id, out graph);
         }
 
-        public void SaveGraph(GraphID id, DTO.Graph graph)
+        public void SaveGraph(string id, DTO.Graph graph)
         {
             var dict = graphs.Value;
             dict[id] = graph;
             graphs.TriggerChange();
         }
 
-        public void DeleteGraph(GraphID id)
+        public void DeleteGraph(string id)
         {
             var dict = graphs.Value;
             if (dict.ContainsKey(id))
@@ -92,7 +92,7 @@ namespace NodeGraph
                 }
                 visited.Add(typeId);
                 bool success = false;
-                if (TryGetGraph(new GraphID(typeId.id), out var graph))
+                if (TryGetGraph(typeId.id, out var graph))
                 {
                     success = graph.TryCreateAudioNode(this, visited, out audioNode);
                 }

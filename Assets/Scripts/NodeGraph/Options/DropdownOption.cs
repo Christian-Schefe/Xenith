@@ -1,4 +1,5 @@
 using DSP;
+using ReactiveData.App;
 using System;
 using System.Collections.Generic;
 using UnityEngine;
@@ -14,10 +15,26 @@ namespace NodeGraph
 
         private List<int> values;
 
-        public override void Initialize(NodeSetting setting, Action onChange)
+        private void OnDropdownValueChanged(int value)
         {
-            base.Initialize(setting, onChange);
-            if (setting is not EnumSetting enumSetting)
+            if (setting == null) return;
+            var enumSetting = (ReactiveEnumSetting)setting;
+            enumSetting.value.Value = values[value];
+        }
+
+        private void OnEnable()
+        {
+            dropdown.onValueChanged.AddListener(OnDropdownValueChanged);
+        }
+
+        private void OnDisable()
+        {
+            dropdown.onValueChanged.RemoveListener(OnDropdownValueChanged);
+        }
+
+        protected override void OnValueChanged()
+        {
+            if (setting is not ReactiveEnumSetting enumSetting)
             {
                 throw new ArgumentException("Setting must be of type EnumSetting", nameof(setting));
             }
@@ -34,25 +51,7 @@ namespace NodeGraph
                 options.Add(new TMPro.TMP_Dropdown.OptionData(name));
             }
             dropdown.AddOptions(options);
-            dropdown.value = values.IndexOf(enumSetting.value);
-        }
-
-        private void OnValueChanged(int value)
-        {
-            if (setting == null) return;
-            var enumSetting = (EnumSetting)setting;
-            enumSetting.value = values[value];
-            onChange?.Invoke();
-        }
-
-        private void OnEnable()
-        {
-            dropdown.onValueChanged.AddListener(OnValueChanged);
-        }
-
-        private void OnDisable()
-        {
-            dropdown.onValueChanged.RemoveListener(OnValueChanged);
+            dropdown.value = values.IndexOf(enumSetting.value.Value);
         }
     }
 }

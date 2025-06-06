@@ -67,6 +67,16 @@ namespace ReactiveData.Core
             AddSources(newSources);
         }
 
+        public void ClearSources()
+        {
+            foreach (var source in sources)
+            {
+                source.OnChanged -= OnChanged;
+            }
+            sources.Clear();
+            OnChanged?.Invoke();
+        }
+
         public IEnumerator<T> GetEnumerator()
         {
             if (sources.Count == 0)

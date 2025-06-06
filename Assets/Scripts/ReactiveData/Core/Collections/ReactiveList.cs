@@ -81,7 +81,7 @@ namespace ReactiveData.Core
         public bool Remove(T item)
         {
             var result = list.Remove(item);
-            OnChanged?.Invoke();
+            if (result) OnChanged?.Invoke();
             return result;
         }
 

@@ -19,7 +19,7 @@ public class FileBrowser : MonoBehaviour
         Open(new FileBrowserFileDateSource(), documentsFolder, onConfirm, onCancel);
     }
 
-    public void OpenGraph(System.Action<DTO.GraphID> onConfirm, System.Action onCancel)
+    public void OpenGraph(System.Action<string> onConfirm, System.Action onCancel)
     {
         Open(new FileBrowserGraphDateSource(Globals<GraphDatabase>.Instance), "", onConfirm, onCancel);
     }
@@ -35,7 +35,7 @@ public class FileBrowser : MonoBehaviour
         Save(new FileBrowserFileDateSource(), documentsFolder, (pwd, name) => onConfirm(System.IO.Path.Combine(pwd, name)), onCancel);
     }
 
-    public void SaveGraph(System.Action<DTO.GraphID> onConfirm, System.Action onCancel)
+    public void SaveGraph(System.Action<string> onConfirm, System.Action onCancel)
     {
         Save(new FileBrowserGraphDateSource(Globals<GraphDatabase>.Instance), "", (_, name) => onConfirm(new(name)), onCancel);
     }
@@ -95,7 +95,7 @@ public class FileBrowserFileDateSource : FileBrowserDataSource<string>
     }
 }
 
-public class FileBrowserGraphDateSource : FileBrowserDataSource<DTO.GraphID>
+public class FileBrowserGraphDateSource : FileBrowserDataSource<string>
 {
     private readonly GraphDatabase database;
 
@@ -104,16 +104,16 @@ public class FileBrowserGraphDateSource : FileBrowserDataSource<DTO.GraphID>
         this.database = database;
     }
 
-    public override List<FileBrowserDataEntry<DTO.GraphID>> GetFiles(string path)
+    public override List<FileBrowserDataEntry<string>> GetFiles(string path)
     {
         return database.GetGraphs().Select(file =>
             {
-                return new FileBrowserDataEntry<DTO.GraphID>(file.Key.path, "", file.Key, false);
+                return new FileBrowserDataEntry<string>(file.Key, "", file.Key, false);
             })
             .ToList();
     }
 
-    public override List<FileBrowserDataEntry<DTO.GraphID>> GetDirectories(string path)
+    public override List<FileBrowserDataEntry<string>> GetDirectories(string path)
     {
         return new();
     }

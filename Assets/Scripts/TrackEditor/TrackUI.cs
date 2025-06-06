@@ -91,9 +91,9 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     {
         var database = Globals<GraphDatabase>.Instance;
         var graphs = database.GetGraphs().ToList();
-        var index = graphs.FindIndex(g => g.Key.ToResource() == track.instrument.Value);
+        var index = graphs.FindIndex(g => new DTO.NodeResource(g.Key, false) == track.instrument.Value);
         index = (index + 1) % graphs.Count;
-        track.instrument.Value = graphs[index].Key.ToResource();
+        track.instrument.Value = new DTO.NodeResource(graphs[index].Key, false);
     }
 
     private void OnNameChanged(string name)

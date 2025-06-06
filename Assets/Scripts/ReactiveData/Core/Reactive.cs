@@ -3,20 +3,78 @@ using System.Collections.Generic;
 
 namespace ReactiveData.Core
 {
+    public interface IReactive
+    {
+        public event Action OnChanged;
+    }
+
     public interface IReactive<T>
     {
         public T Value { get; }
         public event Action<T> OnChanged;
     }
 
-    public class DerivedReactive<K, T> : IReactive<T>
+    public abstract class ReactiveBase<T> : IReactive<T>, IReactive
+    {
+        public abstract T Value { get; }
+
+        public event Action<T> OnChanged;
+        private Action onChanged;
+
+
+        event Action IReactive.OnChanged
+        {
+            add => onChanged += value;
+            remove => onChanged -= value;
+        }
+
+        public ReactiveBase()
+        {
+            OnChanged += value => onChanged?.Invoke();
+        }
+
+        protected void MarkChange()
+        {
+            OnChanged?.Invoke(Value);
+        }
+    }
+
+    public abstract class WritableReactiveBase<T> : IReactive<T>, IReactive
+    {
+        public abstract T Value { get; set; }
+
+        public event Action<T> OnChanged;
+        private Action onChanged;
+
+
+        event Action IReactive.OnChanged
+        {
+            add => onChanged += value;
+            remove => onChanged -= value;
+        }
+
+        public WritableReactiveBase()
+        {
+            OnChanged += value => onChanged?.Invoke();
+        }
+
+        protected void MarkChange()
+        {
+            OnChanged?.Invoke(Value);
+        }
+    }
+
+    public class DerivedReactive<T> : DerivedReactive<T, T>
+    {
+        public DerivedReactive(IReactive<T> source, Func<T, T> transform) : base(source, transform) { }
+    }
+
+    public class DerivedReactive<K, T> : ReactiveBase<T>
     {
         private IReactive<K> source;
         private Func<K, T> transform;
 
-        public event Action<T> OnChanged;
-
-        public T Value => transform(source.Value);
+        public override T Value => transform(source.Value);
 
         public DerivedReactive(IReactive<K> source, Func<K, T> transform)
         {
@@ -31,13 +89,13 @@ namespace ReactiveData.Core
             {
                 source.OnChanged -= Trigger;
                 source = null;
-                transform = null;
             }
+            transform = null;
         }
 
         private void Trigger(K value)
         {
-            OnChanged?.Invoke(transform(value));
+            MarkChange();
         }
 
         public void AddAndCall(Action<T> action)
@@ -47,13 +105,12 @@ namespace ReactiveData.Core
         }
     }
 
-    public class Reactive<T> : IReactive<T>
+    public class Reactive<T> : WritableReactiveBase<T>
     {
         private T value;
         private IEqualityComparer<T> Comparer { get; }
-        public event Action<T> OnChanged;
 
-        public T Value
+        public override T Value
         {
             get => value;
             set
@@ -61,7 +118,7 @@ namespace ReactiveData.Core
                 if (!Comparer.Equals(this.value, value))
                 {
                     this.value = value;
-                    OnChanged?.Invoke(this.value);
+                    MarkChange();
                 }
             }
         }

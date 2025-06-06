@@ -122,6 +122,12 @@ namespace DTO
             connections = new();
         }
 
+        public Graph(List<Node> nodes, List<Connection> connections)
+        {
+            this.nodes = nodes;
+            this.connections = connections;
+        }
+
         public bool TryCreateAudioNode(GraphDatabase graphDatabase, HashSet<NodeResource> visited, out AudioNode audioNode)
         {
             var graph = new DSP.NodeGraph();

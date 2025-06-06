@@ -2,7 +2,6 @@ using ReactiveData.App;
 using ReactiveData.Core;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.EventSystems;
 
 namespace ActionMenu
 {
@@ -15,12 +14,15 @@ namespace ActionMenu
         [SerializeField] private TabButton tabButtonPrefab;
         [SerializeField] private ActionDropdown actionDropdownPrefab;
 
+        public System.Action<IReactiveTab> onTabClick;
+        public System.Action<IReactiveTab> onTabClose;
+
         private readonly List<TopLevelAction> actions = new();
         private readonly List<ActionButton> buttons = new();
 
-        private readonly ReactiveList<ActionTab> tabs = new();
-        private ReactiveListBinder<ActionTab, TabButton> tabButtons;
-        private readonly Reactive<ActionTab> openTab = new(null);
+        private IReactiveEnumerable<IReactiveTab> tabs;
+        private IReactive<IReactiveTab> openTab;
+        private ReactiveUIBinder<IReactiveTab, TabButton> tabButtons;
 
         private ActionDropdown dropdown;
         private int openButtonIndex = -1;
@@ -29,9 +31,9 @@ namespace ActionMenu
         {
             tabButtons = new(tabs, _ =>
             {
-                var tab = Instantiate(tabButtonPrefab, tabParent);
-                tab.Initialize(openTab, OnTabClick, OnTabClose);
-                return tab;
+                var tabButton = Instantiate(tabButtonPrefab, tabParent);
+                tabButton.Initialize(openTab, OnTabClick, OnTabClose);
+                return tabButton;
             }, tab => Destroy(tab.gameObject));
         }
 
@@ -74,75 +76,25 @@ namespace ActionMenu
             }
         }
 
-        public void CloseTab(ActionTab tab)
+        public void BindTabs(IReactiveEnumerable<IReactiveTab> tabs, IReactive<IReactiveTab> openTab)
+        {
+            this.tabs = tabs;
+            this.openTab = openTab;
+        }
+
+        public void CloseTab(IReactiveTab tab)
         {
             OnTabClose(tab);
         }
 
-        public void AddTab(ActionTab tab, bool setActive)
+        private void OnTabClick(IReactiveTab tab)
         {
-            tabs.Add(tab);
-
-            if (openTab.Value == null)
-            {
-                openTab.Value = tab;
-                SelectTab(tab);
-            }
-
-            if (setActive)
-            {
-                OnTabClick(tab);
-            }
+            onTabClick?.Invoke(tab);
         }
 
-        private void SelectTab(ActionTab tab)
+        private void OnTabClose(IReactiveTab tab)
         {
-            tab.onSelect?.Invoke();
-        }
-
-        private void DeselectTab(ActionTab tab)
-        {
-            tab.onDeselect?.Invoke();
-        }
-
-        private void OnTabClick(ActionTab tab)
-        {
-            if (tab == openTab.Value) return;
-
-            if (openTab.Value != null)
-            {
-                DeselectTab(openTab.Value);
-            }
-            openTab.Value = tab;
-            SelectTab(tab);
-        }
-
-        private void OnTabClose(ActionTab tab)
-        {
-            void CloseInternal()
-            {
-                if (tab == openTab.Value)
-                {
-                    DeselectTab(tab);
-                    int index = tabs.IndexOf(tab);
-                    int newIndex = tabs.Count >= 2 ? (index == 0 ? 1 : index - 1) : -1;
-                    openTab.Value = newIndex != -1 ? tabs[newIndex] : null;
-                    if (openTab.Value != null)
-                    {
-                        SelectTab(openTab.Value);
-                    }
-                }
-                tabs.Remove(tab);
-            }
-
-            if (tab.onTryClose != null)
-            {
-                tab.onTryClose(CloseInternal);
-            }
-            else
-            {
-                CloseInternal();
-            }
+            onTabClose?.Invoke(tab);
         }
 
         private void OnActionButtonClick(int buttonIndex)
@@ -192,23 +144,5 @@ namespace ActionMenu
             this.name = name;
             this.actions = actions;
         }
-    }
-
-    public class ActionTab : IKeyed
-    {
-        public ReactiveTab tab;
-        public System.Action onSelect;
-        public System.Action onDeselect;
-        public System.Action<System.Action> onTryClose;
-
-        public ActionTab(ReactiveTab tab, System.Action onSelect, System.Action onDeselect, System.Action<System.Action> onTryClose)
-        {
-            this.tab = tab;
-            this.onSelect = onSelect;
-            this.onDeselect = onDeselect;
-            this.onTryClose = onTryClose;
-        }
-
-        public string Key => tab.Key;
     }
 }

@@ -24,9 +24,9 @@ namespace ReactiveData.App
         private readonly ReactiveFloatNode volumeNode;
         public ReactiveFloatNode VolumeNode => volumeNode;
 
-        public static ReactiveTrack Default => new("New Track", new("piano", false), false, false, 0.75f, 0.0f, MusicKey.CMajor, new());
+        public static ReactiveTrack Default => new("New Track", new("piano", false), false, false, 0.75f, 0.0f, MusicKey.CMajor, new List<ReactiveNote>());
 
-        public ReactiveTrack(string name, DTO.NodeResource instrument, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, ReactiveList<ReactiveNote> notes)
+        public ReactiveTrack(string name, DTO.NodeResource instrument, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, IEnumerable<ReactiveNote> notes)
         {
             this.name = new(name);
             this.instrument = new(instrument);
@@ -34,7 +34,7 @@ namespace ReactiveData.App
             this.isSoloed = new(isSoloed);
             this.volume = new(volume);
             this.pan = new(pan);
-            this.notes = notes;
+            this.notes = new(notes);
             this.keySignature = new(keySignature);
             volumeNode = new ReactiveFloatNode(this.volume);
         }

@@ -3,7 +3,7 @@ using System;
 
 namespace ReactiveData.Core
 {
-    public class ReactiveListBinder<TData, TUI> where TData : IKeyed where TUI : IReactor<TData>
+    public class ReactiveUIBinder<TData, TUI> where TData : IKeyed where TUI : IReactor<TData>
     {
         private readonly Dictionary<string, TUI> uiElements = new();
 
@@ -11,21 +11,29 @@ namespace ReactiveData.Core
         private Func<TData, TUI> createFunc;
         private Action<TUI> destroyFunc;
 
-        public ReactiveListBinder(IReactiveEnumerable<TData> source, Func<TData, TUI> createFunc, Action<TUI> destroyFunc)
+        public ReactiveUIBinder(IReactiveEnumerable<TData> source, Func<TData, TUI> createFunc, Action<TUI> destroyFunc)
         {
             this.source = source;
             this.createFunc = createFunc;
             this.destroyFunc = destroyFunc;
 
-            source.OnChanged += OnListChanged;
-            OnListChanged();
+            if (source != null) source.OnChanged += OnSourceChanged;
+            OnSourceChanged();
+        }
+
+        public void ChangeSource(IReactiveEnumerable<TData> source)
+        {
+            if (source != null) source.OnChanged -= OnSourceChanged;
+            this.source = source;
+            if (source != null) source.OnChanged += OnSourceChanged;
+            OnSourceChanged();
         }
 
         public IEnumerable<TUI> UIElements => uiElements.Values;
 
         public void Dispose()
         {
-            source.OnChanged -= OnListChanged;
+            if (source != null) source.OnChanged -= OnSourceChanged;
 
             foreach (var ui in uiElements.Values)
             {
@@ -38,17 +46,20 @@ namespace ReactiveData.Core
             destroyFunc = null;
         }
 
-        private void OnListChanged()
+        private void OnSourceChanged()
         {
             var newKeys = new HashSet<string>();
-            foreach (var item in source)
+            if (source != null)
             {
-                newKeys.Add(item.Key);
-                if (!uiElements.TryGetValue(item.Key, out var ui))
+                foreach (var item in source)
                 {
-                    var instance = createFunc(item);
-                    uiElements[item.Key] = instance;
-                    instance.Bind(item);
+                    newKeys.Add(item.Key);
+                    if (!uiElements.TryGetValue(item.Key, out var ui))
+                    {
+                        var instance = createFunc(item);
+                        uiElements[item.Key] = instance;
+                        instance.Bind(item);
+                    }
                 }
             }
 

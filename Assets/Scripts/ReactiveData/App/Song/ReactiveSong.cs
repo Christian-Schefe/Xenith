@@ -1,28 +1,43 @@
 using DSP;
+using DTO;
 using ReactiveData.Core;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace ReactiveData.App
 {
     public class ReactiveSong : IKeyed
     {
+        public Reactive<string> path;
+        public DerivedReactive<string, string> name;
         public ReactiveList<ReactiveTrack> tracks;
         public ReactiveList<ReactiveTempoEvent> tempoEvents;
 
         public Reactive<ReactiveTrack> activeTrack;
 
-        public ReactiveSong(ReactiveList<ReactiveTrack> tracks, ReactiveList<ReactiveTempoEvent> tempoEvents)
+        public ReactiveSong(string path, IEnumerable<ReactiveTrack> tracks, IEnumerable<ReactiveTempoEvent> tempoEvents)
         {
-            this.tracks = tracks;
-            this.tempoEvents = tempoEvents;
-            activeTrack = new Reactive<ReactiveTrack>(tracks.Count > 0 ? tracks[0] : null);
+            this.path = new(path);
+            name = new DerivedReactive<string, string>(this.path, GetNameFromPath);
+            this.tracks = new(tracks);
+            this.tempoEvents = new(tempoEvents);
+            activeTrack = new Reactive<ReactiveTrack>(this.tracks.Count > 0 ? this.tracks[0] : null);
         }
 
         public string ID { get; private set; } = Guid.NewGuid().ToString();
         public string Key => ID;
 
-        public static ReactiveSong Default => new(new() { ReactiveTrack.Default }, new() { new(0, 2) });
+        public static ReactiveSong Default => new(null, new List<ReactiveTrack>() { ReactiveTrack.Default }, new List<ReactiveTempoEvent>() { new(0, 2) });
+
+        private string GetNameFromPath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return "New Song";
+            }
+            return System.IO.Path.GetFileNameWithoutExtension(path);
+        }
 
         public void SortTempoEvents()
         {

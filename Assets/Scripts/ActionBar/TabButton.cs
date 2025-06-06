@@ -1,14 +1,14 @@
 using Colors;
+using ReactiveData.App;
 using ReactiveData.Core;
 using ReactiveData.UI;
 using TMPro;
 using UnityEngine;
-using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace ActionMenu
 {
-    public class TabButton : MonoBehaviour, IReactor<ActionTab>
+    public class TabButton : MonoBehaviour, IReactor<IReactiveTab>
     {
         [SerializeField] private TextMeshProUGUI text;
         [SerializeField] private ReactiveButton button;
@@ -17,13 +17,13 @@ namespace ActionMenu
         [SerializeField] private ColorPaletteColor selectedNormalColor, selectedHoveredColor, selectedPressedColor;
         [SerializeField] private Button closeButton;
 
-        private System.Action<ActionTab> onClick;
-        private System.Action<ActionTab> onClose;
+        private System.Action<IReactiveTab> onClick;
+        private System.Action<IReactiveTab> onClose;
 
         private Reactive<ColorPaletteColor> normalColor, hoveredColor, pressedColor;
-        private IReactive<ActionTab> selectedTab;
+        private IReactive<IReactiveTab> selectedTab;
 
-        private ActionTab tab;
+        private IReactiveTab tab;
 
         private void Awake()
         {
@@ -33,7 +33,7 @@ namespace ActionMenu
             colorApplier.Bind(normalColor, hoveredColor, pressedColor, null, null, null, null, null, null);
         }
 
-        public void Initialize(IReactive<ActionTab> selectedTab, System.Action<ActionTab> onClick, System.Action<ActionTab> onClose)
+        public void Initialize(IReactive<IReactiveTab> selectedTab, System.Action<IReactiveTab> onClick, System.Action<IReactiveTab> onClose)
         {
             this.selectedTab = selectedTab;
             this.onClick = onClick;
@@ -67,7 +67,7 @@ namespace ActionMenu
             closeButton.onClick.RemoveListener(OnClose);
         }
 
-        public void OnSelectedTabChanged(ActionTab selected)
+        public void OnSelectedTabChanged(IReactiveTab selected)
         {
             if (selected == tab)
             {
@@ -93,15 +93,15 @@ namespace ActionMenu
             onClose?.Invoke(tab);
         }
 
-        public void Bind(ActionTab data)
+        public void Bind(IReactiveTab data)
         {
             tab = data;
-            data.tab.name.AddAndCall(OnNameChanged);
+            data.Name.OnChanged += OnNameChanged;
         }
 
         public void Unbind()
         {
-            tab.tab.name.Remove(OnNameChanged);
+            tab.Name.OnChanged -= OnNameChanged;
         }
     }
 }

@@ -13,8 +13,6 @@ namespace NodeGraph
         private readonly Dictionary<GraphNode, HashSet<GraphConnection>> incomingConnections = new();
         private readonly Dictionary<GraphNode, HashSet<GraphConnection>> outgoingConnections = new();
 
-        public DTO.Graph OpenGraph => Globals<Main>.Instance.CurrentGraph;
-
         public List<GraphNode> Nodes => nodes;
 
         public Dictionary<GraphNode, int> GetNodeMap()
