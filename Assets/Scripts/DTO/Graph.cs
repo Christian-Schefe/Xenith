@@ -41,76 +41,6 @@ namespace DTO
         }
     }
 
-    public class GraphID
-    {
-        public string path;
-
-        public GraphID() { }
-
-        public GraphID(string path)
-        {
-            this.path = path;
-        }
-
-        public virtual string GetName()
-        {
-            return path;
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (obj is GraphID other)
-            {
-                return path == other.path;
-            }
-            return false;
-        }
-
-        public override int GetHashCode()
-        {
-            return path.GetHashCode();
-        }
-
-        public virtual NodeResource ToResource()
-        {
-            return new NodeResource(path, false);
-        }
-    }
-
-    public class UnsavedGraphID : GraphID
-    {
-        public int index;
-
-        public UnsavedGraphID(int index) : base(null)
-        {
-            this.index = index;
-        }
-
-        public override string GetName()
-        {
-            return $"Untitled {index}";
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (obj is UnsavedGraphID other)
-            {
-                return index == other.index;
-            }
-            return false;
-        }
-
-        public override int GetHashCode()
-        {
-            return index.GetHashCode();
-        }
-
-        public override NodeResource ToResource()
-        {
-            throw new System.InvalidOperationException("UnsavedGraphID cannot be converted to NodeResource");
-        }
-    }
-
     public class Graph
     {
         public List<Node> nodes;
@@ -126,31 +56,6 @@ namespace DTO
         {
             this.nodes = nodes;
             this.connections = connections;
-        }
-
-        public bool TryCreateAudioNode(GraphDatabase graphDatabase, HashSet<NodeResource> visited, out AudioNode audioNode)
-        {
-            var graph = new DSP.NodeGraph();
-            audioNode = graph;
-
-            foreach (var node in nodes)
-            {
-                if (!graphDatabase.GetNodeFromTypeIdInternal(node.id, visited, out var innerNode))
-                {
-                    return false;
-                }
-                if (innerNode is SettingsNode settingsNode)
-                {
-                    settingsNode.DeserializeSettings(node.serializedSettings);
-                }
-                graph.AddNode(innerNode);
-            }
-            foreach (var connection in connections)
-            {
-                graph.AddConnection(new(connection.fromNodeIndex, connection.fromNodeOutput, connection.toNodeIndex, connection.toNodeInput));
-            }
-
-            return true;
         }
     }
 

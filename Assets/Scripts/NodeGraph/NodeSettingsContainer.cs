@@ -23,21 +23,11 @@ namespace NodeGraph
         private ReactiveUIBinder<ReactiveNodeSetting, NodeOption> optionBinder;
 
         private ReactiveNode node;
-        private Action onSettingsChanged;
 
         private void Awake()
         {
             BuildPrefabDict();
-            optionBinder = new(null, setting =>
-            {
-                var instance = Instantiate(nodeOptionPrefabsDict[setting.Type]);
-                setting.Value.OnChanged += onSettingsChanged;
-                return instance;
-            }, setting =>
-            {
-                setting.setting.Value.OnChanged -= onSettingsChanged;
-                Destroy(setting.gameObject);
-            });
+            optionBinder = new(null, setting => Instantiate(nodeOptionPrefabsDict[setting.Type], transform), setting => Destroy(setting.gameObject));
         }
 
         private void BuildPrefabDict()
@@ -50,9 +40,8 @@ namespace NodeGraph
             }
         }
 
-        public void Bind(Action onSettingsChanged, ReactiveNode node)
+        public void Bind(ReactiveNode node)
         {
-            this.onSettingsChanged = onSettingsChanged;
             this.node = node;
             optionBinder.ChangeSource(node.settings.Values);
         }
@@ -60,7 +49,6 @@ namespace NodeGraph
         public void Unbind()
         {
             optionBinder.ChangeSource(null);
-            onSettingsChanged = null;
             node = null;
         }
 

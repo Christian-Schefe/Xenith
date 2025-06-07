@@ -47,7 +47,7 @@ namespace ReactiveData.App
             var graphDatabase = Globals<GraphDatabase>.Instance;
             if (!graphDatabase.GetNodeFromTypeId(instrument.Value, null, out var audioNode))
             {
-                throw new Exception($"Failed to create audio node of type {instrument}");
+                throw new Exception($"Failed to create audio node of type {instrument.Value.id}");
             }
             var sequencer = new Sequencer(startTime, BuildNotes(tempoEvents), () => audioNode.Clone());
             return sequencer;

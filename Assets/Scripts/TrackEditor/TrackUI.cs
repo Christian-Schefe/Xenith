@@ -19,6 +19,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     [SerializeField] private TMPro.TextMeshProUGUI instrumentNameText;
 
     private ReactiveTrack track;
+    private IReactive<ReactiveTrack> activeTrack;
 
     public void Bind(ReactiveTrack track)
     {
@@ -34,7 +35,9 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         track.isSoloed.AddAndCall(OnSoloChanged);
 
         var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.Song.activeTrack.AddAndCall(OnActiveTrackChanged);
+        activeTrack = trackEditor.Song.activeTrack;
+        activeTrack.OnChanged += OnActiveTrackChanged;
+        OnActiveTrackChanged(activeTrack.Value);
     }
 
     public void Unbind()
@@ -50,7 +53,8 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         track.isSoloed.Remove(OnSoloChanged);
 
         var trackEditor = Globals<TrackEditor>.Instance;
-        trackEditor.Song.activeTrack.Remove(OnActiveTrackChanged);
+        activeTrack.OnChanged -= OnActiveTrackChanged;
+        activeTrack = null;
         track = null;
     }
 

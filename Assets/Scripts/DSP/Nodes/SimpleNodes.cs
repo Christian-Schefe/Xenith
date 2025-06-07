@@ -16,7 +16,7 @@ namespace DSP
 
         public readonly FloatSetting valueSetting = new("Value", 0);
 
-        public override NodeSettings DefaultSettings => new(valueSetting);
+        public override List<NodeSetting> DefaultSettings => new() { valueSetting };
 
         public override void OnSettingsChanged()
         {
@@ -94,7 +94,7 @@ namespace DSP
 
         private Operation operation = Operation.Or;
 
-        public override NodeSettings DefaultSettings => new(operationSetting);
+        public override List<NodeSetting> DefaultSettings => new() { operationSetting };
 
         public override void OnSettingsChanged()
         {
@@ -152,7 +152,7 @@ namespace DSP
 
         private Operation operation = Operation.Add;
 
-        public override NodeSettings DefaultSettings => new(operationSetting);
+        public override List<NodeSetting> DefaultSettings => new() { operationSetting };
 
         public override void OnSettingsChanged()
         {

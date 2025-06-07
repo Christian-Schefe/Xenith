@@ -19,7 +19,7 @@ namespace ReactiveData.Core
         public ReactiveChainedEnumerable(IReactiveEnumerable<T> source)
         {
             sources = new() { source };
-            source.OnChanged += OnChanged;
+            source.OnChanged += Trigger;
         }
 
         public ReactiveChainedEnumerable(IEnumerable<IReactiveEnumerable<T>> sources)
@@ -27,14 +27,19 @@ namespace ReactiveData.Core
             this.sources = new List<IReactiveEnumerable<T>>(sources);
             foreach (var source in sources)
             {
-                source.OnChanged += OnChanged;
+                source.OnChanged += Trigger;
             }
+        }
+
+        private void Trigger()
+        {
+            OnChanged?.Invoke();
         }
 
         public void AddSource(IReactiveEnumerable<T> source)
         {
             sources.Add(source);
-            source.OnChanged += OnChanged;
+            source.OnChanged += Trigger;
             OnChanged?.Invoke();
         }
 
@@ -43,7 +48,7 @@ namespace ReactiveData.Core
             this.sources.AddRange(sources);
             foreach (var source in sources)
             {
-                source.OnChanged += OnChanged;
+                source.OnChanged += Trigger;
             }
             OnChanged?.Invoke();
         }
@@ -52,7 +57,7 @@ namespace ReactiveData.Core
         {
             if (sources.Remove(source))
             {
-                source.OnChanged -= OnChanged;
+                source.OnChanged -= Trigger;
             }
             OnChanged?.Invoke();
         }
@@ -61,7 +66,7 @@ namespace ReactiveData.Core
         {
             foreach (var source in sources)
             {
-                source.OnChanged -= OnChanged;
+                source.OnChanged -= Trigger;
             }
             sources.Clear();
             AddSources(newSources);
@@ -71,7 +76,7 @@ namespace ReactiveData.Core
         {
             foreach (var source in sources)
             {
-                source.OnChanged -= OnChanged;
+                source.OnChanged -= Trigger;
             }
             sources.Clear();
             OnChanged?.Invoke();

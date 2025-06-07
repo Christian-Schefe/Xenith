@@ -1,5 +1,7 @@
 using ReactiveData.Core;
 using System;
+using System.Collections.Generic;
+using Yeast;
 
 namespace ReactiveData.App
 {
@@ -21,10 +23,25 @@ namespace ReactiveData.App
 
         public abstract string Serialize();
         public abstract void Deserialize(string str);
+        public abstract ReactiveNodeSetting Clone();
 
         public ReactiveNodeSetting(string name)
         {
             this.name = new(name);
+        }
+
+        public static ReactiveNodeSetting Deserialize(string name, ReactiveSettingType type, string str)
+        {
+            ReactiveNodeSetting instance = type switch
+            {
+                ReactiveSettingType.Int => new ReactiveIntSetting(name, 0),
+                ReactiveSettingType.Float => new ReactiveFloatSetting(name, 0f),
+                ReactiveSettingType.String => new ReactiveStringSetting(name, string.Empty),
+                ReactiveSettingType.Enum => new ReactiveEnumSetting(name, new(), 0),
+                _ => throw new ArgumentException($"Unknown setting type: {type}")
+            };
+            instance.Deserialize(str);
+            return instance;
         }
     }
 
@@ -46,6 +63,7 @@ namespace ReactiveData.App
 
         public override string Serialize() => value.Value.ToString();
         public override void Deserialize(string str) => value.Value = int.TryParse(str, out var result) ? result : 0;
+        public override ReactiveNodeSetting Clone() => new ReactiveIntSetting(name.Value, value.Value);
     }
 
     public class ReactiveFloatSetting : ReactiveValueSetting<float>
@@ -55,6 +73,7 @@ namespace ReactiveData.App
 
         public override string Serialize() => value.Value.ToString("R");
         public override void Deserialize(string str) => value.Value = float.TryParse(str, out var result) ? result : 0f;
+        public override ReactiveNodeSetting Clone() => new ReactiveFloatSetting(name.Value, value.Value);
     }
 
     public class ReactiveStringSetting : ReactiveValueSetting<string>
@@ -64,36 +83,27 @@ namespace ReactiveData.App
 
         public override string Serialize() => value.Value;
         public override void Deserialize(string str) => value.Value = str ?? string.Empty;
+        public override ReactiveNodeSetting Clone() => new ReactiveStringSetting(name.Value, value.Value);
     }
 
     public class ReactiveEnumSetting : ReactiveValueSetting<int>
     {
-        public Type type;
+        public Dictionary<int, string> options;
 
-        public ReactiveEnumSetting(string name, Type type, int value) : base(name, value)
+        public ReactiveEnumSetting(string name, Dictionary<int, string> options, int value) : base(name, value)
         {
-            this.type = type;
+            this.options = options;
         }
 
         public override ReactiveSettingType Type => ReactiveSettingType.Enum;
 
-        public override string Serialize() => value.ToString();
-        public override void Deserialize(string str) => value.Value = int.TryParse(str, out var result) ? result : 0;
-    }
-
-    public class ReactiveEnumSetting<T> : ReactiveEnumSetting where T : struct, IConvertible
-    {
-        public ReactiveEnumSetting(string name, T value) : base(name, typeof(T), 0)
+        public override string Serialize() => (options, value).ToJson();
+        public override void Deserialize(string str)
         {
-            if (!typeof(T).IsEnum)
-            {
-                throw new ArgumentException("T must be of type Enum");
-            }
-            if (Enum.GetUnderlyingType(typeof(T)) != typeof(int))
-            {
-                throw new ArgumentException("Enum must have int as underlying type.");
-            }
-            this.value.Value = Convert.ToInt32(value);
+            var data = str.FromJson<(Dictionary<int, string> options, int value)>();
+            options = data.options;
+            value.Value = data.value;
         }
+        public override ReactiveNodeSetting Clone() => new ReactiveEnumSetting(name.Value, new Dictionary<int, string>(options), value.Value);
     }
 }

@@ -45,4 +45,17 @@ namespace Colors
         TextDark,
         Outline,
     }
+
+    [System.Serializable]
+    public struct ColorPaletteCol
+    {
+        public ColorPaletteColor color;
+        public float alpha;
+
+        public ColorPaletteCol(ColorPaletteColor color, float alpha = 1f)
+        {
+            this.color = color;
+            this.alpha = alpha;
+        }
+    }
 }

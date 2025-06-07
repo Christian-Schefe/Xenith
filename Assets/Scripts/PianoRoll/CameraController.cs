@@ -8,7 +8,7 @@ namespace PianoRoll
 
         public Camera Cam => cam;
 
-        private Vector2 mouseDownPos;
+        private Vector2? mouseDownPos;
 
         private Vector2 pianoPos;
 
@@ -25,12 +25,20 @@ namespace PianoRoll
             var noteEditor = Globals<NoteEditor>.Instance;
             if (Input.GetMouseButtonDown(1))
             {
-                mouseDownPos = noteEditor.ScreenToPianoCoords(Input.mousePosition);
+                var viewRectScreen = noteEditor.ViewRectScreen();
+                if (viewRectScreen.Contains(Input.mousePosition))
+                {
+                    mouseDownPos = noteEditor.ScreenToPianoCoords(Input.mousePosition);
+                }
             }
-            if (Input.GetMouseButton(1))
+            if (!Input.GetMouseButton(1))
+            {
+                mouseDownPos = null;
+            }
+            if (Input.GetMouseButton(1) && mouseDownPos.HasValue)
             {
                 Vector2 mousePos = noteEditor.ScreenToPianoCoords(Input.mousePosition);
-                Vector2 delta = mousePos - mouseDownPos;
+                Vector2 delta = mousePos - mouseDownPos.Value;
 
                 pianoPos -= delta;
             }

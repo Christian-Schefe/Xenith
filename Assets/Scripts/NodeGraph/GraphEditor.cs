@@ -1,7 +1,10 @@
 using DSP;
 using DTO;
+using ReactiveData.App;
+using ReactiveData.Core;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Burst.CompilerServices;
 using UnityEngine;
 
 namespace NodeGraph
@@ -15,7 +18,6 @@ namespace NodeGraph
         [SerializeField] private AddNodeDialog addNodeDialog;
         [SerializeField] private GraphDatabase graphDatabase;
 
-        [SerializeField] private Graph graph;
         public GraphNode nodePrefab;
         public GraphConnection connectionPrefab;
 
@@ -34,33 +36,61 @@ namespace NodeGraph
         private readonly float scrollThreshold = 0.1f;
         private readonly float scrollStep = 1.1f;
 
-        private bool isVisible = false;
+        public ReactiveGraph graph;
 
-        public Graph Graph => graph;
+        private ReactiveUIBinder<ReactiveNode, GraphNode> nodeBinder;
+        private ReactiveUIBinder<ReactiveConnection, GraphConnection> connectionBinder;
 
-        public void Show()
+        private void Awake()
         {
-            if (isVisible)
-            {
-                Debug.LogWarning("Graph editor is already visible");
-                return;
-            }
-            isVisible = true;
-            graph.ShowGraph();
-            viewFrame.gameObject.SetActive(true);
+            var main = Globals<Main>.Instance;
+            main.app.openElement.AddAndCall(OnOpenElementChanged);
         }
 
-        public void Hide()
+        public GraphNode GetNode(ReactiveNode node)
         {
-            isVisible = false;
+            return nodeBinder.TryGet(node, out GraphNode graphNode) ? graphNode : null;
+        }
 
-            addNodeDialog.Close();
-            graph.HideGraph();
-            selectedNodes.Clear();
-            currentlyConnecting.Hide();
-            connectionTargets.Clear();
-            dragOffsets.Clear();
-            viewFrame.gameObject.SetActive(false);
+        private void InitializeBinders()
+        {
+            nodeBinder ??= new ReactiveUIBinder<ReactiveNode, GraphNode>(null, node => Instantiate(nodePrefab, nodeParent), node => Destroy(node.gameObject));
+            connectionBinder ??= new ReactiveUIBinder<ReactiveConnection, GraphConnection>(null, connection => Instantiate(connectionPrefab, connectionParent), connection => Destroy(connection.gameObject));
+        }
+
+        private void BindGraph(ReactiveGraph graph)
+        {
+            this.graph = graph;
+            InitializeBinders();
+            nodeBinder.ChangeSource(graph.nodes);
+            connectionBinder.ChangeSource(graph.connections);
+        }
+
+        private void UnbindGraph()
+        {
+            graph = null;
+            InitializeBinders();
+            nodeBinder.ChangeSource(null);
+            connectionBinder.ChangeSource(null);
+        }
+
+        private void OnOpenElementChanged(Nand<ReactiveSong, ReactiveGraph> openElement)
+        {
+            bool visible = openElement.TryGet(out ReactiveGraph graph);
+            viewFrame.gameObject.SetActive(visible);
+            if (visible)
+            {
+                BindGraph(graph);
+            }
+            else
+            {
+                UnbindGraph();
+                addNodeDialog.Close();
+                selectedNodes.Clear();
+                currentlyConnecting.Hide();
+                connectionTargets.Clear();
+                dragOffsets.Clear();
+            }
         }
 
         public List<NodeResource> GetPlaceableNodes()
@@ -74,7 +104,7 @@ namespace NodeGraph
             }
             foreach (var (id, _) in graphDatabase.GetGraphs())
             {
-                var resource = id.ToResource();
+                var resource = new NodeResource(id, false);
                 if (!GetNodeFromTypeId(resource, out _)) continue;
                 allNodes.Add(resource);
             }
@@ -83,14 +113,13 @@ namespace NodeGraph
 
         public bool GetNodeFromTypeId(NodeResource typeId, out AudioNode audioNode)
         {
-            var main = Globals<Main>.Instance;
-            NodeResource? origin = main.CurrentGraphId.path != null ? main.CurrentGraphId.ToResource() : null;
+            NodeResource? origin = graph != null ? new(graph.path.Value, false) : null;
             return graphDatabase.GetNodeFromTypeId(typeId, origin, out audioNode);
         }
 
         public bool IsInteractable()
         {
-            return isVisible;
+            return graph != null;
         }
 
         private void Update()
@@ -114,23 +143,25 @@ namespace NodeGraph
             {
                 foreach (var node in selectedNodes.ToList())
                 {
-                    graph.RemoveNode(node);
+                    graph.nodes.Remove(node.node);
                 }
                 selectedNodes.Clear();
             }
 
             if (Input.GetKeyDown(KeyCode.D) && Input.GetKey(KeyCode.LeftControl))
             {
-                var duplicatedNodes = new List<GraphNode>();
+                var duplicatedNodes = new List<ReactiveNode>();
                 foreach (var node in selectedNodes.ToList())
                 {
-                    var newNode = graph.DuplicateNode(node);
+                    var newNode = new ReactiveNode(node.node.position.Value, node.node.id.Value, node.node.settings.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Clone()));
+                    graph.nodes.Add(newNode);
                     duplicatedNodes.Add(newNode);
                 }
                 DeselectAll();
                 foreach (var node in duplicatedNodes)
                 {
-                    AddSelectedNode(node, true);
+                    var graphNode = GetNode(node);
+                    AddSelectedNode(graphNode, true);
                 }
             }
         }
@@ -171,7 +202,7 @@ namespace NodeGraph
                 DeselectAll();
             }
 
-            foreach (var node in graph.Nodes)
+            foreach (var node in nodeBinder.UIElements)
             {
                 if (rect.Overlaps(node.GetRect()))
                 {
@@ -237,20 +268,21 @@ namespace NodeGraph
             {
                 throw new System.Exception("Already connecting");
             }
-            var incoming = graph.GetConnections(to, true, false);
+            var incoming = graph.connections.Where(c => c.toNode.Value == to.node && c.toIndex.Value == index)
+                .ToList();
             if (incoming == null || incoming.Count == 0)
             {
                 return false;
             }
-            var connection = incoming.FirstOrDefault(c => c.ToNodeInput == index);
+            var connection = incoming.FirstOrDefault(c => c.toIndex.Value == index);
             if (connection == null)
             {
                 return false;
             }
-            graph.RemoveConnection(connection);
-            currentlyConnecting.Show(connection.FromNode, connection.FromNodeOutput);
+            var fromNode = GetNode(connection.fromNode.Value);
+            currentlyConnecting.Show(fromNode, connection.fromIndex.Value);
+            graph.connections.Remove(connection);
             connectionTargets.Clear();
-            Destroy(connection.gameObject);
             return true;
         }
 
@@ -270,7 +302,7 @@ namespace NodeGraph
             {
                 throw new System.Exception("Not connecting");
             }
-            var validTargets = connectionTargets.Where(x => graph.IsValidConnection(currentlyConnecting.fromNode, x.Item1, currentlyConnecting.fromNodeOutput, x.Item2)).ToList();
+            var validTargets = connectionTargets.Where(x => IsValidConnection(currentlyConnecting.fromNode.node, x.Item1.node, currentlyConnecting.fromNodeOutput, x.Item2)).ToList();
             if (validTargets.Count == 0)
             {
                 currentlyConnecting.Hide();
@@ -278,15 +310,77 @@ namespace NodeGraph
             else
             {
                 var (node, index) = validTargets[0];
-                var nodeMap = graph.GetNodeMap();
-                var fromIndex = nodeMap[currentlyConnecting.fromNode];
-                var toIndex = nodeMap[node];
-
-                var connection = Instantiate(connectionPrefab, connectionParent);
-                connection.Initialize(new(fromIndex, currentlyConnecting.fromNodeOutput, toIndex, index));
-                graph.AddConnection(connection);
+                graph.connections.Add(new(currentlyConnecting.fromNode.node, node.node, currentlyConnecting.fromNodeOutput, index));
                 currentlyConnecting.Hide();
             }
+        }
+
+
+        public void BreakAllConnections(GraphNode node)
+        {
+            var allConnections = graph.connections.Where(c => c.toNode.Value == node.node || c.fromNode.Value == node.node).ToList();
+            foreach (var conn in allConnections)
+            {
+                graph.connections.Remove(conn);
+            }
+        }
+
+        public void BreakInvalidConnections(GraphNode node)
+        {
+            var allConnections = graph.connections.Where(c => c.toNode.Value == node.node || c.fromNode.Value == node.node).ToList();
+
+            foreach (var conn in allConnections)
+            {
+                if (!IsValidExistingConnection(conn.fromNode.Value, conn.toNode.Value, conn.fromIndex.Value, conn.toIndex.Value))
+                {
+                    graph.connections.Remove(conn);
+                }
+            }
+        }
+
+        private bool IsValidExistingConnection(ReactiveNode from, ReactiveNode to, int fromIndex, int toIndex)
+        {
+            var fromNode = GetNode(from);
+            var toNode = GetNode(to);
+            if (!fromNode.TryGetConnector(false, fromIndex, out var fromConnector)) return false;
+            if (!toNode.TryGetConnector(true, toIndex, out var toConnector)) return false;
+
+            if (fromConnector.type != toConnector.type)
+            {
+                return false;
+            }
+
+            var incomingConnectionMap = graph.connections
+                .GroupBy(c => c.toNode.Value)
+                .ToDictionary(g => g.Key, g => g.ToList());
+
+            bool ContainsUpstream(ReactiveNode node)
+            {
+                if (node == to) return true;
+
+                var incoming = incomingConnectionMap.GetValueOrDefault(node);
+                if (incoming != null)
+                {
+                    foreach (var conn in incoming)
+                    {
+                        if (ContainsUpstream(conn.fromNode.Value))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+            return !ContainsUpstream(from);
+        }
+
+        public bool IsValidConnection(ReactiveNode from, ReactiveNode to, int fromIndex, int toIndex)
+        {
+            if (graph.connections.Any(c => c.toNode.Value == to && c.toIndex.Value == toIndex))
+            {
+                return false;
+            }
+            return IsValidExistingConnection(from, to, fromIndex, toIndex);
         }
 
         public bool IsConnecting()

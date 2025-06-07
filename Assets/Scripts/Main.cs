@@ -1,9 +1,7 @@
 using ActionMenu;
 using DSP;
-using DTO;
 using ReactiveData.App;
 using ReactiveData.Core;
-using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
@@ -13,8 +11,10 @@ public class Main : MonoBehaviour
 
     public ReactiveApp app = ReactiveApp.Default;
 
+    private IReactiveEnumerable<IReactiveTab> tabs;
     private ReactiveTrackingDict<ReactiveSong, IReactiveTab> songTabs;
     private ReactiveTrackingDict<ReactiveGraph, IReactiveTab> graphTabs;
+    private IReactive<IReactiveTab> openTab;
 
     private void Start()
     {
@@ -26,22 +26,22 @@ public class Main : MonoBehaviour
         {
             return new GraphTab(graph);
         });
-        var openTab = new DerivedReactive<Nand<ReactiveSong, ReactiveGraph>, IReactiveTab>(app.openElement, element =>
+        openTab = new DerivedReactive<Nand<ReactiveSong, ReactiveGraph>, IReactiveTab>(app.openElement, element =>
         {
             if (element.TryGet(out ReactiveSong song)) return songTabs[song];
             if (element.TryGet(out ReactiveGraph graph)) return graphTabs[graph];
             return null;
         });
-        var tabs = new ReactiveChainedEnumerable<IReactiveTab>(new IReactiveEnumerable<IReactiveTab>[] { songTabs, graphTabs });
+        tabs = new ReactiveChainedEnumerable<IReactiveTab>(new IReactiveEnumerable<IReactiveTab>[] { songTabs, graphTabs });
         var actionBar = Globals<ActionBar>.Instance;
 
         actionBar.AddActions(new()
         {
-            new("Editor", new() {
+            new("Editor", 0, new() {
                 new ActionType.Button("Quit", OnQuit)
             }),
 
-            new("Song", new() {
+            new("Song", 0, new() {
                 new ActionType.Button("New", NewSong),
                 new ActionType.Button("Open", OpenSong),
                 new ActionType.Button("Save", () => SaveOpenSong(false)),
@@ -49,7 +49,7 @@ public class Main : MonoBehaviour
                 new ActionType.Button("Export", () => ExportOpenSong()),
             }),
 
-            new("Graph", new() {
+            new("Graph", 0, new() {
                 new ActionType.Button("New", NewGraph),
                 new ActionType.Button("Open", OpenGraph),
                 new ActionType.Button("Save", () => SaveOpenGraph(false)),
@@ -128,11 +128,30 @@ public class Main : MonoBehaviour
 
     private void OnTabClose(IReactiveTab tab)
     {
+        bool changeOpenTab = openTab.Value == tab;
+        var tabList = tabs.ToList();
+        var index = tabList.IndexOf(tab);
+        void ChangeOpenTab()
+        {
+            if (!changeOpenTab) return;
+
+            if (tabList.Count <= 1) app.openElement.Value = new();
+            else
+            {
+                IReactiveTab newTab;
+                if (index > 0) newTab = tabList[index - 1];
+                else newTab = tabList[index + 1];
+                if (newTab is SongTab newSongTab) app.openElement.Value = new(newSongTab.song);
+                else if (newTab is GraphTab graphTab) app.openElement.Value = new(graphTab.graph);
+                else throw new System.ArgumentException($"Unknown tab type: {newTab.GetType()}");
+            }
+        }
 
         if (tab is SongTab songTab)
         {
             void OnFinishSave()
             {
+                ChangeOpenTab();
                 app.songs.Remove(songTab.song);
             }
             OnSongClose(songTab.song, OnFinishSave);
@@ -141,6 +160,7 @@ public class Main : MonoBehaviour
         {
             void OnFinishSave()
             {
+                ChangeOpenTab();
                 app.graphs.Remove(graphTab.graph);
             }
             OnGraphClose(graphTab.graph, OnFinishSave);
@@ -153,7 +173,9 @@ public class Main : MonoBehaviour
 
     private void NewSong()
     {
-        app.songs.Add(ReactiveSong.Default);
+        var newSong = ReactiveSong.Default;
+        app.songs.Add(newSong);
+        app.openElement.Value = new(newSong);
     }
 
     private void OpenSong()
@@ -161,7 +183,10 @@ public class Main : MonoBehaviour
         var fileBrowser = Globals<FileBrowser>.Instance;
         fileBrowser.OpenFile(path =>
         {
-            app.TryLoadSong(path, out var id);
+            if (app.TryLoadSong(path, out var song))
+            {
+                app.openElement.Value = new(song);
+            }
         }, () => { });
     }
 
@@ -210,11 +235,11 @@ public class Main : MonoBehaviour
 
     private void SaveSong(ReactiveSong song, bool alwaysAsk, System.Action onFinishSave)
     {
-        if (!song.IsEmpty() && !alwaysAsk)
+        if (song.path.Value == null && song.IsEmpty() && !alwaysAsk)
         {
             onFinishSave?.Invoke();
         }
-        else if (song.path != null && !alwaysAsk)
+        else if (song.path.Value != null && !alwaysAsk)
         {
             app.SaveSong(song, song.path.Value);
             onFinishSave?.Invoke();
@@ -265,19 +290,23 @@ public class Main : MonoBehaviour
         app.DeleteGraph(graph);
     }
 
-    private void OnGraphClose(ReactiveGraph id, System.Action callback)
+    private void OnGraphClose(ReactiveGraph graph, System.Action callback)
     {
-        SaveGraph(id, false, () =>
+        SaveGraph(graph, false, () =>
         {
             callback();
         });
     }
 
-    private void SaveGraph(ReactiveGraph id, bool alwaysAsk, System.Action onFinishSave)
+    private void SaveGraph(ReactiveGraph graph, bool alwaysAsk, System.Action onFinishSave)
     {
-        if (id.path != null && !alwaysAsk)
+        if (graph.path.Value == null && graph.IsEmpty() && !alwaysAsk)
         {
-            app.SaveGraph(id, id.path.Value);
+            onFinishSave?.Invoke();
+        }
+        else if (graph.path.Value != null && !alwaysAsk)
+        {
+            app.SaveGraph(graph, graph.path.Value);
             onFinishSave?.Invoke();
         }
         else
@@ -285,7 +314,7 @@ public class Main : MonoBehaviour
             var fileBrowser = Globals<FileBrowser>.Instance;
             fileBrowser.SaveGraph(newId =>
             {
-                app.SaveGraph(id, newId);
+                app.SaveGraph(graph, newId);
                 onFinishSave?.Invoke();
             }, () =>
             {

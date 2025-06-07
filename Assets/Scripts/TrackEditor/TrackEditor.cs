@@ -22,9 +22,15 @@ public class TrackEditor : MonoBehaviour
 
     public ReactiveSong Song => song;
 
+    private bool isVisible;
+
     private void Awake()
     {
         addTrackButton.GetComponentInChildren<Button>().onClick.AddListener(AddTrack);
+    }
+
+    private void Start()
+    {
         var main = Globals<Main>.Instance;
         main.app.openElement.AddAndCall(OnOpenElementChanged);
     }
@@ -55,7 +61,7 @@ public class TrackEditor : MonoBehaviour
 
     private TopLevelAction BuildAction()
     {
-        return new("Tracks", new() {
+        return new("Tracks", 1, new() {
             new ActionType.Button("Import Midi", () => ImportMidi()),
         });
     }
@@ -69,7 +75,10 @@ public class TrackEditor : MonoBehaviour
 
         if (visible)
         {
-            actionBar.AddActions(new() { trackAction });
+            if (!isVisible)
+            {
+                actionBar.AddActions(new() { trackAction });
+            }
             BindSong(song);
         }
         else
@@ -77,6 +86,7 @@ public class TrackEditor : MonoBehaviour
             actionBar.RemoveAction(trackAction);
             UnbindSong();
         }
+        isVisible = visible;
     }
 
     private void AddTrack()

@@ -29,6 +29,11 @@ namespace ReactiveData.Core
             OnSourceChanged();
         }
 
+        public bool TryGet(TData key, out TUI value)
+        {
+            return uiElements.TryGetValue(key.Key, out value);
+        }
+
         public IEnumerable<TUI> UIElements => uiElements.Values;
 
         public void Dispose()

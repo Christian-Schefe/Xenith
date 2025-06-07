@@ -40,6 +40,7 @@ namespace ActionMenu
             this.onClose = onClose;
 
             selectedTab.OnChanged += OnSelectedTabChanged;
+            OnSelectedTabChanged(selectedTab.Value);
         }
 
         private void OnDestroy()
@@ -97,6 +98,8 @@ namespace ActionMenu
         {
             tab = data;
             data.Name.OnChanged += OnNameChanged;
+            OnSelectedTabChanged(selectedTab.Value);
+            OnNameChanged(data.Name.Value);
         }
 
         public void Unbind()

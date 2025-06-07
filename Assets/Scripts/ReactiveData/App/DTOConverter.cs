@@ -2,6 +2,7 @@ using DTO;
 using ReactiveData.Core;
 using System.Collections.Generic;
 using System.Linq;
+using Yeast;
 
 namespace ReactiveData.App
 {
@@ -47,7 +48,8 @@ namespace ReactiveData.App
 
         public static Node Serialize(ReactiveNode node)
         {
-            return new(node.position.Value, node.id.Value, node.serializedSettings.Value);
+            var serializedSettings = node.settings.Values.Select(setting => (setting.name, setting.Type, setting.Serialize())).ToList().ToJson();
+            return new(node.position.Value, node.id.Value, serializedSettings);
         }
 
         public static ReactiveSong Deserialize(string path, Song song)
@@ -89,7 +91,12 @@ namespace ReactiveData.App
 
         public static ReactiveNode Deserialize(Node node)
         {
-            return new ReactiveNode(node.position, node.id, node.serializedSettings);
+            var settings = node.serializedSettings.FromJson<List<(string name, ReactiveSettingType type, string value)>>();
+            var settingsDict = settings.ToDictionary(
+                s => s.name,
+                s => ReactiveNodeSetting.Deserialize(s.name, s.type, s.value)
+            );
+            return new ReactiveNode(node.position, node.id, settingsDict);
         }
     }
 }

@@ -1,5 +1,6 @@
 using DSP;
 using DTO;
+using ReactiveData.App;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,7 +8,7 @@ namespace NodeGraph
 {
     public class GraphDatabase : MonoBehaviour
     {
-        public PersistentBox<Dictionary<string, DTO.Graph>> graphs = new("graphs", new Dictionary<string, DTO.Graph>());
+        public PersistentBox<Dictionary<string, Graph>> graphs = new("graphs", new Dictionary<string, Graph>());
 
         public Dictionary<NodeResource, System.Func<AudioNode>> GetBuiltinNodeTypes() => new()
         {
@@ -30,19 +31,19 @@ namespace NodeGraph
             }, false);
         }
 
-        public IEnumerable<KeyValuePair<string, DTO.Graph>> GetGraphs()
+        public IEnumerable<KeyValuePair<string, Graph>> GetGraphs()
         {
             var dict = graphs.Value;
             return dict;
         }
 
-        public bool TryGetGraph(string id, out DTO.Graph graph)
+        public bool TryGetGraph(string id, out Graph graph)
         {
             var dict = graphs.Value;
             return dict.TryGetValue(id, out graph);
         }
 
-        public void SaveGraph(string id, DTO.Graph graph)
+        public void SaveGraph(string id, Graph graph)
         {
             var dict = graphs.Value;
             dict[id] = graph;
@@ -94,7 +95,7 @@ namespace NodeGraph
                 bool success = false;
                 if (TryGetGraph(typeId.id, out var graph))
                 {
-                    success = graph.TryCreateAudioNode(this, visited, out audioNode);
+                    success = DTOConverter.Deserialize(typeId.id, graph).TryCreateAudioNode(this, visited, out audioNode);
                 }
                 visited.Remove(typeId);
                 return success;

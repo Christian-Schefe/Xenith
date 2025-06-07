@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using UnityEngine;
 using Yeast;
 
 namespace DSP
@@ -15,26 +14,6 @@ namespace DSP
             foreach (var setting in settings)
             {
                 this.settings[setting.name] = setting;
-            }
-        }
-
-        public T Get<T>(string name) where T : NodeSetting
-        {
-            return (T)settings[name];
-        }
-
-        public string Serialize()
-        {
-            var list = settings.Values.Select(setting => (setting.name, setting.Serialize())).ToList();
-            return list.ToJson();
-        }
-
-        public void Deserialize(string json)
-        {
-            var list = json.FromJson<List<(string, string)>>();
-            foreach (var (name, val) in list)
-            {
-                settings[name].Deserialize(val);
             }
         }
 
@@ -60,9 +39,6 @@ namespace DSP
         public string name;
         public abstract SettingType Type { get; }
 
-        public abstract string Serialize();
-        public abstract void Deserialize(string str);
-
         public abstract void CloneInto(NodeSetting other);
 
         public NodeSetting(string name)
@@ -81,9 +57,6 @@ namespace DSP
         }
 
         public override SettingType Type => SettingType.Float;
-
-        public override string Serialize() => value.ToString("R");
-        public override void Deserialize(string str) => value = float.TryParse(str, out var result) ? result : 0f;
         public override void CloneInto(NodeSetting other) => ((FloatSetting)other).value = value;
     }
 
@@ -97,9 +70,6 @@ namespace DSP
         }
 
         public override SettingType Type => SettingType.Int;
-
-        public override string Serialize() => value.ToString();
-        public override void Deserialize(string str) => value = int.TryParse(str, out var result) ? result : 0;
         public override void CloneInto(NodeSetting other) => ((IntSetting)other).value = value;
     }
 
@@ -113,33 +83,42 @@ namespace DSP
         }
 
         public override SettingType Type => SettingType.String;
-
-        public override string Serialize() => value;
-        public override void Deserialize(string str) => value = str;
         public override void CloneInto(NodeSetting other) => ((StringSetting)other).value = value;
     }
 
-    public class EnumSetting : NodeSetting
+    public class EnumSetting : IntSetting
     {
-        public Type type;
-        public int value;
-
-        public EnumSetting(string name, Type type, int value) : base(name)
-        {
-            this.type = type;
-            this.value = value;
-        }
+        public Dictionary<int, string> names;
 
         public override SettingType Type => SettingType.Enum;
 
-        public override string Serialize() => value.ToString();
-        public override void Deserialize(string str) => value = int.TryParse(str, out var result) ? result : 0;
-        public override void CloneInto(NodeSetting other) => ((EnumSetting)other).value = value;
+        public EnumSetting(string name, int value, Dictionary<int, string> names) : base(name, 0)
+        {
+            this.value = Convert.ToInt32(value);
+            this.names = names;
+        }
     }
 
     public class EnumSetting<T> : EnumSetting where T : struct, IConvertible
     {
-        public EnumSetting(string name, T value) : base(name, typeof(T), 0)
+        public EnumSetting(string name, T value) : base(name, Convert.ToInt32(value), GetNames()) { }
+
+        public EnumSetting(string name, T value, Dictionary<T, string> nameOverrides = null) : this(name, value)
+        {
+            if (nameOverrides != null)
+            {
+                foreach (var (val, valName) in nameOverrides)
+                {
+                    int key = Convert.ToInt32(val);
+                    if (names.ContainsKey(key))
+                    {
+                        names[key] = valName;
+                    }
+                }
+            }
+        }
+
+        private static Dictionary<int, string> GetNames()
         {
             if (!typeof(T).IsEnum)
             {
@@ -149,7 +128,8 @@ namespace DSP
             {
                 throw new ArgumentException("Enum must have int as underlying type.");
             }
-            this.value = Convert.ToInt32(value);
+            var options = ((T[])Enum.GetValues(typeof(T))).Select(val => Convert.ToInt32(val));
+            return options.Zip(Enum.GetNames(typeof(T)), (val, name) => new { val, name }).ToDictionary(x => x.val, x => x.name);
         }
     }
 }

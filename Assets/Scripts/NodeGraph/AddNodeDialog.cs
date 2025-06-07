@@ -67,7 +67,7 @@ namespace NodeGraph
                     entry.SetText(nodeType.id);
                     entry.SetOnClickListener(() =>
                     {
-                        graphEditor.Graph.AddNode(position, nodeType);
+                        graphEditor.graph.nodes.Add(new(position, nodeType, new()));
                         Close();
                     });
                     entries.Add(entry);

@@ -119,8 +119,12 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   img: {fileID: 4985528275845825976}
-  defaultFillColor: 5
-  defaultOutlineColor: 9
+  defaultFillColor:
+    color: 5
+    alpha: 1
+  defaultOutlineColor:
+    color: 1
+    alpha: 0.1
 --- !u!1 &997612283957666917
 GameObject:
   m_ObjectHideFlags: 0
@@ -448,5 +452,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   img: {fileID: 3412623588625533340}
-  defaultFillColor: 5
-  defaultOutlineColor: 0
+  defaultFillColor:
+    color: 5
+    alpha: 1
+  defaultOutlineColor:
+    color: 0
+    alpha: 0

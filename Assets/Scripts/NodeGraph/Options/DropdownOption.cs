@@ -1,7 +1,7 @@
-using DSP;
 using ReactiveData.App;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace NodeGraph
@@ -11,15 +11,15 @@ namespace NodeGraph
         [SerializeField] private TMPro.TMP_Dropdown dropdown;
         [SerializeField] private float height;
 
-        public override float GetHeight() => height;
+        private List<int> options;
 
-        private List<int> values;
+        public override float GetHeight() => height;
 
         private void OnDropdownValueChanged(int value)
         {
             if (setting == null) return;
             var enumSetting = (ReactiveEnumSetting)setting;
-            enumSetting.value.Value = values[value];
+            enumSetting.value.Value = options[value];
         }
 
         private void OnEnable()
@@ -39,19 +39,17 @@ namespace NodeGraph
                 throw new ArgumentException("Setting must be of type EnumSetting", nameof(setting));
             }
 
+            options = enumSetting.options.OrderBy(e => e.Key).Select(e => e.Key).ToList();
+
             dropdown.ClearOptions();
-            values = new();
-            var enumValues = Enum.GetValues(enumSetting.type);
-            var options = new List<TMPro.TMP_Dropdown.OptionData>();
-            for (int i = 0; i < enumValues.Length; i++)
+            var dropdownOptions = options.Select(value => new TMPro.TMP_Dropdown.OptionData(enumSetting.options[value])).ToList();
+            dropdown.AddOptions(dropdownOptions);
+            int val = options.IndexOf(enumSetting.value.Value);
+            dropdown.value = val >= 0 ? val : 0;
+            if (val < 0)
             {
-                var val = enumValues.GetValue(i);
-                var name = Enum.GetName(enumSetting.type, val);
-                values.Add((int)val);
-                options.Add(new TMPro.TMP_Dropdown.OptionData(name));
+                enumSetting.value.Value = options[0];
             }
-            dropdown.AddOptions(options);
-            dropdown.value = values.IndexOf(enumSetting.value.Value);
         }
     }
 }

@@ -31,8 +31,6 @@ namespace NodeGraph
 
         private AudioNode audioNode;
 
-        private bool isRebuilding;
-
         private void Awake()
         {
             rectTransform = GetComponent<RectTransform>();
@@ -41,52 +39,6 @@ namespace NodeGraph
         public void SetPosition(Vector2 position)
         {
             node.position.Value = position;
-        }
-
-        public void OnSettingsChanged()
-        {
-            if (NeedsRebuild())
-            {
-                Rebuild();
-            }
-        }
-
-        public bool NeedsRebuild()
-        {
-            var inputs = audioNode.BuildInputs();
-            var outputs = audioNode.BuildOutputs();
-            if (inputs.Count != inputLabels.Count) return true;
-            if (outputs.Count != outputLabels.Count) return true;
-
-            for (int i = 0; i < inputs.Count; i++)
-            {
-                var input = inputs[i];
-                var inputLabel = inputLabels[i];
-                if (inputLabel.type != input.Value.Type) return true;
-                if (inputLabel.text != input.name) return true;
-            }
-            for (int i = 0; i < outputs.Count; i++)
-            {
-                var output = outputs[i];
-                var outputLabel = outputLabels[i];
-                if (outputLabel.type != output.Value.Type) return true;
-                if (outputLabel.text != output.name) return true;
-            }
-            return false;
-        }
-
-        public void Rebuild()
-        {
-            if (isRebuilding)
-            {
-                Debug.LogError("Rebuilding caused loop.");
-                return;
-            }
-            isRebuilding = true;
-            var graphEditor = Globals<GraphEditor>.Instance;
-            RebuildVisuals();
-            graphEditor.Graph.BreakInvalidConnections(this);
-            isRebuilding = false;
         }
 
         private void RebuildVisuals()
@@ -242,11 +194,19 @@ namespace NodeGraph
         public void Bind(ReactiveNode node)
         {
             this.node = node;
-            settingsContainer.Bind(OnSettingsChanged, node);
 
             node.position.AddAndCall(OnPositionChanged);
-            node.id.AddAndCall(OnNodeIdChanged);
+            var graphEditor = Globals<GraphEditor>.Instance;
+            if (!graphEditor.GetNodeFromTypeId(node.id.Value, out audioNode))
+            {
+                graphEditor.GetNodeFromTypeId(new("invalid", true), out audioNode);
+            }
+            if (audioNode is SettingsNode settingsNode)
+            {
+                node.ValidateSettingsFromNode(settingsNode);
+            }
 
+            settingsContainer.Bind(node);
             RebuildVisuals();
         }
 
@@ -255,31 +215,9 @@ namespace NodeGraph
             transform.localPosition = position;
         }
 
-        private void OnNodeIdChanged(NodeResource id)
-        {
-            var graphEditor = Globals<GraphEditor>.Instance;
-            if (!graphEditor.GetNodeFromTypeId(id, out audioNode))
-            {
-                graphEditor.GetNodeFromTypeId(new("invalid", true), out audioNode);
-            }
-            if (audioNode is SettingsNode settingsNode)
-            {
-            }
-
-            try
-            {
-                audioNode.Initialize();
-            }
-            catch
-            {
-                graphEditor.GetNodeFromTypeId(new("invalid", true), out audioNode);
-            }
-        }
-
         public void Unbind()
         {
             node.position.Remove(OnPositionChanged);
-            node.id.Remove(OnNodeIdChanged);
             settingsContainer.Unbind();
             node = null;
         }

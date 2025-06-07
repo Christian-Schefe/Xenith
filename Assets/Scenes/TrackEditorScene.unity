@@ -2518,6 +2518,7 @@ GameObject:
   - component: {fileID: 609911864}
   - component: {fileID: 609911863}
   - component: {fileID: 609911865}
+  - component: {fileID: 609911866}
   m_Layer: 5
   m_Name: FileOpenBrowser
   m_TagString: Untagged
@@ -2573,7 +2574,7 @@ MonoBehaviour:
     serializedVersion: 2
     rgba: 4278190080
   m_OutlineWidth: 2
-  m_CornerRadius: 10
+  m_CornerRadius: 3
   m_ShadowOffset: {x: 0, y: 0}
   m_ShadowSpread: 0
   m_Fill: 1
@@ -2602,6 +2603,25 @@ MonoBehaviour:
   contentArea: {fileID: 492708189}
   fileEntryPrefab: {fileID: 5071588322738918764, guid: 660a2636e87ea3b4b920207002085e70, type: 3}
   folderEntryPrefab: {fileID: 2979025718808150661, guid: 0b57fa748e926fd4d9fcd5b065842a9d, type: 3}
+--- !u!114 &609911866
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 609911861}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 887ad9e41b758cc4aa07f438ae7e2a87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  img: {fileID: 609911863}
+  defaultFillColor:
+    color: 5
+    alpha: 1
+  defaultOutlineColor:
+    color: 3
+    alpha: 1
 --- !u!1 &652986579
 GameObject:
   m_ObjectHideFlags: 0
@@ -3143,7 +3163,6 @@ GameObject:
   m_Component:
   - component: {fileID: 693941595}
   - component: {fileID: 693941594}
-  - component: {fileID: 693941596}
   m_Layer: 0
   m_Name: GraphEditor
   m_TagString: Untagged
@@ -3170,7 +3189,6 @@ MonoBehaviour:
   connectionParent: {fileID: 204976950}
   addNodeDialog: {fileID: 515111623}
   graphDatabase: {fileID: 1127442751}
-  graph: {fileID: 693941596}
   nodePrefab: {fileID: 3780831085713830554, guid: 29e15b1f294229840867553f9761ff0f, type: 3}
   connectionPrefab: {fileID: 6029365963791196509, guid: 4749cc04286035d4dba2dbcfe2f0282d, type: 3}
   inputLabelPrefab: {fileID: 2173005968445319385, guid: 0b4bf18709e7f3f49be53fb6486578b3, type: 3}
@@ -3191,18 +3209,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &693941596
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 693941592}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 696c6d92b4138da4c99fb8ab57b981a6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &797187901
 GameObject:
   m_ObjectHideFlags: 0
@@ -6500,6 +6506,7 @@ GameObject:
   - component: {fileID: 1814486526}
   - component: {fileID: 1814486525}
   - component: {fileID: 1814486527}
+  - component: {fileID: 1814486528}
   m_Layer: 5
   m_Name: FileSaveBrowser
   m_TagString: Untagged
@@ -6558,7 +6565,7 @@ MonoBehaviour:
     serializedVersion: 2
     rgba: 4278190080
   m_OutlineWidth: 2
-  m_CornerRadius: 10
+  m_CornerRadius: 3
   m_ShadowOffset: {x: 0, y: 0}
   m_ShadowSpread: 0
   m_Fill: 1
@@ -6590,6 +6597,25 @@ MonoBehaviour:
   fileNameInputField: {fileID: 226262346}
   cancelButton: {fileID: 290586550}
   confirmButton: {fileID: 988919077}
+--- !u!114 &1814486528
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1814486522}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 887ad9e41b758cc4aa07f438ae7e2a87, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  img: {fileID: 1814486525}
+  defaultFillColor:
+    color: 5
+    alpha: 1
+  defaultOutlineColor:
+    color: 3
+    alpha: 1
 --- !u!1 &1843101413
 GameObject:
   m_ObjectHideFlags: 0
@@ -6636,8 +6662,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1858809150}
   - component: {fileID: 1858809149}
-  - component: {fileID: 1858809151}
-  - component: {fileID: 1858809152}
   m_Layer: 0
   m_Name: Main
   m_TagString: Untagged
@@ -6657,8 +6681,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0ff00fc9d5e1f16489dd8f3e60a5d054, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  songController: {fileID: 1858809151}
-  graphController: {fileID: 1858809152}
   exportingModal: {fileID: 492734470}
 --- !u!4 &1858809150
 Transform:
@@ -6675,30 +6697,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1858809151
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1858809148}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 1e23718185b68744c8ac7a57c665158f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
---- !u!114 &1858809152
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1858809148}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 7e16361b6916a4f47a9234cd7fff0c4d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!1 &1867501691
 GameObject:
   m_ObjectHideFlags: 0
@@ -7307,6 +7305,26 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1484939708097938936, guid: 808b91352e28b0f4c9a71626a6eb605b, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7696740349346740488, guid: 808b91352e28b0f4c9a71626a6eb605b, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7696740349346740488, guid: 808b91352e28b0f4c9a71626a6eb605b, type: 3}
+      propertyPath: m_AnchorMin.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7696740349346740488, guid: 808b91352e28b0f4c9a71626a6eb605b, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7696740349346740488, guid: 808b91352e28b0f4c9a71626a6eb605b, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7696740349346740488, guid: 808b91352e28b0f4c9a71626a6eb605b, type: 3}
+      propertyPath: m_AnchoredPosition.y
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []

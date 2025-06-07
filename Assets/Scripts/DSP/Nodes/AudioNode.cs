@@ -1,23 +1,25 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Yeast;
 
 namespace DSP
 {
     public abstract class AudioNode
     {
-        public List<NamedValue> inputs;
-        public List<NamedValue> outputs;
+        public readonly List<NamedValue> inputs;
+        public readonly List<NamedValue> outputs;
 
         public abstract List<NamedValue> BuildInputs();
         public abstract List<NamedValue> BuildOutputs();
 
-        public virtual void Initialize()
+        public AudioNode()
         {
             inputs = BuildInputs();
             outputs = BuildOutputs();
         }
 
+        public virtual void Initialize() { }
         public abstract void Process(Context context);
         public abstract void ResetState();
         public abstract AudioNode Clone();
@@ -38,25 +40,13 @@ namespace DSP
 
     public abstract class SettingsNode : AudioNode
     {
-        protected NodeSettings settings;
-        public NodeSettings Settings => settings;
-        public abstract NodeSettings DefaultSettings { get; }
+        protected Dictionary<string, NodeSetting> settings;
+        public Dictionary<string, NodeSetting> Settings => settings;
+        public abstract List<NodeSetting> DefaultSettings { get; }
 
         public SettingsNode()
         {
-            settings = DefaultSettings;
-            OnSettingsChanged();
-        }
-
-        public void ApplySettings(NodeSettings newSettings)
-        {
-            settings = newSettings;
-            OnSettingsChanged();
-        }
-
-        public void DeserializeSettings(string serializedSettings)
-        {
-            settings.Deserialize(serializedSettings);
+            settings = DefaultSettings.ToDictionary(e => e.name, e => e);
             OnSettingsChanged();
         }
 
@@ -65,7 +55,10 @@ namespace DSP
         public override AudioNode Clone()
         {
             var clone = CloneWithoutSettings();
-            settings.CloneInto(clone.settings);
+            foreach (var setting in settings)
+            {
+                setting.Value.CloneInto(clone.settings[setting.Key]);
+            }
             clone.OnSettingsChanged();
             return clone;
         }

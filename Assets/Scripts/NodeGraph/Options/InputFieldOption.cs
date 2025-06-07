@@ -29,6 +29,7 @@ namespace NodeGraph
             {
                 stringSetting.value.Value = value;
             }
+            OnValueChanged();
         }
 
         private void OnEnable()

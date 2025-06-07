@@ -47,7 +47,7 @@ namespace PianoRoll
 
         public MusicKey Key => activeSong?.activeTrack.Value.keySignature.Value ?? MusicKey.CMajor;
 
-        private ReactiveChainedEnumerable<ReactiveNote> bgNotes = null;
+        private ReactiveChainedEnumerable<ReactiveNote> bgNotes = new();
         private ReactiveUIBinder<ReactiveTrack, TrackObserver> trackBinder = null;
         private ReactiveUIBinder<ReactiveNote, Note> bgNoteBinder = null;
         private ReactiveUIBinder<ReactiveNote, Note> noteBinder = null;
@@ -188,10 +188,11 @@ namespace PianoRoll
         {
             bool visible = openElement.TryGet(out ReactiveSong song);
             InitializeBinders();
+            var pianoRollVisuals = Globals<PianoRollVisuals>.Instance;
+            pianoRollVisuals.SetVisible(visible);
             if (visible)
             {
                 activeSong = song;
-                bgNotes = new();
                 trackBinder.ChangeSource(song.tracks);
                 tempoEventBinder.ChangeSource(song.tempoEvents);
                 song.activeTrack.AddAndCall(OnActiveTrackChanged);

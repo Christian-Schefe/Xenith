@@ -37,7 +37,7 @@ namespace DSP
         private long ticksSinceGate = 0;
         private long ticksSinceTrigger = 0;
 
-        public override NodeSettings DefaultSettings => new(attackSetting, decaySetting, sustainSetting, releaseSetting);
+        public override List<NodeSetting> DefaultSettings => new() { attackSetting, decaySetting, sustainSetting, releaseSetting };
 
         public override void OnSettingsChanged()
         {

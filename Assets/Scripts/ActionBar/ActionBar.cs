@@ -1,6 +1,7 @@
 using ReactiveData.App;
 using ReactiveData.Core;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace ActionMenu
@@ -20,7 +21,6 @@ namespace ActionMenu
         private readonly List<TopLevelAction> actions = new();
         private readonly List<ActionButton> buttons = new();
 
-        private IReactiveEnumerable<IReactiveTab> tabs;
         private IReactive<IReactiveTab> openTab;
         private ReactiveUIBinder<IReactiveTab, TabButton> tabButtons;
 
@@ -29,13 +29,15 @@ namespace ActionMenu
 
         private void Awake()
         {
-            tabButtons = new(tabs, _ =>
+            tabButtons = new(null, _ =>
             {
                 var tabButton = Instantiate(tabButtonPrefab, tabParent);
-                tabButton.Initialize(openTab, OnTabClick, OnTabClose);
+                tabButton.Initialize(GetOpenTab(), OnTabClick, OnTabClose);
                 return tabButton;
             }, tab => Destroy(tab.gameObject));
         }
+
+        private IReactive<IReactiveTab> GetOpenTab() => openTab;
 
         public void SetTitle(string title)
         {
@@ -49,11 +51,18 @@ namespace ActionMenu
 
             for (int i = 0; i < actionList.Count; i++)
             {
-                var index = i + offset;
-                var action = actions[index];
                 var instance = Instantiate(actionButtonPrefab, actionParent);
-                instance.SetData(action.name, () => OnActionButtonClick(index));
                 buttons.Add(instance);
+            }
+
+            var sortedActions = actions.OrderBy(e => e.orderIndex).ToList();
+            actions.Clear();
+            actions.AddRange(sortedActions);
+
+            for (int i = 0; i < buttons.Count; i++)
+            {
+                int buttonIndex = i;
+                buttons[i].SetData(actions[i].name, () => OnActionButtonClick(buttonIndex));
             }
         }
 
@@ -71,15 +80,16 @@ namespace ActionMenu
                 actions.RemoveAt(index);
                 for (int i = index; i < buttons.Count; i++)
                 {
-                    buttons[i].SetData(action.name, () => OnActionButtonClick(index));
+                    int buttonIndex = i;
+                    buttons[i].SetData(actions[i].name, () => OnActionButtonClick(buttonIndex));
                 }
             }
         }
 
         public void BindTabs(IReactiveEnumerable<IReactiveTab> tabs, IReactive<IReactiveTab> openTab)
         {
-            this.tabs = tabs;
             this.openTab = openTab;
+            tabButtons.ChangeSource(tabs);
         }
 
         public void CloseTab(IReactiveTab tab)
@@ -137,11 +147,13 @@ namespace ActionMenu
     public class TopLevelAction
     {
         public string name;
+        public int orderIndex;
         public List<ActionType> actions;
 
-        public TopLevelAction(string name, List<ActionType> actions)
+        public TopLevelAction(string name, int orderIndex, List<ActionType> actions)
         {
             this.name = name;
+            this.orderIndex = orderIndex;
             this.actions = actions;
         }
     }

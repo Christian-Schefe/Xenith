@@ -1,3 +1,4 @@
+using DSP;
 using DTO;
 using NodeGraph;
 using ReactiveData.Core;
@@ -25,7 +26,7 @@ namespace ReactiveData.App
         {
             if (string.IsNullOrEmpty(path))
             {
-                return "New Song";
+                return "New Graph";
             }
             return System.IO.Path.GetFileNameWithoutExtension(path);
         }
@@ -34,5 +35,39 @@ namespace ReactiveData.App
 
         public string ID { get; private set; } = Guid.NewGuid().ToString();
         public string Key => ID;
+
+        public bool IsEmpty()
+        {
+            return nodes.Count == 0 && connections.Count == 0;
+        }
+
+        public bool TryCreateAudioNode(GraphDatabase graphDatabase, HashSet<NodeResource> visited, out AudioNode audioNode)
+        {
+            var graph = new DSP.NodeGraph();
+            audioNode = graph;
+
+            var indexMap = new Dictionary<ReactiveNode, int>();
+            for (int i = 0; i < nodes.Count; i++)
+            {
+                var node = nodes[i];
+                indexMap[node] = i;
+
+                if (!graphDatabase.GetNodeFromTypeIdInternal(node.id.Value, visited, out var innerNode))
+                {
+                    return false;
+                }
+                if (innerNode is SettingsNode settingsNode)
+                {
+                    node.ApplySettings(settingsNode);
+                }
+                graph.AddNode(innerNode);
+            }
+            foreach (var connection in connections)
+            {
+                graph.AddConnection(new(indexMap[connection.fromNode.Value], connection.fromIndex.Value, indexMap[connection.toNode.Value], connection.toIndex.Value));
+            }
+
+            return true;
+        }
     }
 }

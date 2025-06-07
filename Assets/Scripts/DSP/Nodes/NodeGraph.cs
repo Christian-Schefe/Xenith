@@ -275,7 +275,7 @@ namespace DSP
         public readonly StringSetting nameSetting = new("Name", "Value");
         public readonly IntSetting indexSetting = new("Index", 0);
 
-        public override NodeSettings DefaultSettings => new(nameSetting, valueTypeSetting, indexSetting);
+        public override List<NodeSetting> DefaultSettings => new() { nameSetting, valueTypeSetting, indexSetting };
 
         public GraphEdgeNode(bool isInput)
         {

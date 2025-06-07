@@ -4,16 +4,16 @@ using UnityEngine;
 
 namespace Colors
 {
-    public class ColorApplierUIImage : ColorApplier
+    public class ColorApplierUIImage : ColorApplierAlpha
     {
         [SerializeField] private UIImage img;
 
-        [SerializeField] private ColorPaletteColor defaultFillColor;
-        [SerializeField] private ColorPaletteColor defaultOutlineColor;
+        [SerializeField] private ColorPaletteCol defaultFillColor;
+        [SerializeField] private ColorPaletteCol defaultOutlineColor;
 
-        protected override List<ColorPaletteColor> GetDefaultColors() => new() { defaultFillColor, defaultOutlineColor };
+        protected override List<ColorPaletteCol> GetDefaultColors() => new() { defaultFillColor, defaultOutlineColor };
 
-        public void Bind(IReactive<ColorPaletteColor> fillColor, IReactive<ColorPaletteColor> outlineColor)
+        public void Bind(IReactive<ColorPaletteCol> fillColor, IReactive<ColorPaletteCol> outlineColor)
         {
             Bind(new[] { fillColor, outlineColor });
         }

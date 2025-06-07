@@ -1,51 +1,35 @@
-using System.Collections.Generic;
+using ReactiveData.App;
+using ReactiveData.Core;
 using UnityEngine;
 
 namespace NodeGraph
 {
-    public class GraphConnection : MonoBehaviour
+    public class GraphConnection : MonoBehaviour, IReactor<ReactiveConnection>
     {
         [SerializeField] private UILine line;
 
-        public DTO.Connection connection;
-
-        public int FromNodeIndex => connection.fromNodeIndex;
-        public GraphNode FromNode => Globals<Graph>.Instance.Nodes[connection.fromNodeIndex];
-        public int FromNodeOutput => connection.fromNodeOutput;
-        public int ToNodeIndex => connection.toNodeIndex;
-        public GraphNode ToNode => Globals<Graph>.Instance.Nodes[connection.toNodeIndex];
-        public int ToNodeInput => connection.toNodeInput;
+        public ReactiveConnection connection;
 
         private Vector2? fromPosition = null;
         private Vector2? toPosition = null;
-
-        public void Initialize(DTO.Connection connection)
-        {
-            this.connection = connection;
-
-            UpdatePositions();
-        }
-
-        public void SetNodes(int newFromNode, int newToNode)
-        {
-            connection.fromNodeIndex = newFromNode;
-            connection.toNodeIndex = newToNode;
-            UpdatePositions();
-        }
 
         private void Update()
         {
             var oldFromPosition = fromPosition;
             var oldToPosition = toPosition;
 
-            fromPosition = FromNode.GetConnectorPosition(false, FromNodeOutput);
-            toPosition = ToNode.GetConnectorPosition(true, ToNodeInput);
+            var graphEditor = Globals<GraphEditor>.Instance;
+            var fromNode = graphEditor.GetNode(connection.fromNode.Value);
+            var toNode = graphEditor.GetNode(connection.toNode.Value);
+
+            fromPosition = fromNode.GetConnectorPosition(false, connection.fromIndex.Value);
+            toPosition = toNode.GetConnectorPosition(true, connection.toIndex.Value);
 
             if (oldFromPosition != fromPosition || oldToPosition != toPosition)
             {
                 UpdatePositions();
             }
-            line.color = FromNode.GetConnector(false, FromNodeOutput).GetConnectorColor();
+            line.color = fromNode.GetConnector(false, connection.fromIndex.Value).GetConnectorColor();
         }
 
         private void UpdatePositions()
@@ -60,6 +44,17 @@ namespace NodeGraph
             {
                 line.gameObject.SetActive(false);
             }
+        }
+
+        public void Bind(ReactiveConnection data)
+        {
+            connection = data;
+            UpdatePositions();
+        }
+
+        public void Unbind()
+        {
+            connection = null;
         }
     }
 }
