@@ -92,6 +92,7 @@ namespace ReactiveData.App
                     throw new ArgumentException($"Unknown setting type: {type} for setting {name} in node {id.Value}");
                 }
             }
+            settingsNode.OnSettingsChanged();
         }
     }
 }

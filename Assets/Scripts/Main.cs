@@ -260,7 +260,9 @@ public class Main : MonoBehaviour
 
     private void NewGraph()
     {
-        app.graphs.Add(ReactiveGraph.Default);
+        var newGraph = ReactiveGraph.Default;
+        app.graphs.Add(newGraph);
+        app.openElement.Value = new(newGraph);
     }
 
     private void OpenGraph()
@@ -268,7 +270,10 @@ public class Main : MonoBehaviour
         var fileBrowser = Globals<FileBrowser>.Instance;
         fileBrowser.OpenGraph(path =>
         {
-            app.TryLoadGraph(path);
+            if (app.TryLoadGraph(path, out var graph))
+            {
+                app.openElement.Value = new(graph);
+            }
         }, () => { });
     }
 

@@ -13,6 +13,8 @@ namespace Colors
 
         protected override List<ColorPaletteCol> GetDefaultColors() => new() { defaultFillColor, defaultOutlineColor };
 
+        public UIImage Image => img;
+
         public void Bind(IReactive<ColorPaletteCol> fillColor, IReactive<ColorPaletteCol> outlineColor)
         {
             Bind(new[] { fillColor, outlineColor });

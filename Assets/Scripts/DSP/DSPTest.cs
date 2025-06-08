@@ -3,6 +3,7 @@ using FileFormat;
 using ReactiveData.App;
 using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 namespace DSP
 {
@@ -11,10 +12,23 @@ namespace DSP
         private DSPPlayer player;
         private bool isRendering;
 
+        public static bool IsUIElementActive()
+        {
+            if (EventSystem.current.currentSelectedGameObject != null)
+            {
+                if (EventSystem.current.currentSelectedGameObject.TryGetComponent<TMPro.TMP_InputField>(out _))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         private void Update()
         {
             if (!isRendering && Input.GetKeyDown(KeyCode.Space))
             {
+                if (IsUIElementActive()) return;
                 var main = Globals<Main>.Instance;
                 if (!main.app.openElement.Value.TryGet(out ReactiveSong song)) return;
 

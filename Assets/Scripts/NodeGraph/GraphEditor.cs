@@ -85,12 +85,12 @@ namespace NodeGraph
             else
             {
                 UnbindGraph();
-                addNodeDialog.Close();
-                selectedNodes.Clear();
-                currentlyConnecting.Hide();
-                connectionTargets.Clear();
-                dragOffsets.Clear();
             }
+            addNodeDialog.Close();
+            selectedNodes.Clear();
+            currentlyConnecting.Hide();
+            connectionTargets.Clear();
+            dragOffsets.Clear();
         }
 
         public List<NodeResource> GetPlaceableNodes()
@@ -113,8 +113,7 @@ namespace NodeGraph
 
         public bool GetNodeFromTypeId(NodeResource typeId, out AudioNode audioNode)
         {
-            NodeResource? origin = graph != null ? new(graph.path.Value, false) : null;
-            return graphDatabase.GetNodeFromTypeId(typeId, origin, out audioNode);
+            return graphDatabase.GetNodeFromTypeId(typeId, out audioNode);
         }
 
         public bool IsInteractable()

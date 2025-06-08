@@ -48,7 +48,7 @@ namespace ReactiveData.App
 
         public static Node Serialize(ReactiveNode node)
         {
-            var serializedSettings = node.settings.Values.Select(setting => (setting.name, setting.Type, setting.Serialize())).ToList().ToJson();
+            var serializedSettings = node.settings.Values.Select(setting => (setting.name.Value, setting.Type, setting.Serialize())).ToList().ToJson();
             return new(node.position.Value, node.id.Value, serializedSettings);
         }
 

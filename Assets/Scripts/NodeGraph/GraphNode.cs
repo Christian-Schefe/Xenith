@@ -1,3 +1,4 @@
+using Colors;
 using DSP;
 using DTO;
 using ReactiveData.App;
@@ -12,7 +13,8 @@ namespace NodeGraph
     {
         public RectTransform rectTransform;
 
-        [SerializeField] private UIImage background;
+        [SerializeField] private ColorApplierUIImage background;
+        [SerializeField] private ColorPaletteCol outlineColor, selectedOutlineColor;
         [SerializeField] private RectTransform inputLabelParent, outputLabelParent, footer;
         [SerializeField] private TMPro.TextMeshProUGUI label;
         [SerializeField] private NodeSettingsContainer settingsContainer;
@@ -31,9 +33,18 @@ namespace NodeGraph
 
         private AudioNode audioNode;
 
+        private Reactive<ColorPaletteCol> outlineCol;
+
         private void Awake()
         {
             rectTransform = GetComponent<RectTransform>();
+            outlineCol = new(outlineColor);
+            background.Bind(null, outlineCol);
+        }
+
+        private void OnDestroy()
+        {
+            if (background != null) background.Unbind();
         }
 
         public void SetPosition(Vector2 position)
@@ -101,10 +112,10 @@ namespace NodeGraph
 
         private void UpdateOutline()
         {
-            bool visible = isSelected || isHovered;
+            bool isSelectedOutline = isSelected || isHovered;
             float width = isSelected ? 2.5f : 1.5f;
-            background.outlineWidth = width;
-            background.outline = visible;
+            background.Image.outlineWidth = width;
+            outlineCol.Value = isSelectedOutline ? selectedOutlineColor : outlineColor;
         }
 
         public Vector2 GetConnectorPosition(bool input, int index)
@@ -206,6 +217,11 @@ namespace NodeGraph
                 node.ValidateSettingsFromNode(settingsNode);
             }
 
+            foreach (var setting in node.settings)
+            {
+                setting.Value.Value.OnChanged += OnSettingsChanged;
+            }
+
             settingsContainer.Bind(node);
             RebuildVisuals();
         }
@@ -215,9 +231,51 @@ namespace NodeGraph
             transform.localPosition = position;
         }
 
+        private void OnSettingsChanged()
+        {
+            if (audioNode is SettingsNode settingsNode)
+            {
+                node.ApplySettings(settingsNode);
+            }
+            if (NeedsRebuild())
+            {
+                var graphEditor = Globals<GraphEditor>.Instance;
+                RebuildVisuals();
+                graphEditor.BreakInvalidConnections(this);
+            }
+        }
+
+        public bool NeedsRebuild()
+        {
+            var inputs = audioNode.BuildInputs();
+            var outputs = audioNode.BuildOutputs();
+            if (inputs.Count != inputLabels.Count) return true;
+            if (outputs.Count != outputLabels.Count) return true;
+
+            for (int i = 0; i < inputs.Count; i++)
+            {
+                var input = inputs[i];
+                var inputLabel = inputLabels[i];
+                if (inputLabel.type != input.Value.Type) return true;
+                if (inputLabel.text != input.name) return true;
+            }
+            for (int i = 0; i < outputs.Count; i++)
+            {
+                var output = outputs[i];
+                var outputLabel = outputLabels[i];
+                if (outputLabel.type != output.Value.Type) return true;
+                if (outputLabel.text != output.name) return true;
+            }
+            return false;
+        }
+
         public void Unbind()
         {
             node.position.Remove(OnPositionChanged);
+            foreach (var setting in node.settings)
+            {
+                setting.Value.Value.OnChanged -= OnSettingsChanged;
+            }
             settingsContainer.Unbind();
             node = null;
         }

@@ -17,8 +17,8 @@ MonoBehaviour:
     step: 6
     alpha: 1
   secondary:
-    shade: {fileID: 11400000, guid: 4131dbd524a6a7f49ab448d4a61539b7, type: 2}
-    step: 3
+    shade: {fileID: 11400000, guid: 40225df5255183a4ca459d88aea2afe5, type: 2}
+    step: 6
     alpha: 1
   background:
     shade: {fileID: 11400000, guid: 40225df5255183a4ca459d88aea2afe5, type: 2}

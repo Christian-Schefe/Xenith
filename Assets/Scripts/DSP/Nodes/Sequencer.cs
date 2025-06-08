@@ -24,19 +24,19 @@ namespace DSP
         private readonly List<(float endTime, float pitch)> voiceData = new();
         private readonly List<(FloatValue, BoolValue)> voiceInputs = new();
 
-        private readonly List<NamedValue<FloatValue>> floatOutputs;
-        private readonly List<SequencerNote> notes;
+        private readonly List<NamedValue<FloatValue>> floatOutputs = new();
+        private readonly List<SequencerNote> notes = new();
+
+        private readonly float startTime;
 
         private int noteIndex = 0;
-        private readonly float startTime;
         private long ticks = 0;
 
         public Sequencer(float startTime, List<SequencerNote> notes, System.Func<AudioNode> voiceFactory)
         {
             this.startTime = startTime;
             this.voiceFactory = voiceFactory;
-            this.notes = notes.Where(n => n.time >= startTime).OrderBy(n => n.time).ToList();
-            floatOutputs = new();
+            this.notes.AddRange(notes.Where(n => n.time >= startTime).OrderBy(n => n.time));
 
             var template = voiceFactory();
             var templateInputs = template.BuildInputs();

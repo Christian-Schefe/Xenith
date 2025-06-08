@@ -2,6 +2,7 @@ using DSP;
 using DTO;
 using ReactiveData.App;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace NodeGraph
@@ -13,6 +14,7 @@ namespace NodeGraph
         public Dictionary<NodeResource, System.Func<AudioNode>> GetBuiltinNodeTypes() => new()
         {
             { new NodeResource("invalid", true), () => new EmptyNode() },
+            { new NodeResource("default_synth", true), () => Prelude.DefaultSynth() },
             { new NodeResource("float_binary", true), () => new FloatBinaryNode() },
             { new NodeResource("bool_binary", true), () => new BoolBinaryNode() },
             { new NodeResource("vibrato", true), () => Prelude.Vibrato() },
@@ -31,10 +33,25 @@ namespace NodeGraph
             }, false);
         }
 
+        public IEnumerable<NodeResource> GetInstruments()
+        {
+            var allResources = GetBuiltinNodeTypes().Select(e => e.Key).Concat(graphs.Value.Keys.Select(id => new NodeResource(id, false)));
+            return allResources.Where(IsInstrument);
+        }
+
+        public bool IsInstrument(NodeResource id)
+        {
+            if (!GetNodeFromTypeId(id, out var node)) return false;
+            var inputs = node.BuildInputs();
+            var outputs = node.BuildOutputs();
+            if (inputs.Count != 2 || outputs.Count != 2) return false;
+            if (inputs[0].Value.Type != ValueType.Float || inputs[1].Value.Type != ValueType.Bool) return false;
+            return outputs[0].Value.Type == ValueType.Float && outputs[1].Value.Type == ValueType.Float;
+        }
+
         public IEnumerable<KeyValuePair<string, Graph>> GetGraphs()
         {
-            var dict = graphs.Value;
-            return dict;
+            return graphs.Value;
         }
 
         public bool TryGetGraph(string id, out Graph graph)
@@ -60,13 +77,9 @@ namespace NodeGraph
             }
         }
 
-        public bool GetNodeFromTypeId(NodeResource typeId, NodeResource? origin, out AudioNode audioNode)
+        public bool GetNodeFromTypeId(NodeResource typeId, out AudioNode audioNode)
         {
             var set = new HashSet<NodeResource>();
-            if (origin != null)
-            {
-                set.Add(origin.Value);
-            }
             return GetNodeFromTypeIdInternal(typeId, set, out audioNode);
         }
 

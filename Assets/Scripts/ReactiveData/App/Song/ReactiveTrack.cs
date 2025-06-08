@@ -24,7 +24,7 @@ namespace ReactiveData.App
         private readonly ReactiveFloatNode volumeNode;
         public ReactiveFloatNode VolumeNode => volumeNode;
 
-        public static ReactiveTrack Default => new("New Track", new("piano", false), false, false, 0.75f, 0.0f, MusicKey.CMajor, new List<ReactiveNote>());
+        public static ReactiveTrack Default => new("New Track", new("default_synth", true), false, false, 0.75f, 0.0f, MusicKey.CMajor, new List<ReactiveNote>());
 
         public ReactiveTrack(string name, DTO.NodeResource instrument, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, IEnumerable<ReactiveNote> notes)
         {
@@ -45,7 +45,7 @@ namespace ReactiveData.App
         public AudioNode BuildAudioNode(float startTime, IList<ReactiveTempoEvent> tempoEvents)
         {
             var graphDatabase = Globals<GraphDatabase>.Instance;
-            if (!graphDatabase.GetNodeFromTypeId(instrument.Value, null, out var audioNode))
+            if (!graphDatabase.GetNodeFromTypeId(instrument.Value, out var audioNode))
             {
                 throw new Exception($"Failed to create audio node of type {instrument.Value.id}");
             }

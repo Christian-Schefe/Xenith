@@ -16,6 +16,12 @@ namespace Colors
         private void Awake()
         {
             if (isBound) return;
+            ApplyDefaultColors();
+        }
+
+        [ContextMenu("Apply Default Colors")]
+        private void ApplyDefaultColors()
+        {
             var defaultColors = GetDefaultColors();
             for (int i = 0; i < defaultColors.Count; i++)
             {

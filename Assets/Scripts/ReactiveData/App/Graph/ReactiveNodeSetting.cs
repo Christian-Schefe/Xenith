@@ -97,7 +97,7 @@ namespace ReactiveData.App
 
         public override ReactiveSettingType Type => ReactiveSettingType.Enum;
 
-        public override string Serialize() => (options, value).ToJson();
+        public override string Serialize() => (options, value.Value).ToJson();
         public override void Deserialize(string str)
         {
             var data = str.FromJson<(Dictionary<int, string> options, int value)>();

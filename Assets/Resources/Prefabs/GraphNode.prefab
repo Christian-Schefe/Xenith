@@ -53,7 +53,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   rectTransform: {fileID: 1045750482959303015}
-  background: {fileID: 4912198467250350165}
+  background: {fileID: 5484102068462752938}
+  outlineColor:
+    color: 4
+    alpha: 1
+  selectedOutlineColor:
+    color: 3
+    alpha: 1
   inputLabelParent: {fileID: 3841320268861449543}
   outputLabelParent: {fileID: 5973108334878678027}
   footer: {fileID: 4736131789673124958}
@@ -336,7 +342,7 @@ MonoBehaviour:
   m_ShadowOffset: {x: 0, y: 0}
   m_ShadowSpread: 0
   m_Fill: 1
-  m_Outline: 0
+  m_Outline: 1
   m_Shadow: 0
 --- !u!114 &5484102068462752938
 MonoBehaviour:

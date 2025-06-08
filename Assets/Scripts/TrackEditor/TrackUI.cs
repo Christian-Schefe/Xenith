@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
 {
-    [SerializeField] private TMPro.TextMeshProUGUI trackNameText;
+    [SerializeField] private TMPro.TMP_InputField trackNameText;
     [SerializeField] private UIImage bgImage;
     [SerializeField] private Slider volumeSlider;
     [SerializeField] private ReactiveToggleButton muteButton;
@@ -63,6 +63,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         setInstrumentButton.onClick.AddListener(OnSetInstrumentButtonClick);
         openButton.AddListener(OnOpenClick);
         volumeSlider.onValueChanged.AddListener(OnVolumeSliderChanged);
+        trackNameText.onEndEdit.AddListener(OnTrackNameInputEndEdit);
     }
 
     private void OnDisable()
@@ -70,6 +71,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         setInstrumentButton.onClick.RemoveListener(OnSetInstrumentButtonClick);
         openButton.RemoveListener(OnOpenClick);
         volumeSlider.onValueChanged.RemoveListener(OnVolumeSliderChanged);
+        trackNameText.onEndEdit.RemoveListener(OnTrackNameInputEndEdit);
     }
 
     private void OnSoloChanged(bool _)
@@ -93,11 +95,22 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
 
     private void OnSetInstrumentButtonClick()
     {
-        var database = Globals<GraphDatabase>.Instance;
-        var graphs = database.GetGraphs().ToList();
-        var index = graphs.FindIndex(g => new DTO.NodeResource(g.Key, false) == track.instrument.Value);
-        index = (index + 1) % graphs.Count;
-        track.instrument.Value = new DTO.NodeResource(graphs[index].Key, false);
+        var fileBrowser = Globals<FileBrowser>.Instance;
+        fileBrowser.OpenInstrument(inst =>
+        {
+            track.instrument.Value = inst;
+        }, () => { });
+    }
+
+    private void OnTrackNameInputEndEdit(string val)
+    {
+        if (track == null) return;
+        if (string.IsNullOrEmpty(val))
+        {
+            trackNameText.text = track.name.Value;
+            return;
+        }
+        track.name.Value = val;
     }
 
     private void OnNameChanged(string name)

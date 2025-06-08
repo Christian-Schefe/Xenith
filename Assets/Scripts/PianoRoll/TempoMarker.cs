@@ -1,6 +1,5 @@
 using ReactiveData.App;
 using ReactiveData.Core;
-using Unity.CodeEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;

@@ -55,30 +55,28 @@ namespace ReactiveData.App
             FilePersistence.SaveFullPath(path, DTOConverter.Serialize(song).ToJson());
         }
 
-        public bool TryLoadGraph(string path)
+        public bool TryLoadGraph(string path, out ReactiveGraph graph)
         {
             if (graphs.Any(g => g.path.Value == path))
             {
+                graph = graphs.First(g => g.path.Value == path);
                 return false;
             }
             var graphDatabase = Globals<GraphDatabase>.Instance;
             if (graphDatabase.TryGetGraph(path, out var dtoGraph))
             {
-                var graph = DTOConverter.Deserialize(path, dtoGraph);
+                graph = DTOConverter.Deserialize(path, dtoGraph);
                 graphs.Add(graph);
                 return true;
             }
+            graph = null;
             return false;
         }
 
         public void SaveGraph(ReactiveGraph graph, string path)
         {
-            var graphDatabase = Globals<GraphDatabase>.Instance;
-            if (graph.path.Value != null && graph.path.Value != path)
-            {
-                graphDatabase.DeleteGraph(graph.path.Value);
-            }
             graph.path.Value = path;
+            var graphDatabase = Globals<GraphDatabase>.Instance;
             graphDatabase.SaveGraph(path, DTOConverter.Serialize(graph));
         }
 
@@ -89,6 +87,10 @@ namespace ReactiveData.App
                 Globals<GraphDatabase>.Instance.DeleteGraph(graph.path.Value);
             }
             graphs.Remove(graph);
+            if (openElement.Value.TryGet(out ReactiveGraph openGraph) && openGraph == graph)
+            {
+                openElement.Value = new();
+            }
         }
     }
 }

@@ -80,6 +80,27 @@ namespace DSP
             return graph;
         }
 
+        public static NodeGraph DefaultSynth()
+        {
+            var graph = new NodeGraph();
+            int freqIn = graph.AddInput<FloatValue>("Vibrato Freq", 0);
+            int gateIn = graph.AddInput<BoolValue>("Depth", 1);
+
+            var leftOut = graph.AddOutput<FloatValue>("Left", 0);
+            var rightOut = graph.AddOutput<FloatValue>("Right", 1);
+
+            var osc = graph.AddNode(Oscillator.New(Oscillator.WaveformType.Square));
+            var adsr = graph.AddNode(ADSR.New(0.1f, 0.5f, 0.9f, 0.2f));
+
+            graph.AddConnection(new(gateIn, 0, adsr, 0));
+            graph.AddConnection(new(freqIn, 0, osc, 0));
+            graph.AddConnection(new(adsr, 0, osc, 1));
+            graph.AddConnection(new(osc, 0, leftOut, 0));
+            graph.AddConnection(new(osc, 0, rightOut, 0));
+
+            return graph;
+        }
+
         private static float Xerp(float a, float b, float t)
         {
             return Mathf.Exp(Mathf.Lerp(Mathf.Log(a), Mathf.Log(b), t));

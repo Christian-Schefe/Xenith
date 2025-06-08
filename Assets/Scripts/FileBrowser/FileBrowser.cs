@@ -1,3 +1,4 @@
+using DTO;
 using NodeGraph;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,6 +23,11 @@ public class FileBrowser : MonoBehaviour
     public void OpenGraph(System.Action<string> onConfirm, System.Action onCancel)
     {
         Open(new FileBrowserGraphDateSource(Globals<GraphDatabase>.Instance), "", onConfirm, onCancel);
+    }
+
+    public void OpenInstrument(System.Action<NodeResource> onConfirm, System.Action onCancel)
+    {
+        Open(new FileBrowserInstrumentDateSource(Globals<GraphDatabase>.Instance), "", onConfirm, onCancel);
     }
 
     public void Save<T>(FileBrowserDataSource<T> dataSource, string rootPath, System.Action<string, string> onConfirm, System.Action onCancel)
@@ -106,7 +112,7 @@ public class FileBrowserGraphDateSource : FileBrowserDataSource<string>
 
     public override List<FileBrowserDataEntry<string>> GetFiles(string path)
     {
-        return database.GetGraphs().Select(file =>
+        return database.GetGraphs().OrderBy(e => e.Key).Select(file =>
             {
                 return new FileBrowserDataEntry<string>(file.Key, "", file.Key, false);
             })
@@ -114,6 +120,30 @@ public class FileBrowserGraphDateSource : FileBrowserDataSource<string>
     }
 
     public override List<FileBrowserDataEntry<string>> GetDirectories(string path)
+    {
+        return new();
+    }
+}
+
+public class FileBrowserInstrumentDateSource : FileBrowserDataSource<NodeResource>
+{
+    private readonly GraphDatabase database;
+
+    public FileBrowserInstrumentDateSource(GraphDatabase database)
+    {
+        this.database = database;
+    }
+
+    public override List<FileBrowserDataEntry<NodeResource>> GetFiles(string path)
+    {
+        return database.GetInstruments().OrderBy(e => e.id).Select(file =>
+            {
+                return new FileBrowserDataEntry<NodeResource>(file.id, "", file, false);
+            })
+            .ToList();
+    }
+
+    public override List<FileBrowserDataEntry<NodeResource>> GetDirectories(string path)
     {
         return new();
     }

@@ -16,6 +16,12 @@ namespace Colors
         private void Awake()
         {
             if (isBound) return;
+            ApplyDefaultColors();
+        }
+
+        [ContextMenu("Apply Default Colors")]
+        private void ApplyDefaultColors()
+        {
             var defaultColors = GetDefaultColors();
             for (int i = 0; i < defaultColors.Count; i++)
             {
@@ -45,6 +51,7 @@ namespace Colors
                 if (this.colors[i] != null)
                 {
                     this.colors[i].OnChanged += actions[i];
+                    actions[i].Invoke(this.colors[i].Value);
                 }
                 else
                 {

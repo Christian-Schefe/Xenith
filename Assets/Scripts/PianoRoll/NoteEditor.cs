@@ -205,8 +205,8 @@ namespace PianoRoll
                 noteBinder.ChangeSource(null);
                 tempoEventBinder.ChangeSource(null);
                 bgNotes.ClearSources();
-                ResetState();
             }
+            ResetState();
         }
 
         private void InitializeBinders()
