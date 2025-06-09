@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: UIComponentMaterial
-  m_Shader: {fileID: -6465566751694194690, guid: eb269e34a9cdd5e419dcd53f02e83968, type: 3}
+  m_Name: UIImageMaterial
+  m_Shader: {fileID: -6465566751694194690, guid: 501914cf929887c439270835257e1cbf, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords: []
@@ -41,12 +41,10 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - _AlphaThreshold: 0.001
+    - _Border: 10
     - _ColorMask: 15
-    - _CornerRadius: 0.033
-    - _Fill: 1
-    - _Float: 17.3
-    - _Outline: 1
-    - _OutlineWidth: 10
+    - _Radius: 10
     - _Smoothing: 1
     - _Stencil: 0
     - _StencilComp: 8
@@ -56,10 +54,9 @@ Material:
     - _UIMaskSoftnessX: 1
     - _UIMaskSoftnessY: 1
     m_Colors:
+    - _BorderColor: {r: 0.1984247, g: 0.4622642, b: 0.4599203, a: 1}
     - _ClipRect: {r: 0, g: 0, b: 0, a: 0}
-    - _Color: {r: 0.754717, g: 0.26699895, b: 0.26699895, a: 1}
-    - _FillColor: {r: 0, g: 0.10800973, b: 1, a: 1}
-    - _OutlineColor: {r: 0, g: 0.9500499, b: 1, a: 1}
-    - _Size: {r: 1, g: 1, b: 0, a: 0}
+    - _Color: {r: 0.908, g: 0.5631378, b: 0.156, a: 1}
+    - _Size: {r: 50, g: 100, b: 0, a: 0}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

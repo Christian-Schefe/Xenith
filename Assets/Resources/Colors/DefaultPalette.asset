@@ -37,6 +37,6 @@ MonoBehaviour:
     step: 8
     alpha: 1
   outline:
-    shade: {fileID: 11400000, guid: 596d46553eb0d1c46a0aef8ef6acd1d1, type: 2}
-    step: 1
-    alpha: 0.1
+    shade: {fileID: 11400000, guid: 40225df5255183a4ca459d88aea2afe5, type: 2}
+    step: 7
+    alpha: 1

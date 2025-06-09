@@ -15,6 +15,7 @@ namespace ReactiveData.App
         public ReactiveList<ReactiveTempoEvent> tempoEvents;
 
         public Reactive<ReactiveTrack> activeTrack;
+        public Reactive<ReactiveTrack> editingPipeline;
 
         public ReactiveSong(string path, IEnumerable<ReactiveTrack> tracks, IEnumerable<ReactiveTempoEvent> tempoEvents)
         {
@@ -23,6 +24,7 @@ namespace ReactiveData.App
             this.tracks = new(tracks);
             this.tempoEvents = new(tempoEvents);
             activeTrack = new Reactive<ReactiveTrack>(this.tracks.Count > 0 ? this.tracks[0] : null);
+            editingPipeline = new(null);
         }
 
         public string ID { get; private set; } = Guid.NewGuid().ToString();

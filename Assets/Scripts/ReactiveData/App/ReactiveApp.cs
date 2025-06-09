@@ -15,11 +15,16 @@ namespace ReactiveData.App
 
         public Reactive<Nand<ReactiveSong, ReactiveGraph>> openElement;
 
+        public DerivedReactive<Nand<ReactiveSong, ReactiveGraph>, ReactiveSong> openSong;
+        public DerivedReactive<Nand<ReactiveSong, ReactiveGraph>, ReactiveGraph> openGraph;
+
         public ReactiveApp(IEnumerable<ReactiveSong> songs, IEnumerable<ReactiveGraph> graphs)
         {
             this.songs = new(songs);
             this.graphs = new(graphs);
             openElement = new(this.songs.Count > 0 ? new(this.songs[0]) : (this.graphs.Count > 0 ? new(this.graphs[0]) : new()));
+            openSong = new(openElement, e => e.TryGet(out ReactiveSong song) ? song : null);
+            openGraph = new(openElement, e => e.TryGet(out ReactiveGraph graph) ? graph : null);
         }
 
         public static ReactiveApp Default => new(new ReactiveList<ReactiveSong>() { ReactiveSong.Default }, new ReactiveList<ReactiveGraph>());

@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,25 +8,17 @@ public class UIImage : MaskableGraphic, ILayoutElement
 
     [SerializeField]
     private Color32 m_OutlineColor = Color.black;
-    [SerializeField]
-    private Color32 m_ShadowColor = Color.black;
 
     [SerializeField]
     private float m_OutlineWidth = 0;
 
     [SerializeField]
     private float m_CornerRadius = 0;
-    [SerializeField]
-    private Vector2 m_ShadowOffset = Vector2.zero;
-    [SerializeField]
-    private float m_ShadowSpread = 0;
 
     [SerializeField]
     private bool m_Fill = true;
     [SerializeField]
     private bool m_Outline = false;
-    [SerializeField]
-    private bool m_Shadow = false;
 
     public bool fill
     {
@@ -62,22 +52,6 @@ public class UIImage : MaskableGraphic, ILayoutElement
         }
     }
 
-    public bool shadow
-    {
-        get
-        {
-            return m_Shadow;
-        }
-        set
-        {
-            if (m_Shadow != value)
-            {
-                m_Shadow = value;
-                SetVerticesDirty();
-            }
-        }
-    }
-
     public Color outlineColor
     {
         get
@@ -89,22 +63,6 @@ public class UIImage : MaskableGraphic, ILayoutElement
             if (m_OutlineColor != value)
             {
                 m_OutlineColor = value;
-                SetVerticesDirty();
-            }
-        }
-    }
-
-    public Color shadowColor
-    {
-        get
-        {
-            return m_ShadowColor;
-        }
-        set
-        {
-            if (m_ShadowColor != value)
-            {
-                m_ShadowColor = value;
                 SetVerticesDirty();
             }
         }
@@ -141,39 +99,6 @@ public class UIImage : MaskableGraphic, ILayoutElement
             }
         }
     }
-
-    public Vector2 shadowOffset
-    {
-        get
-        {
-            return m_ShadowOffset;
-        }
-        set
-        {
-            if (m_ShadowOffset != value)
-            {
-                m_ShadowOffset = value;
-                SetVerticesDirty();
-            }
-        }
-    }
-
-    public float shadowSpread
-    {
-        get
-        {
-            return m_ShadowSpread;
-        }
-        set
-        {
-            if (m_ShadowSpread != value)
-            {
-                m_ShadowSpread = value;
-                SetVerticesDirty();
-            }
-        }
-    }
-
 
     public override Texture mainTexture
     {
@@ -240,6 +165,12 @@ public class UIImage : MaskableGraphic, ILayoutElement
         m_SkipMaterialUpdate = false;
     }
 
+    protected override void Awake()
+    {
+        base.Awake();
+        canvasRenderer.cullTransparentMesh = false;
+    }
+
     protected UIImage()
     {
         useLegacyMeshGeneration = false;
@@ -252,6 +183,11 @@ public class UIImage : MaskableGraphic, ILayoutElement
 #if UNITY_EDITOR
     protected override void OnValidate()
     {
+        if (m_Material == null)
+        {
+            m_Material = Resources.Load<Material>("Shaders/UIImageMaterial");
+        }
+        canvasRenderer.cullTransparentMesh = false;
         SetVerticesDirty();
     }
 #endif
@@ -288,41 +224,25 @@ public class UIImage : MaskableGraphic, ILayoutElement
     private void GenerateSimpleSprite(VertexHelper vh)
     {
         Rect pixelAdjustedRect = GetPixelAdjustedRect();
-        Vector4 vector = new(pixelAdjustedRect.x - pixelAdjustedRect.width * 0.5f, pixelAdjustedRect.y - pixelAdjustedRect.height * 0.5f, pixelAdjustedRect.x + pixelAdjustedRect.width * 1.5f, pixelAdjustedRect.y + pixelAdjustedRect.height * 1.5f);
-        Color32 color = this.color;
-        Color32 outlineColor = this.outlineColor;
-        Color32 shadowColor = this.shadowColor;
-        var outlineColorVec = new Vector4(outlineColor.r, outlineColor.g, outlineColor.b, outlineColor.a) / 255f;
-        var shadowOffset = (Vector3)this.shadowOffset;
-        var outlineWidth = Mathf.Min(m_OutlineWidth, pixelAdjustedRect.width * 0.5f, pixelAdjustedRect.height * 0.5f);
-        var totalSpread = shadowSpread + (outline ? outlineWidth : 0);
+        bool hasOutline = outline && m_OutlineWidth > 0 && m_OutlineColor.a > 0;
+        bool hasFill = fill && this.color.a > 0;
+        Color32 color = hasFill ? this.color : Color.clear;
+        Color32 outlineColor = hasOutline ? this.outlineColor : Color.clear;
 
-        var additionalInfoVec = new Vector4(outlineWidth, m_CornerRadius, fill ? 1 : 0, outline ? 1 : 0);
-        var shadowCornerRadius = m_CornerRadius + (outline ? outlineWidth * 0.75f : 0);
-        var shadowAdditionalInfoVec = new Vector4(outlineWidth, shadowCornerRadius, 1, 0);
+        var outlineColorVec = new Vector4(outlineColor.r, outlineColor.g, outlineColor.b, outlineColor.a) / 255f;
+        var outlineWidth = Mathf.Min(m_OutlineWidth, pixelAdjustedRect.width * 0.5f, pixelAdjustedRect.height * 0.5f);
+        var cornerRadius = Mathf.Min(m_CornerRadius, pixelAdjustedRect.width * 0.5f, pixelAdjustedRect.height * 0.5f);
+        var additionalInfoVec = new Vector4(hasOutline ? outlineWidth : 0, cornerRadius, 0, 0);
 
         vh.Clear();
-        if (shadow)
-        {
-            vh.AddVert(new Vector3(vector.x, vector.y) + shadowOffset + 2 * new Vector3(-totalSpread, -totalSpread), shadowColor, new Vector4(0f, 0f, pixelAdjustedRect.width + totalSpread, pixelAdjustedRect.height + totalSpread), Vector4.zero, Vector4.zero, shadowAdditionalInfoVec, s_DefaultNormal, s_DefaultTangent);
-            vh.AddVert(new Vector3(vector.x, vector.w) + shadowOffset + 2 * new Vector3(-totalSpread, totalSpread), shadowColor, new Vector4(0f, 1f, pixelAdjustedRect.width + totalSpread, pixelAdjustedRect.height + totalSpread), Vector4.zero, Vector4.zero, shadowAdditionalInfoVec, s_DefaultNormal, s_DefaultTangent);
-            vh.AddVert(new Vector3(vector.z, vector.w) + shadowOffset + 2 * new Vector3(totalSpread, totalSpread), shadowColor, new Vector4(1f, 1f, pixelAdjustedRect.width + totalSpread, pixelAdjustedRect.height + totalSpread), Vector4.zero, Vector4.zero, shadowAdditionalInfoVec, s_DefaultNormal, s_DefaultTangent);
-            vh.AddVert(new Vector3(vector.z, vector.y) + shadowOffset + 2 * new Vector3(totalSpread, -totalSpread), shadowColor, new Vector4(1f, 0f, pixelAdjustedRect.width + totalSpread, pixelAdjustedRect.height + totalSpread), Vector4.zero, Vector4.zero, shadowAdditionalInfoVec, s_DefaultNormal, s_DefaultTangent);
-        }
 
-        vh.AddVert(new Vector3(vector.x, vector.y), color, new Vector4(0f, 0f, pixelAdjustedRect.width, pixelAdjustedRect.height), Vector4.zero, outlineColorVec, additionalInfoVec, s_DefaultNormal, s_DefaultTangent);
-        vh.AddVert(new Vector3(vector.x, vector.w), color, new Vector4(0f, 1f, pixelAdjustedRect.width, pixelAdjustedRect.height), Vector4.zero, outlineColorVec, additionalInfoVec, s_DefaultNormal, s_DefaultTangent);
-        vh.AddVert(new Vector3(vector.z, vector.w), color, new Vector4(1f, 1f, pixelAdjustedRect.width, pixelAdjustedRect.height), Vector4.zero, outlineColorVec, additionalInfoVec, s_DefaultNormal, s_DefaultTangent);
-        vh.AddVert(new Vector3(vector.z, vector.y), color, new Vector4(1f, 0f, pixelAdjustedRect.width, pixelAdjustedRect.height), Vector4.zero, outlineColorVec, additionalInfoVec, s_DefaultNormal, s_DefaultTangent);
+        vh.AddVert(new Vector3(pixelAdjustedRect.xMin, pixelAdjustedRect.yMin), color, new Vector4(0f, 0f, pixelAdjustedRect.width, pixelAdjustedRect.height), Vector4.zero, outlineColorVec, additionalInfoVec, s_DefaultNormal, s_DefaultTangent);
+        vh.AddVert(new Vector3(pixelAdjustedRect.xMin, pixelAdjustedRect.yMax), color, new Vector4(0f, 1f, pixelAdjustedRect.width, pixelAdjustedRect.height), Vector4.zero, outlineColorVec, additionalInfoVec, s_DefaultNormal, s_DefaultTangent);
+        vh.AddVert(new Vector3(pixelAdjustedRect.xMax, pixelAdjustedRect.yMax), color, new Vector4(1f, 1f, pixelAdjustedRect.width, pixelAdjustedRect.height), Vector4.zero, outlineColorVec, additionalInfoVec, s_DefaultNormal, s_DefaultTangent);
+        vh.AddVert(new Vector3(pixelAdjustedRect.xMax, pixelAdjustedRect.yMin), color, new Vector4(1f, 0f, pixelAdjustedRect.width, pixelAdjustedRect.height), Vector4.zero, outlineColorVec, additionalInfoVec, s_DefaultNormal, s_DefaultTangent);
 
         vh.AddTriangle(0, 1, 2);
         vh.AddTriangle(2, 3, 0);
-
-        if (shadow)
-        {
-            vh.AddTriangle(4, 5, 6);
-            vh.AddTriangle(6, 7, 4);
-        }
     }
 
     protected override void OnDidApplyAnimationProperties()

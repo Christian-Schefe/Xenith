@@ -15,6 +15,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     [SerializeField] private ReactiveToggleButton soloButton;
     [SerializeField] private ReactiveToggleButton bgVisibleButton;
     [SerializeField] private Button setInstrumentButton;
+    [SerializeField] private Button editPipelineButton;
     [SerializeField] private ReactiveButton openButton;
     [SerializeField] private TMPro.TextMeshProUGUI instrumentNameText;
 
@@ -61,6 +62,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     private void OnEnable()
     {
         setInstrumentButton.onClick.AddListener(OnSetInstrumentButtonClick);
+        editPipelineButton.onClick.AddListener(OnEditPipelineButtonClick);
         openButton.AddListener(OnOpenClick);
         volumeSlider.onValueChanged.AddListener(OnVolumeSliderChanged);
         trackNameText.onEndEdit.AddListener(OnTrackNameInputEndEdit);
@@ -69,6 +71,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     private void OnDisable()
     {
         setInstrumentButton.onClick.RemoveListener(OnSetInstrumentButtonClick);
+        editPipelineButton.onClick.RemoveListener(OnEditPipelineButtonClick);
         openButton.RemoveListener(OnOpenClick);
         volumeSlider.onValueChanged.RemoveListener(OnVolumeSliderChanged);
         trackNameText.onEndEdit.RemoveListener(OnTrackNameInputEndEdit);
@@ -100,6 +103,12 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         {
             track.instrument.Value = inst;
         }, () => { });
+    }
+
+    private void OnEditPipelineButtonClick()
+    {
+        var trackEditor = Globals<TrackEditor>.Instance;
+        trackEditor.Song.editingPipeline.Value = track;
     }
 
     private void OnTrackNameInputEndEdit(string val)

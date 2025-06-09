@@ -18,7 +18,7 @@ namespace ReactiveData.App
         public static Track Serialize(ReactiveTrack track)
         {
             var notesList = track.notes.Select(Serialize).ToList();
-            return new(track.name.Value, track.instrument.Value, track.isMuted.Value, track.isSoloed.Value, track.volume.Value, track.pan.Value, track.keySignature.Value, notesList);
+            return new(track.name.Value, track.instrument.Value, track.effects.ToList(), track.isMuted.Value, track.isSoloed.Value, track.volume.Value, track.pan.Value, track.keySignature.Value, notesList);
         }
 
         public static Note Serialize(ReactiveNote note)
@@ -62,7 +62,7 @@ namespace ReactiveData.App
         public static ReactiveTrack Deserialize(Track track)
         {
             var notes = track.notes.Select(Deserialize);
-            return new ReactiveTrack(track.name, track.instrument, track.isMuted, track.isSoloed, track.volume, track.pan, track.keySignature, notes);
+            return new ReactiveTrack(track.name, track.instrument, track.effects, track.isMuted, track.isSoloed, track.volume, track.pan, track.keySignature, notes);
         }
 
         public static ReactiveNote Deserialize(Note note)

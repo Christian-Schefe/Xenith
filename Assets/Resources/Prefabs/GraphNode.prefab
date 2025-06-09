@@ -323,7 +323,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9672c40dc3293d64189e0d6c2a9dc267, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Material: {fileID: 2100000, guid: 81761397ecc4ac844aa0a9022e0718b7, type: 2}
+  m_Material: {fileID: 2100000, guid: 79aa3275da461234bb1e73f16c4de8b4, type: 2}
   m_Color: {r: 0.3018868, g: 0.3018868, b: 0.3018868, a: 0.6431373}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
@@ -334,16 +334,10 @@ MonoBehaviour:
   m_OutlineColor:
     serializedVersion: 2
     rgba: 4294924089
-  m_ShadowColor:
-    serializedVersion: 2
-    rgba: 4278190080
   m_OutlineWidth: 2
-  m_CornerRadius: 10
-  m_ShadowOffset: {x: 0, y: 0}
-  m_ShadowSpread: 0
+  m_CornerRadius: 4
   m_Fill: 1
   m_Outline: 1
-  m_Shadow: 0
 --- !u!114 &5484102068462752938
 MonoBehaviour:
   m_ObjectHideFlags: 0

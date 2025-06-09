@@ -74,13 +74,18 @@ namespace ReactiveData.Core
         private IReactive<K> source;
         private Func<K, T> transform;
 
-        public override T Value => transform(source.Value);
+        private T value;
 
-        public DerivedReactive(IReactive<K> source, Func<K, T> transform)
+        public override T Value => value;
+        private IEqualityComparer<T> Comparer { get; }
+
+        public DerivedReactive(IReactive<K> source, Func<K, T> transform, IEqualityComparer<T> comparer = null)
         {
             this.source = source;
             this.transform = transform;
             source.OnChanged += Trigger;
+            value = transform(source.Value);
+            Comparer = comparer ?? EqualityComparer<T>.Default;
         }
 
         public void Dispose()
@@ -94,6 +99,59 @@ namespace ReactiveData.Core
         }
 
         private void Trigger(K value)
+        {
+            var newValue = transform(value);
+            if (!Comparer.Equals(this.value, newValue))
+            {
+                this.value = newValue;
+                MarkChange();
+            }
+        }
+
+        public void AddAndCall(Action<T> action)
+        {
+            OnChanged += action;
+            action(Value);
+        }
+    }
+
+    public class NestedReactive<K, T> : ReactiveBase<T>
+    {
+        private IReactive<K> source;
+        private Func<K, IReactive<T>> keySelector;
+
+        private IReactive<T> key;
+
+        public override T Value => key == null ? default : key.Value;
+
+        public NestedReactive(IReactive<K> source, Func<K, IReactive<T>> keySelector)
+        {
+            this.source = source;
+            this.keySelector = keySelector;
+            source.OnChanged += TriggerSource;
+            key = keySelector(source.Value);
+            if (key != null) key.OnChanged += TriggerKey;
+        }
+
+        public void Dispose()
+        {
+            if (source != null)
+            {
+                source.OnChanged -= TriggerSource;
+                source = null;
+            }
+            keySelector = null;
+        }
+
+        private void TriggerSource(K value)
+        {
+            if (key != null) key.OnChanged -= TriggerKey;
+            key = keySelector(value);
+            if (key != null) key.OnChanged += TriggerKey;
+            MarkChange();
+        }
+
+        private void TriggerKey(T value)
         {
             MarkChange();
         }

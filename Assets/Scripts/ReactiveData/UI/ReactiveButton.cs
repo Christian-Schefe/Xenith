@@ -27,6 +27,13 @@ namespace ReactiveData.UI
             UpdateState();
         }
 
+        private void OnDisable()
+        {
+            isPointerInside = false;
+            isPressed = false;
+            UpdateState();
+        }
+
         public void AddListener(System.Action onClick)
         {
             OnClick += onClick;

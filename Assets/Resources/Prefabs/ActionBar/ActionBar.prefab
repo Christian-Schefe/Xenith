@@ -46,7 +46,7 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 127059929899384744}
-  m_CullTransparentMesh: 1
+  m_CullTransparentMesh: 0
 --- !u!114 &7836366207105195430
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -85,7 +85,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9672c40dc3293d64189e0d6c2a9dc267, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Material: {fileID: 2100000, guid: 81761397ecc4ac844aa0a9022e0718b7, type: 2}
+  m_Material: {fileID: 2100000, guid: 79aa3275da461234bb1e73f16c4de8b4, type: 2}
   m_Color: {r: 0.011764706, g: 0.02745098, b: 0.07058824, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
@@ -96,16 +96,10 @@ MonoBehaviour:
   m_OutlineColor:
     serializedVersion: 2
     rgba: 452984831
-  m_ShadowColor:
-    serializedVersion: 2
-    rgba: 4278190080
   m_OutlineWidth: 2
   m_CornerRadius: 0
-  m_ShadowOffset: {x: 0, y: 0}
-  m_ShadowSpread: 0
   m_Fill: 1
   m_Outline: 1
-  m_Shadow: 0
 --- !u!114 &5916521530619858418
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -123,8 +117,8 @@ MonoBehaviour:
     color: 5
     alpha: 1
   defaultOutlineColor:
-    color: 1
-    alpha: 0.1
+    color: 9
+    alpha: 1
 --- !u!1 &997612283957666917
 GameObject:
   m_ObjectHideFlags: 0
@@ -379,7 +373,7 @@ CanvasRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6142218112985904782}
-  m_CullTransparentMesh: 1
+  m_CullTransparentMesh: 0
 --- !u!114 &1379373505770866439
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -418,7 +412,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9672c40dc3293d64189e0d6c2a9dc267, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  m_Material: {fileID: 2100000, guid: 81761397ecc4ac844aa0a9022e0718b7, type: 2}
+  m_Material: {fileID: 2100000, guid: 79aa3275da461234bb1e73f16c4de8b4, type: 2}
   m_Color: {r: 0.011764706, g: 0.02745098, b: 0.07058824, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
@@ -429,16 +423,10 @@ MonoBehaviour:
   m_OutlineColor:
     serializedVersion: 2
     rgba: 0
-  m_ShadowColor:
-    serializedVersion: 2
-    rgba: 4278190080
   m_OutlineWidth: 2
   m_CornerRadius: 0
-  m_ShadowOffset: {x: 0, y: 0}
-  m_ShadowSpread: 0
   m_Fill: 1
   m_Outline: 1
-  m_Shadow: 0
 --- !u!114 &7424549311474820996
 MonoBehaviour:
   m_ObjectHideFlags: 0

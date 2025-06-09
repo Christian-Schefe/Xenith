@@ -32,7 +32,7 @@ public class TrackEditor : MonoBehaviour
     private void Start()
     {
         var main = Globals<Main>.Instance;
-        main.app.openElement.AddAndCall(OnOpenElementChanged);
+        main.app.openSong.AddAndCall(OnOpenSongChanged);
     }
 
     private void InitializeBinder()
@@ -66,9 +66,9 @@ public class TrackEditor : MonoBehaviour
         });
     }
 
-    private void OnOpenElementChanged(Nand<ReactiveSong, ReactiveGraph> element)
+    private void OnOpenSongChanged(ReactiveSong song)
     {
-        bool visible = element.TryGet(out ReactiveSong song);
+        bool visible = song != null;
         uiRoot.gameObject.SetActive(visible);
         trackAction ??= BuildAction();
         var actionBar = Globals<ActionBar>.Instance;

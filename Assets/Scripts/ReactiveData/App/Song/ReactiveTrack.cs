@@ -12,6 +12,7 @@ namespace ReactiveData.App
     {
         public Reactive<string> name;
         public Reactive<DTO.NodeResource> instrument;
+        public ReactiveList<DTO.NodeResource> effects;
         public Reactive<bool> isMuted;
         public Reactive<bool> isSoloed;
         public Reactive<float> volume;
@@ -24,12 +25,13 @@ namespace ReactiveData.App
         private readonly ReactiveFloatNode volumeNode;
         public ReactiveFloatNode VolumeNode => volumeNode;
 
-        public static ReactiveTrack Default => new("New Track", new("default_synth", true), false, false, 0.75f, 0.0f, MusicKey.CMajor, new List<ReactiveNote>());
+        public static ReactiveTrack Default => new("New Track", new("default_synth", true), new List<DTO.NodeResource>(), false, false, 0.75f, 0.0f, MusicKey.CMajor, new List<ReactiveNote>());
 
-        public ReactiveTrack(string name, DTO.NodeResource instrument, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, IEnumerable<ReactiveNote> notes)
+        public ReactiveTrack(string name, DTO.NodeResource instrument, IEnumerable<DTO.NodeResource> effects, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, IEnumerable<ReactiveNote> notes)
         {
             this.name = new(name);
             this.instrument = new(instrument);
+            this.effects = new(effects);
             this.isMuted = new(isMuted);
             this.isSoloed = new(isSoloed);
             this.volume = new(volume);

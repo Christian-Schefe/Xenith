@@ -87,6 +87,7 @@ namespace DTO
     {
         public string name;
         public NodeResource instrument;
+        public List<NodeResource> effects;
         public bool isMuted;
         public bool isSoloed;
         public float volume;
@@ -94,10 +95,11 @@ namespace DTO
         public MusicKey keySignature;
         public List<Note> notes;
 
-        public Track(string name, NodeResource instrument, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, List<Note> notes)
+        public Track(string name, NodeResource instrument, List<NodeResource> effects, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, List<Note> notes)
         {
             this.name = name;
             this.instrument = instrument;
+            this.effects = effects;
             this.isMuted = isMuted;
             this.isSoloed = isSoloed;
             this.volume = volume;
