@@ -1,15 +1,21 @@
 namespace JsonPattern
 {
+    /// <summary>
+    /// Accepts a string value.
+    /// </summary>
     public class StringSchema : JsonSchema<StringSchemaValue, StringValue>
     {
         internal override void DoDeserialization(StringValue json, DeserializationContext ctx)
         {
-            ctx.Okay(new StringSchemaValue(json.value));
+            ctx.Push(new StringSchemaValue(json.value));
         }
 
         public RegexStringSchema Matches(string pattern) => new(pattern, this);
     }
 
+    /// <summary>
+    /// Accepts a string value that matches a specified regular expression pattern.
+    /// </summary>
     public class RegexStringSchema : StringSchema
     {
         private readonly StringSchema inner;
@@ -26,7 +32,7 @@ namespace JsonPattern
             inner.DoDeserialization(json, ctx);
             if (ctx.IsOkay && !System.Text.RegularExpressions.Regex.IsMatch(json.value, pattern))
             {
-                ctx.Take();
+                ctx.Pop();
                 ctx.Error(json, $"String '{json.value}' does not match pattern '{pattern}'.");
             }
         }
@@ -34,7 +40,8 @@ namespace JsonPattern
 
     public class StringSchemaValue : SchemaValue
     {
-        public string value;
+        private readonly string value;
+        public string Value => value;
 
         public StringSchemaValue(string value)
         {
@@ -44,22 +51,6 @@ namespace JsonPattern
         public override JsonValue Serialize()
         {
             return new StringValue(value);
-        }
-
-        public override T Get<T>(string path)
-        {
-            if (path != string.Empty)
-            {
-                throw new System.InvalidOperationException($"{nameof(StringSchemaValue)} does not support path access.");
-            }
-            else if (typeof(T) == typeof(string))
-            {
-                return (T)(object)value;
-            }
-            else
-            {
-                throw new System.InvalidOperationException($"Cannot get value of type {typeof(T)} from {nameof(StringSchemaValue)}.");
-            }
         }
     }
 }

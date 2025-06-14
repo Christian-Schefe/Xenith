@@ -19,7 +19,7 @@ namespace JsonPattern
             foreach (var val in values)
             {
                 if (first) first = false;
-                else sb.Append(", ");
+                else sb.Append(",");
                 sb.Append(val.ToString());
             }
             sb.Append("]");

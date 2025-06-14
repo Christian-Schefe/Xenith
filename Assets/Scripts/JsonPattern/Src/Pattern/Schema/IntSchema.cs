@@ -1,11 +1,14 @@
 namespace JsonPattern
 {
+    /// <summary>
+    /// Accepts an integer value.
+    /// </summary>
     public class IntSchema : JsonSchema<IntSchemaValue, NumberValue>
     {
         internal override void DoDeserialization(NumberValue json, DeserializationContext ctx)
         {
             bool isInt = json.value == (int)json.value;
-            if (isInt) ctx.Okay(new IntSchemaValue((int)json.value));
+            if (isInt) ctx.Push(new IntSchemaValue((int)json.value));
             else ctx.Error(json, $"Expected an integer, but got {json.value}.");
         }
 
@@ -14,6 +17,9 @@ namespace JsonPattern
         public RangeInt Range(int minValue, int maxValue) => new(minValue, maxValue, this);
     }
 
+    /// <summary>
+    /// Accepts an integer value within a specified range.
+    /// </summary>
     public class RangeInt : IntSchema
     {
         private readonly IntSchema inner;
@@ -35,12 +41,12 @@ namespace JsonPattern
                 var num = (int)json.value;
                 if (minValue is int min && num < min)
                 {
-                    ctx.Take();
+                    ctx.Pop();
                     ctx.Error(json, $"Value {num} is below minimum limit of {minValue}.");
                 }
                 else if (maxValue is int max && num > max)
                 {
-                    ctx.Take();
+                    ctx.Pop();
                     ctx.Error(json, $"Value {num} exceeds maximum limit of {maxValue}.");
                 }
             }
@@ -49,7 +55,8 @@ namespace JsonPattern
 
     public class IntSchemaValue : SchemaValue
     {
-        internal readonly int value;
+        private readonly int value;
+        public int Value => value;
 
         public IntSchemaValue(int value)
         {
@@ -59,26 +66,6 @@ namespace JsonPattern
         public override JsonValue Serialize()
         {
             return new NumberValue(value);
-        }
-
-        public override T Get<T>(string path)
-        {
-            if (path != string.Empty)
-            {
-                throw new System.InvalidOperationException($"{nameof(IntSchemaValue)} does not support path access.");
-            }
-            else
-            {
-                try
-                {
-                    var targetType = System.Nullable.GetUnderlyingType(typeof(T)) ?? typeof(T);
-                    return (T)System.Convert.ChangeType(value, targetType);
-                }
-                catch
-                {
-                    throw new System.InvalidOperationException($"Cannot get value of type {typeof(T)} from {nameof(IntSchemaValue)}.");
-                }
-            }
         }
     }
 }

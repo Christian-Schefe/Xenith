@@ -8,5 +8,6 @@ public class ApplicationTest
     public void Test()
     {
         new TestApplication().Test();
+        new TestApplication().Test2();
     }
 }

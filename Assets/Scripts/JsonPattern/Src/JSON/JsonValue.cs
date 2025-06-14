@@ -331,16 +331,7 @@ namespace JsonPattern
             {
                 while (position < json.Length && char.IsWhiteSpace(json[position]))
                 {
-                    if (json[position] == '\n')
-                    {
-                        line++;
-                        column = 1;
-                    }
-                    else
-                    {
-                        column++;
-                    }
-                    position++;
+                    AdvanceUnchecked();
                 }
             }
 

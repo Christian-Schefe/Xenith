@@ -19,7 +19,7 @@ namespace JsonPattern
             foreach (var kvp in values)
             {
                 if (first) first = false;
-                else sb.Append(", ");
+                else sb.Append(",");
                 sb.Append(kvp.Key);
                 sb.Append(":");
                 sb.Append(kvp.Value.ToString());

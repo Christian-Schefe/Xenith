@@ -24,5 +24,10 @@ namespace JsonPattern
             this.line = line;
             this.column = column;
         }
+
+        public override readonly string ToString()
+        {
+            return $"Line: {line}, Column: {column}";
+        }
     }
 }

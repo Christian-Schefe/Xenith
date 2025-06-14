@@ -3,6 +3,9 @@ using System.Linq;
 
 namespace JsonPattern
 {
+    /// <summary>
+    /// Accepts an object with a fixed set of keys, each associated with a specific schema.
+    /// </summary>
     public class ObjectSchema : JsonSchema<ObjectSchemaValue, ObjectValue>
     {
         private readonly Dictionary<string, Schema> values;
@@ -24,13 +27,15 @@ namespace JsonPattern
             {
                 if (json.values.TryGetValue(key, out var jsonValue))
                 {
+                    ctx.Enter(key);
                     schema.DoDeserialization(jsonValue, ctx);
+                    ctx.Exit();
                     if (ctx.IsError) return;
-                    result[key] = ctx.Take();
+                    result[key] = ctx.Pop();
                 }
-                else if (schema is NullableSchema)
+                else if (schema is IOptionalSchema optionalSchema)
                 {
-                    result[key] = new NullableSchemaValue(null);
+                    result[key] = optionalSchema.GetDefault();
                 }
                 else
                 {
@@ -38,7 +43,7 @@ namespace JsonPattern
                     return;
                 }
             }
-            ctx.Okay(new ObjectSchemaValue(result));
+            ctx.Push(new ObjectSchemaValue(result));
         }
     }
 
@@ -56,23 +61,34 @@ namespace JsonPattern
             return new ObjectValue(values.ToDictionary(e => e.Key, e => e.Value.Serialize()));
         }
 
-        public override T Get<T>(string path)
+        public SchemaValue this[string key]
         {
-            if (string.IsNullOrEmpty(path))
+            get
             {
-                throw new System.InvalidOperationException("ObjectSchemaValue does not support empty path access.");
+                if (values.TryGetValue(key, out var value))
+                {
+                    return value;
+                }
+                throw new KeyNotFoundException($"Key '{key}' not found.");
             }
-            int index = path.IndexOf('.');
-            string key = index == -1 ? path : path[..index];
+        }
+
+        public override bool TryGet(string path, out SchemaValue val)
+        {
+            if (base.TryGet(path, out val)) return true;
+
+            SplitPath(path, out var key, out var remaining, out var isOptional);
             if (values.TryGetValue(key, out var value))
             {
-                var remainingPath = index == -1 ? string.Empty : path[(index + 1)..];
-                return value.Get<T>(remainingPath);
+                if (isOptional && value is NullSchemaValue nVal)
+                {
+                    val = nVal;
+                    return true;
+                }
+                return value.TryGet(remaining, out val);
             }
-            else
-            {
-                throw new KeyNotFoundException($"Key '{key}' not found in ObjectSchemaValue.");
-            }
+            val = null;
+            return false;
         }
     }
 }

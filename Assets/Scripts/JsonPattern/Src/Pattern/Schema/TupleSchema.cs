@@ -3,6 +3,9 @@ using System.Linq;
 
 namespace JsonPattern
 {
+    /// <summary>
+    /// Accepts a tuple of values, each conforming to a specified schema.
+    /// </summary>
     public class TupleSchema : JsonSchema<TupleSchemaValue, ArrayValue>
     {
         private readonly List<Schema> values;
@@ -30,17 +33,21 @@ namespace JsonPattern
             {
                 var schema = values[i];
                 var val = json.values[i];
+                ctx.Enter(i.ToString());
                 schema.DoDeserialization(val, ctx);
+                ctx.Exit();
                 if (ctx.IsError) return;
-                result.Add(ctx.Take());
+                result.Add(ctx.Pop());
             }
-            ctx.Okay(new TupleSchemaValue(result));
+            ctx.Push(new TupleSchemaValue(result));
         }
     }
 
     public class TupleSchemaValue : SchemaValue
     {
-        public List<SchemaValue> values;
+        private readonly List<SchemaValue> values;
+
+        public int Count => values.Count;
 
         public TupleSchemaValue(List<SchemaValue> values)
         {
@@ -52,20 +59,25 @@ namespace JsonPattern
             return new ArrayValue(values.Select(e => e.Serialize()).ToList());
         }
 
-        public override T Get<T>(string path)
+        public SchemaValue this[int key] => values[key];
+
+        public override bool TryGet(string path, out SchemaValue val)
         {
-            if (string.IsNullOrEmpty(path))
+            if (base.TryGet(path, out val)) return true;
+
+            SplitPath(path, out var key, out var remaining, out var isOptional);
+            if (int.TryParse(key, out int keyIndex) && keyIndex >= 0 && keyIndex < values.Count)
             {
-                throw new System.InvalidOperationException("ObjectSchemaValue does not support empty path access.");
+                var value = values[keyIndex];
+                if (isOptional && value is NullSchemaValue nVal)
+                {
+                    val = nVal;
+                    return true;
+                }
+                return value.TryGet(remaining, out val);
             }
-            int index = path.IndexOf('.');
-            string key = index == -1 ? path : path[..index];
-            if (!int.TryParse(key, out int keyIndex) || keyIndex < 0 || keyIndex >= values.Count)
-            {
-                throw new System.IndexOutOfRangeException($"Index '{key}' is out of range for TupleSchemaValue with {values.Count} elements.");
-            }
-            var remainingPath = index == -1 ? string.Empty : path[(index + 1)..];
-            return values[keyIndex].Get<T>(remainingPath);
+            val = null;
+            return false;
         }
     }
 }
