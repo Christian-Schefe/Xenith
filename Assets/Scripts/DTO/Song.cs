@@ -1,139 +1,98 @@
+using JsonPattern;
 using PianoRoll;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace DTO
 {
-    public class SongID
+    public class SongSchema : VersionedSchema
     {
-        public string path;
-
-        public SongID(string path)
+        public SongSchema() : base(new V1(), new() { })
         {
-            this.path = path;
         }
 
-        public virtual string GetName()
+        public class V1 : SchemaVersion
         {
-            return System.IO.Path.GetFileNameWithoutExtension(path);
-        }
+            public static ClassProp<ArraySchemaValue> tracks = new("tracks", new ArraySchema(new TrackSchema()));
+            public static ClassProp<ArraySchemaValue> tempoEvents = new("tempoEvents", new ArraySchema(new TempoEventSchema()));
 
-        public override bool Equals(object obj)
-        {
-            if (obj is SongID other)
+            public V1() : base("1.0") { }
+
+            protected override (string key, Schema val)[] Values => new[] { tracks.Key, tempoEvents.Key };
+
+            public static ObjectSchemaValue Make(IEnumerable<SchemaValue> tracks, IEnumerable<SchemaValue> tempoEvents)
             {
-                return path == other.path;
+                return new ObjectSchemaValue(
+                    V1.tracks.Make(new(tracks.ToList())),
+                    V1.tempoEvents.Make(new(tempoEvents.ToList()))
+                );
             }
-            return false;
-        }
 
-        public override int GetHashCode()
-        {
-            return path.GetHashCode();
-        }
-
-        public static bool operator ==(SongID a, SongID b)
-        {
-            return a is null ? b is null : a.Equals(b);
-        }
-
-        public static bool operator !=(SongID a, SongID b)
-        {
-            return a is null ? b is not null : !a.Equals(b);
-        }
-    }
-
-    public class UnsavedSongID : SongID
-    {
-        public int index;
-
-        public UnsavedSongID(int index) : base(null)
-        {
-            this.index = index;
-        }
-
-        public override string GetName()
-        {
-            return $"Untitled {index}";
-        }
-
-        public override bool Equals(object obj)
-        {
-            if (obj is UnsavedSongID other)
+            public class NoteSchema : ClassSchema
             {
-                return index == other.index;
+                public static ClassProp<FloatSchemaValue> beat = new("beat", new FloatSchema());
+                public static ClassProp<IntSchemaValue> pitch = new("pitch", new IntSchema());
+                public static ClassProp<FloatSchemaValue> velocity = new("velocity", new FloatSchema());
+                public static ClassProp<FloatSchemaValue> length = new("length", new FloatSchema());
+
+                protected override (string key, Schema val)[] Values => new[] { beat.Key, pitch.Key, velocity.Key, length.Key };
+
+                public static ObjectSchemaValue Make(float beat, int pitch, float velocity, float length)
+                {
+                    return new ObjectSchemaValue(
+                        NoteSchema.beat.Make(new(beat)),
+                        NoteSchema.pitch.Make(new(pitch)),
+                        NoteSchema.velocity.Make(new(velocity)),
+                        NoteSchema.length.Make(new(length))
+                    );
+                }
             }
-            return false;
-        }
 
-        public override int GetHashCode()
-        {
-            return index.GetHashCode();
-        }
-    }
+            public class TempoEventSchema : ClassSchema
+            {
+                public static ClassProp<FloatSchemaValue> beat = new("beat", new FloatSchema());
+                public static ClassProp<FloatSchemaValue> bps = new("bps", new FloatSchema());
 
-    public struct Song
-    {
-        public List<Track> tracks;
-        public List<TempoEvent> tempoEvents;
+                protected override (string key, Schema val)[] Values => new[] { beat.Key, bps.Key };
 
-        public Song(List<Track> tracks, List<TempoEvent> tempoEvents)
-        {
-            this.tracks = tracks;
-            this.tempoEvents = tempoEvents;
-        }
-    }
+                public static ObjectSchemaValue Make(float beat, float bps)
+                {
+                    return new ObjectSchemaValue(
+                        TempoEventSchema.beat.Make(new(beat)),
+                        TempoEventSchema.bps.Make(new(bps))
+                    );
+                }
+            }
 
-    public struct Track
-    {
-        public string name;
-        public NodeResource instrument;
-        public List<NodeResource> effects;
-        public bool isMuted;
-        public bool isSoloed;
-        public float volume;
-        public float pan;
-        public MusicKey keySignature;
-        public List<Note> notes;
+            public class TrackSchema : ClassSchema
+            {
+                public static ClassProp<StringSchemaValue> name = new("name", new StringSchema());
+                public static ClassProp<AutoSchemaValue<NodeResource>> instrument = new("instrument", new AutoSchema<NodeResource>());
+                public static ClassProp<ArraySchemaValue<AutoSchemaValue<NodeResource>>> effects = new("effects", new ArraySchema<AutoSchemaValue<NodeResource>>(new AutoSchema<NodeResource>()));
+                public static ClassProp<BoolSchemaValue> isMuted = new("isMuted", new BoolSchema());
+                public static ClassProp<BoolSchemaValue> isSoloed = new("isSoloed", new BoolSchema());
+                public static ClassProp<FloatSchemaValue> volume = new("volume", new FloatSchema());
+                public static ClassProp<FloatSchemaValue> pan = new("pan", new FloatSchema());
+                public static ClassProp<AutoSchemaValue<MusicKey>> keySignature = new("keySignature", new AutoSchema<MusicKey>());
+                public static ClassProp<ArraySchemaValue> notes = new("notes", new ArraySchema(new NoteSchema()));
 
-        public Track(string name, NodeResource instrument, List<NodeResource> effects, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, List<Note> notes)
-        {
-            this.name = name;
-            this.instrument = instrument;
-            this.effects = effects;
-            this.isMuted = isMuted;
-            this.isSoloed = isSoloed;
-            this.volume = volume;
-            this.pan = pan;
-            this.keySignature = keySignature;
-            this.notes = notes;
-        }
-    }
+                protected override (string key, Schema val)[] Values => new[] { name.Key, instrument.Key, effects.Key, isMuted.Key, isSoloed.Key, volume.Key, pan.Key, keySignature.Key, notes.Key };
 
-    public struct TempoEvent
-    {
-        public float beat;
-        public float bps;
-
-        public TempoEvent(float beat, float bps)
-        {
-            this.beat = beat;
-            this.bps = bps;
-        }
-    }
-
-    public struct Note
-    {
-        public float beat;
-        public int pitch;
-        public float velocity;
-        public float length;
-
-        public Note(float beat, int pitch, float velocity, float length)
-        {
-            this.beat = beat;
-            this.pitch = pitch;
-            this.length = length;
-            this.velocity = velocity;
+                public static ObjectSchemaValue Make(string name, NodeResource instrument, IEnumerable<NodeResource> effects, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, IEnumerable<SchemaValue> notes)
+                {
+                    return new ObjectSchemaValue(
+                        TrackSchema.name.Make(new(name)),
+                        TrackSchema.instrument.Make(new(instrument)),
+                        TrackSchema.effects.Make(new(effects.Select(e => new AutoSchemaValue<NodeResource>(e)).ToList())),
+                        TrackSchema.isMuted.Make(new(isMuted)),
+                        TrackSchema.isSoloed.Make(new(isSoloed)),
+                        TrackSchema.volume.Make(new(volume)),
+                        TrackSchema.pan.Make(new(pan)),
+                        TrackSchema.keySignature.Make(new(keySignature)),
+                        TrackSchema.notes.Make(new(notes.ToList()))
+                    );
+                }
+            }
         }
     }
 }

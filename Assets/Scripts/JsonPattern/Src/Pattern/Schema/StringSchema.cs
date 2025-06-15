@@ -40,8 +40,15 @@ namespace JsonPattern
 
     public class StringSchemaValue : SchemaValue
     {
-        private readonly string value;
-        public string Value => value;
+        private string value;
+        public string Value
+        {
+            get => value;
+            set
+            {
+                this.value = value ?? throw new System.ArgumentNullException(nameof(value), "String value cannot be null.");
+            }
+        }
 
         public StringSchemaValue(string value)
         {

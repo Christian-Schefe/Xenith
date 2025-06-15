@@ -1,3 +1,16 @@
 {
-	"name": "JsonPattern"
+    "name": "JsonPattern",
+    "rootNamespace": "",
+    "references": [
+        "GUID:48cebc76d4331d54aa8a0a08da767c41"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
 }

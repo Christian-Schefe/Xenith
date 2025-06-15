@@ -1,10 +1,10 @@
+using DTO;
 using NodeGraph;
 using Persistence;
 using ReactiveData.Core;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
-using Yeast;
 
 namespace ReactiveData.App
 {
@@ -42,22 +42,22 @@ namespace ReactiveData.App
                 Debug.LogError($"Failed to read file from {path}");
             }
 
-            if (json.TryFromJson(out DTO.Song dtoSong))
+            if (new SongSchema.V1().TryDeserialize(json, out var schemaVal, out var err))
             {
-                song = DTOConverter.Deserialize(path, dtoSong);
+                song = DTOConverter.DeserializeSong(path, schemaVal);
                 songs.Add(song);
                 return true;
             }
 
             song = null;
-            Debug.LogError($"Failed to parse song from {path}");
+            Debug.LogError($"Failed to parse song from {path}: {err}");
             return false;
         }
 
         public void SaveSong(ReactiveSong song, string path)
         {
             song.path.Value = path;
-            FilePersistence.SaveFullPath(path, DTOConverter.Serialize(song).ToJson());
+            FilePersistence.SaveFullPath(path, DTOConverter.Serialize(song).Serialize().ToString());
         }
 
         public bool TryLoadGraph(string path, out ReactiveGraph graph)

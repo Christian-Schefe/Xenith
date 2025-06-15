@@ -55,8 +55,12 @@ namespace JsonPattern
 
     public class IntSchemaValue : SchemaValue
     {
-        private readonly int value;
-        public int Value => value;
+        private int value;
+        public int Value
+        {
+            get => value;
+            set => this.value = value;
+        }
 
         public IntSchemaValue(int value)
         {

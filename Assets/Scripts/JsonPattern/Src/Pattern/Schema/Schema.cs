@@ -1,10 +1,22 @@
-using System.Collections.Generic;
-
 namespace JsonPattern
 {
     public abstract class Schema
     {
         internal abstract void DoDeserialization(JsonValue json, DeserializationContext ctx);
+
+        private bool TryDeserialize(JsonValue json, DeserializationContext ctx, out SchemaValue value, out string error)
+        {
+            DoDeserialization(json, ctx);
+            value = ctx.IsOkay ? ctx.Pop() : null;
+            error = ctx.IsOkay ? null : ctx.ErrorMessage;
+            return ctx.IsOkay;
+        }
+
+        public bool TryDeserialize(JsonValue json, out SchemaValue value, out string error)
+        {
+            var ctx = new DeserializationContext(null);
+            return TryDeserialize(json, ctx, out value, out error);
+        }
 
         public bool TryDeserialize(string json, out SchemaValue value)
         {
@@ -16,10 +28,7 @@ namespace JsonPattern
             if (JsonValue.TryParse(json, out var jsonValue, out var sourceMap))
             {
                 var ctx = new DeserializationContext(sourceMap);
-                DoDeserialization(jsonValue, ctx);
-                value = ctx.IsOkay ? ctx.Pop() : null;
-                error = ctx.IsOkay ? null : ctx.ErrorMessage;
-                return ctx.IsOkay;
+                return TryDeserialize(jsonValue, ctx, out value, out error);
             }
             else
             {
@@ -123,63 +132,5 @@ namespace JsonPattern
         }
 
         public T As<T>() where T : SchemaValue => As<T>(string.Empty);
-    }
-
-    internal class DeserializationContext
-    {
-        public JsonSourceMap sourceMap;
-        private readonly Stack<SchemaValue> results;
-        private readonly List<string> path;
-        private bool isError;
-        private string errorMessage;
-        private string errorPath;
-        private JsonSourcePosition errorPosition;
-
-        public bool IsOkay => !isError;
-        public bool IsError => isError;
-        public string ErrorMessage => $"Error at /{errorPath} [{errorPosition.line}:{errorPosition.column}]: {errorMessage}";
-
-        public DeserializationContext(JsonSourceMap sourceMap)
-        {
-            this.sourceMap = sourceMap;
-            results = new();
-            path = new();
-        }
-
-        public void Enter(string name)
-        {
-            path.Add(name);
-        }
-
-        public void Exit()
-        {
-            path.RemoveAt(path.Count - 1);
-        }
-
-        public SchemaValue Pop()
-        {
-            return results.Pop();
-        }
-
-        public void Push(SchemaValue result)
-        {
-            results.Push(result);
-        }
-
-        public void Unerror()
-        {
-            isError = false;
-            errorMessage = null;
-            errorPosition = default;
-            errorPath = null;
-        }
-
-        public void Error(JsonValue value, string errorMessage)
-        {
-            isError = true;
-            this.errorMessage = errorMessage;
-            errorPosition = sourceMap.Get(value);
-            errorPath = string.Join('.', path);
-        }
     }
 }

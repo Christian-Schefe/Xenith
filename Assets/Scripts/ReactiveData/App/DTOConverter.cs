@@ -1,4 +1,5 @@
 using DTO;
+using JsonPattern;
 using ReactiveData.Core;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,27 +9,27 @@ namespace ReactiveData.App
 {
     public static class DTOConverter
     {
-        public static Song Serialize(ReactiveSong song)
+        public static SchemaValue Serialize(ReactiveSong song)
         {
             var tracksList = song.tracks.Select(Serialize).ToList();
             var tempoEventsList = song.tempoEvents.Select(Serialize).ToList();
-            return new Song(tracksList, tempoEventsList);
+            return SongSchema.V1.Make(tracksList, tempoEventsList);
         }
 
-        public static Track Serialize(ReactiveTrack track)
+        public static SchemaValue Serialize(ReactiveTrack track)
         {
             var notesList = track.notes.Select(Serialize).ToList();
-            return new(track.name.Value, track.instrument.Value, track.effects.ToList(), track.isMuted.Value, track.isSoloed.Value, track.volume.Value, track.pan.Value, track.keySignature.Value, notesList);
+            return SongSchema.V1.TrackSchema.Make(track.name.Value, track.instrument.Value, track.effects.ToList(), track.isMuted.Value, track.isSoloed.Value, track.volume.Value, track.pan.Value, track.keySignature.Value, notesList);
         }
 
-        public static Note Serialize(ReactiveNote note)
+        public static SchemaValue Serialize(ReactiveNote note)
         {
-            return new(note.beat.Value, note.pitch.Value, note.velocity.Value, note.length.Value);
+            return SongSchema.V1.NoteSchema.Make(note.beat.Value, note.pitch.Value, note.velocity.Value, note.length.Value);
         }
 
-        public static TempoEvent Serialize(ReactiveTempoEvent tempoEvent)
+        public static SchemaValue Serialize(ReactiveTempoEvent tempoEvent)
         {
-            return new(tempoEvent.beat.Value, tempoEvent.bps.Value);
+            return SongSchema.V1.TempoEventSchema.Make(tempoEvent.beat.Value, tempoEvent.bps.Value);
         }
 
         public static Graph Serialize(ReactiveGraph graph)
@@ -52,27 +53,45 @@ namespace ReactiveData.App
             return new(node.position.Value, node.id.Value, serializedSettings);
         }
 
-        public static ReactiveSong Deserialize(string path, Song song)
+        public static ReactiveSong DeserializeSong(string path, SchemaValue song)
         {
-            var tracks = song.tracks.Select(Deserialize);
-            var tempoEvents = song.tempoEvents.Select(Deserialize);
+            var tracks = SongSchema.V1.tracks.Retrieve(song).Values.Select(DeserializeTrack).ToList();
+            var tempoEvents = SongSchema.V1.tempoEvents.Retrieve(song).Values.Select(DeserializeTempoEvent).ToList();
             return new ReactiveSong(path, tracks, tempoEvents);
         }
 
-        public static ReactiveTrack Deserialize(Track track)
+        public static ReactiveTrack DeserializeTrack(SchemaValue track)
         {
-            var notes = track.notes.Select(Deserialize);
-            return new ReactiveTrack(track.name, track.instrument, track.effects, track.isMuted, track.isSoloed, track.volume, track.pan, track.keySignature, notes);
+            var notes = SongSchema.V1.TrackSchema.notes.Retrieve(track).Values.Select(DeserializeNote);
+            return new ReactiveTrack(
+                SongSchema.V1.TrackSchema.name.Retrieve(track).Value,
+                SongSchema.V1.TrackSchema.instrument.Retrieve(track).Value,
+                SongSchema.V1.TrackSchema.effects.Retrieve(track).Values.Select(e => e.Value).ToList(),
+                SongSchema.V1.TrackSchema.isMuted.Retrieve(track).Value,
+                SongSchema.V1.TrackSchema.isSoloed.Retrieve(track).Value,
+                SongSchema.V1.TrackSchema.volume.Retrieve(track).Value,
+                SongSchema.V1.TrackSchema.pan.Retrieve(track).Value,
+                SongSchema.V1.TrackSchema.keySignature.Retrieve(track).Value,
+                notes
+            );
         }
 
-        public static ReactiveNote Deserialize(Note note)
+        public static ReactiveNote DeserializeNote(SchemaValue note)
         {
-            return new ReactiveNote(note.beat, note.pitch, note.velocity, note.length);
+            return new ReactiveNote(
+                SongSchema.V1.NoteSchema.beat.Retrieve(note).Value,
+                SongSchema.V1.NoteSchema.pitch.Retrieve(note).Value,
+                SongSchema.V1.NoteSchema.velocity.Retrieve(note).Value,
+                SongSchema.V1.NoteSchema.length.Retrieve(note).Value
+            );
         }
 
-        public static ReactiveTempoEvent Deserialize(TempoEvent tempoEvent)
+        public static ReactiveTempoEvent DeserializeTempoEvent(SchemaValue tempoEvent)
         {
-            return new ReactiveTempoEvent(tempoEvent.beat, tempoEvent.bps);
+            return new ReactiveTempoEvent(
+                SongSchema.V1.TempoEventSchema.beat.Retrieve(tempoEvent).Value,
+                SongSchema.V1.TempoEventSchema.bps.Retrieve(tempoEvent).Value
+            );
         }
 
         public static ReactiveGraph Deserialize(string path, Graph graph)

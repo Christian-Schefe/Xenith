@@ -6,7 +6,7 @@ namespace JsonPattern
     /// <summary>
     /// Accepts a tuple of values, each conforming to a specified schema.
     /// </summary>
-    public class TupleSchema : JsonSchema<TupleSchemaValue, ArrayValue>
+    public class TupleSchema : JsonSchema<ArraySchemaValue, ArrayValue>
     {
         private readonly List<Schema> values;
 
@@ -39,45 +39,7 @@ namespace JsonPattern
                 if (ctx.IsError) return;
                 result.Add(ctx.Pop());
             }
-            ctx.Push(new TupleSchemaValue(result));
-        }
-    }
-
-    public class TupleSchemaValue : SchemaValue
-    {
-        private readonly List<SchemaValue> values;
-
-        public int Count => values.Count;
-
-        public TupleSchemaValue(List<SchemaValue> values)
-        {
-            this.values = values;
-        }
-
-        public override JsonValue Serialize()
-        {
-            return new ArrayValue(values.Select(e => e.Serialize()).ToList());
-        }
-
-        public SchemaValue this[int key] => values[key];
-
-        public override bool TryGet(string path, out SchemaValue val)
-        {
-            if (base.TryGet(path, out val)) return true;
-
-            SplitPath(path, out var key, out var remaining, out var isOptional);
-            if (int.TryParse(key, out int keyIndex) && keyIndex >= 0 && keyIndex < values.Count)
-            {
-                var value = values[keyIndex];
-                if (isOptional && value is NullSchemaValue nVal)
-                {
-                    val = nVal;
-                    return true;
-                }
-                return value.TryGet(remaining, out val);
-            }
-            val = null;
-            return false;
+            ctx.Push(new ArraySchemaValue(result));
         }
     }
 }

@@ -8,7 +8,7 @@ namespace JsonPattern
     /// </summary>
     public class ObjectSchema : JsonSchema<ObjectSchemaValue, ObjectValue>
     {
-        private readonly Dictionary<string, Schema> values;
+        protected readonly Dictionary<string, Schema> values;
 
         public ObjectSchema(Dictionary<string, Schema> values)
         {
@@ -50,27 +50,22 @@ namespace JsonPattern
     public class ObjectSchemaValue : SchemaValue
     {
         private readonly Dictionary<string, SchemaValue> values;
+        public int Count => values.Count;
+        public Dictionary<string, SchemaValue> Values => values;
 
         public ObjectSchemaValue(Dictionary<string, SchemaValue> values)
         {
             this.values = values;
         }
 
+        public ObjectSchemaValue(params (string key, SchemaValue value)[] values)
+        {
+            this.values = values.ToDictionary(e => e.key, e => e.value);
+        }
+
         public override JsonValue Serialize()
         {
             return new ObjectValue(values.ToDictionary(e => e.Key, e => e.Value.Serialize()));
-        }
-
-        public SchemaValue this[string key]
-        {
-            get
-            {
-                if (values.TryGetValue(key, out var value))
-                {
-                    return value;
-                }
-                throw new KeyNotFoundException($"Key '{key}' not found.");
-            }
         }
 
         public override bool TryGet(string path, out SchemaValue val)

@@ -20,7 +20,7 @@ namespace JsonPattern
             {
                 if (first) first = false;
                 else sb.Append(",");
-                sb.Append(kvp.Key);
+                ToJsonString(kvp.Key, sb);
                 sb.Append(":");
                 sb.Append(kvp.Value.ToString());
             }

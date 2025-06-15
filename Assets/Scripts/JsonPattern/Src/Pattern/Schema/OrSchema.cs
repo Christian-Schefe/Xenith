@@ -6,7 +6,7 @@ namespace JsonPattern
     /// <summary>
     /// Accepts the first schema that matches the JSON value.
     /// </summary>
-    public class OrSchema : Schema<TupleSchemaValue>
+    public class OrSchema : Schema<ArraySchemaValue>
     {
         private readonly List<Schema> options;
 
@@ -52,7 +52,7 @@ namespace JsonPattern
             }
             else
             {
-                ctx.Push(new TupleSchemaValue(result));
+                ctx.Push(new ArraySchemaValue(result));
             }
         }
     }
