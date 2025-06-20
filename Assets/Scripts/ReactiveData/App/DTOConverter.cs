@@ -11,23 +11,29 @@ namespace ReactiveData.App
     {
         public static SchemaValue Serialize(ReactiveSong song)
         {
+            var master = Serialize(song.master.Value);
             var tracksList = song.tracks.Select(Serialize).ToList();
             var tempoEventsList = song.tempoEvents.Select(Serialize).ToList();
-            return SongSchema.V1.Make(tracksList, tempoEventsList);
+            return SongSchema.V1.Make(master, tracksList, tempoEventsList);
         }
 
-        public static SchemaValue Serialize(ReactiveTrack track)
+        public static ObjectSchemaValue Serialize(ReactiveMasterTrack masterTrack)
+        {
+            return SongSchema.V1.MasterTrackSchema.Make(masterTrack.effects, masterTrack.volume.Value, masterTrack.pan.Value);
+        }
+
+        public static ObjectSchemaValue Serialize(ReactiveTrack track)
         {
             var notesList = track.notes.Select(Serialize).ToList();
-            return SongSchema.V1.TrackSchema.Make(track.name.Value, track.instrument.Value, track.effects.ToList(), track.isMuted.Value, track.isSoloed.Value, track.volume.Value, track.pan.Value, track.keySignature.Value, notesList);
+            return SongSchema.V1.TrackSchema.Make(track.name.Value, track.instrument.Value, track.effects, track.isMuted.Value, track.isSoloed.Value, track.volume.Value, track.pan.Value, track.keySignature.Value, notesList);
         }
 
-        public static SchemaValue Serialize(ReactiveNote note)
+        public static ObjectSchemaValue Serialize(ReactiveNote note)
         {
             return SongSchema.V1.NoteSchema.Make(note.beat.Value, note.pitch.Value, note.velocity.Value, note.length.Value);
         }
 
-        public static SchemaValue Serialize(ReactiveTempoEvent tempoEvent)
+        public static ObjectSchemaValue Serialize(ReactiveTempoEvent tempoEvent)
         {
             return SongSchema.V1.TempoEventSchema.Make(tempoEvent.beat.Value, tempoEvent.bps.Value);
         }
@@ -55,9 +61,19 @@ namespace ReactiveData.App
 
         public static ReactiveSong DeserializeSong(string path, SchemaValue song)
         {
+            var master = DeserializeMasterTrack(SongSchema.V1.master.Retrieve(song));
             var tracks = SongSchema.V1.tracks.Retrieve(song).Values.Select(DeserializeTrack).ToList();
             var tempoEvents = SongSchema.V1.tempoEvents.Retrieve(song).Values.Select(DeserializeTempoEvent).ToList();
-            return new ReactiveSong(path, tracks, tempoEvents);
+            return new ReactiveSong(path, master, tracks, tempoEvents);
+        }
+
+        public static ReactiveMasterTrack DeserializeMasterTrack(SchemaValue masterTrack)
+        {
+            return new ReactiveMasterTrack(
+                SongSchema.V1.MasterTrackSchema.effects.Retrieve(masterTrack).Values.Select(e => e.Value).ToList(),
+                SongSchema.V1.MasterTrackSchema.volume.Retrieve(masterTrack).Value,
+                SongSchema.V1.MasterTrackSchema.pan.Retrieve(masterTrack).Value
+            );
         }
 
         public static ReactiveTrack DeserializeTrack(SchemaValue track)

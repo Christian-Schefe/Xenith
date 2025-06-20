@@ -184,18 +184,16 @@ namespace DSP
             }
         }
 
-        public override void Initialize()
+        public override void Initialize(Context context)
         {
             foreach (var node in nodes)
             {
-                node.Initialize();
+                node.Initialize(context);
             }
 
             BuildConnectionMap();
             ValidateNodes();
             ConstructExecutionOrder();
-
-            base.Initialize();
         }
 
         public override void Process(Context context)
@@ -234,6 +232,14 @@ namespace DSP
                 clone.AddConnection(new Connection(connection.fromNode, connection.fromOutput, connection.toNode, connection.toInput));
             }
             return clone;
+        }
+
+        public override void Dispose()
+        {
+            foreach (var node in nodes)
+            {
+                node.Dispose();
+            }
         }
     }
 

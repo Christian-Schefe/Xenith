@@ -75,7 +75,7 @@ namespace DSP
                 if (time >= note.time)
                 {
                     var voice = voiceFactory();
-                    voice.Initialize();
+                    voice.Initialize(context);
                     voiceData.Add((note.time + note.duration, note.pitch));
                     voiceInputs.Add(((FloatValue)voice.inputs[0].Value, (BoolValue)voice.inputs[1].Value));
                     voices.Add(voice);

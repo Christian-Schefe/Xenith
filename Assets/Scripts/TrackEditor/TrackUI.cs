@@ -11,6 +11,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     [SerializeField] private TMPro.TMP_InputField trackNameText;
     [SerializeField] private UIImage bgImage;
     [SerializeField] private Slider volumeSlider;
+    [SerializeField] private Slider panSlider;
     [SerializeField] private ReactiveToggleButton muteButton;
     [SerializeField] private ReactiveToggleButton soloButton;
     [SerializeField] private ReactiveToggleButton bgVisibleButton;
@@ -27,6 +28,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         this.track = track;
         track.name.AddAndCall(OnNameChanged);
         track.volume.AddAndCall(OnVolumeChanged);
+        track.pan.AddAndCall(OnPanChanged);
         track.instrument.AddAndCall(OnInstrumentChanged);
 
         muteButton.Bind(track.isMuted);
@@ -45,6 +47,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     {
         track.name.Remove(OnNameChanged);
         track.volume.Remove(OnVolumeChanged);
+        track.pan.Remove(OnPanChanged);
         track.instrument.Remove(OnInstrumentChanged);
 
         muteButton.Unbind();
@@ -65,6 +68,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         editPipelineButton.onClick.AddListener(OnEditPipelineButtonClick);
         openButton.AddListener(OnOpenClick);
         volumeSlider.onValueChanged.AddListener(OnVolumeSliderChanged);
+        panSlider.onValueChanged.AddListener(OnPanSliderChanged);
         trackNameText.onEndEdit.AddListener(OnTrackNameInputEndEdit);
     }
 
@@ -74,6 +78,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         editPipelineButton.onClick.RemoveListener(OnEditPipelineButtonClick);
         openButton.RemoveListener(OnOpenClick);
         volumeSlider.onValueChanged.RemoveListener(OnVolumeSliderChanged);
+        panSlider.onValueChanged.RemoveListener(OnPanSliderChanged);
         trackNameText.onEndEdit.RemoveListener(OnTrackNameInputEndEdit);
     }
 
@@ -88,6 +93,11 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     private void OnVolumeSliderChanged(float volume)
     {
         track.volume.Value = volume;
+    }
+
+    private void OnPanSliderChanged(float pan)
+    {
+        track.pan.Value = pan * 2 - 1;
     }
 
     private void OnOpenClick()
@@ -130,6 +140,11 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     private void OnVolumeChanged(float volume)
     {
         volumeSlider.value = volume;
+    }
+
+    private void OnPanChanged(float pan)
+    {
+        panSlider.value = pan * 0.5f + 0.5f;
     }
 
     private void OnInstrumentChanged(DTO.NodeResource instrument)

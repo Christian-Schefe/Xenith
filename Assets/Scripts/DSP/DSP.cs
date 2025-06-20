@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 namespace DSP
@@ -11,6 +12,9 @@ namespace DSP
         private bool isStreaming;
         private DSPPlayer player;
         private Context context;
+        private Coroutine delayedStreamingCoroutine;
+
+        public float Volume => volume;
 
         public void StartStreaming(DSPPlayer player, Context context)
         {
@@ -18,24 +22,32 @@ namespace DSP
             playTicks = 0;
             this.context = context;
             this.player = player;
+            delayedStreamingCoroutine = StartCoroutine(StartDelayedStreaming(0.05f));
+        }
+
+        private IEnumerator StartDelayedStreaming(float delay)
+        {
+            yield return new WaitForSeconds(delay);
             isStreaming = true;
         }
 
         public void StopStreaming()
         {
+            if (delayedStreamingCoroutine != null)
+            {
+                StopCoroutine(delayedStreamingCoroutine);
+                delayedStreamingCoroutine = null;
+            }
             if (!isStreaming) return;
             isStreaming = false;
         }
 
         private void OnAudioFilterRead(float[] data, int channels)
         {
-            if (!isStreaming)
-            {
-                return;
-            }
+            if (!isStreaming) return;
 
             int frameCount = data.Length / channels;
-            if (player.TakeData(data, 0, channels, frameCount, volume))
+            if (player.TakeData(data, 0, channels, frameCount))
             {
                 playTicks += frameCount;
                 playTime.value = (float)(playTicks * context.deltaTimeDouble);

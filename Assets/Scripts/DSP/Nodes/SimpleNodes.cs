@@ -37,40 +37,6 @@ namespace DSP
         }
     }
 
-    public class ReactiveFloatNode : AudioNode
-    {
-        private readonly NamedValue<FloatValue> value = new("Value", new());
-        private readonly ReactiveData.Core.Reactive<float> reactive;
-
-        public ReactiveFloatNode(ReactiveData.Core.Reactive<float> reactive)
-        {
-            reactive.AddAndCall(OnChanged);
-        }
-
-        private void OnChanged(float val)
-        {
-            value.value.value = val;
-        }
-
-        public override List<NamedValue> BuildInputs() => new();
-
-        public override List<NamedValue> BuildOutputs() => new() { value };
-
-        public override AudioNode Clone()
-        {
-            return new ReactiveFloatNode(reactive);
-        }
-
-        public override void Process(Context context) { }
-
-        public override void ResetState() { }
-
-        public override void Dispose()
-        {
-            reactive.Remove(OnChanged);
-        }
-    }
-
     public class BoolBinaryNode : SettingsNode
     {
         public enum Operation
@@ -190,9 +156,9 @@ namespace DSP
 
     public class TransformerNode<T1, T2> : AudioNode where T1 : Value, new() where T2 : Value, new()
     {
-        private NamedValue<T1> input;
-        private NamedValue<T2> output;
-        private System.Action<T1, T2> transformer;
+        private readonly NamedValue<T1> input;
+        private readonly NamedValue<T2> output;
+        private readonly System.Action<T1, T2> transformer;
 
         public TransformerNode(System.Action<T1, T2> transformer)
         {
@@ -220,11 +186,11 @@ namespace DSP
 
     public class CombinatorNode<T> : AudioNode where T : Value, new()
     {
-        private List<NamedValue> namedInputs;
-        private List<NamedValue> namedOutputs;
-        private T[] inputVals;
-        private T[] outputVals;
-        private System.Action<T[], T[]> combinator;
+        private readonly List<NamedValue> namedInputs;
+        private readonly List<NamedValue> namedOutputs;
+        private readonly T[] inputVals;
+        private readonly T[] outputVals;
+        private readonly System.Action<T[], T[]> combinator;
 
         public CombinatorNode(int inputCount, int outputCount, System.Action<T[], T[]> combinator)
         {
@@ -262,6 +228,56 @@ namespace DSP
         public override AudioNode Clone()
         {
             return new CombinatorNode<T>(inputVals.Length, outputVals.Length, combinator);
+        }
+    }
+
+    public class PassThroughNode<T> : AudioNode where T : Value, new()
+    {
+        private readonly int channelCount;
+        private readonly List<NamedValue> namedInputs;
+        private readonly List<NamedValue> namedOutputs;
+        private readonly T[] inputVals;
+        private readonly T[] outputVals;
+
+        public PassThroughNode(int channelCount)
+        {
+            this.channelCount = channelCount;
+            namedInputs = new();
+            namedOutputs = new();
+            inputVals = new T[channelCount];
+            outputVals = new T[channelCount];
+
+            for (int i = 0; i < channelCount; i++)
+            {
+                inputVals[i] = new T();
+                namedInputs.Add(new NamedValue<T>($"Input {i}", inputVals[i]));
+            }
+            for (int i = 0; i < channelCount; i++)
+            {
+                outputVals[i] = new T();
+                namedOutputs.Add(new NamedValue<T>($"Output {i}", outputVals[i]));
+            }
+        }
+
+        public override List<NamedValue> BuildInputs() => namedInputs;
+
+        public override List<NamedValue> BuildOutputs() => namedOutputs;
+
+        public override void Process(Context context)
+        {
+            for (int i = 0; i < channelCount; i++)
+            {
+                outputVals[i].Set(inputVals[i]);
+            }
+        }
+
+        public override void ResetState()
+        {
+        }
+
+        public override AudioNode Clone()
+        {
+            return new PassThroughNode<T>(channelCount);
         }
     }
 }

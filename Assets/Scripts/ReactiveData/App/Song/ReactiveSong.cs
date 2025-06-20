@@ -1,5 +1,4 @@
 using DSP;
-using DTO;
 using ReactiveData.Core;
 using System;
 using System.Collections.Generic;
@@ -11,16 +10,18 @@ namespace ReactiveData.App
     {
         public Reactive<string> path;
         public DerivedReactive<string, string> name;
+        public Reactive<ReactiveMasterTrack> master;
         public ReactiveList<ReactiveTrack> tracks;
         public ReactiveList<ReactiveTempoEvent> tempoEvents;
 
         public Reactive<ReactiveTrack> activeTrack;
         public Reactive<ReactiveTrack> editingPipeline;
 
-        public ReactiveSong(string path, IEnumerable<ReactiveTrack> tracks, IEnumerable<ReactiveTempoEvent> tempoEvents)
+        public ReactiveSong(string path, ReactiveMasterTrack masterTrack, IEnumerable<ReactiveTrack> tracks, IEnumerable<ReactiveTempoEvent> tempoEvents)
         {
             this.path = new(path);
             name = new DerivedReactive<string, string>(this.path, GetNameFromPath);
+            master = new(masterTrack);
             this.tracks = new(tracks);
             this.tempoEvents = new(tempoEvents);
             activeTrack = new Reactive<ReactiveTrack>(this.tracks.Count > 0 ? this.tracks[0] : null);
@@ -30,7 +31,7 @@ namespace ReactiveData.App
         public string ID { get; private set; } = Guid.NewGuid().ToString();
         public string Key => ID;
 
-        public static ReactiveSong Default => new(null, new List<ReactiveTrack>() { ReactiveTrack.Default }, new List<ReactiveTempoEvent>() { new(0, 2) });
+        public static ReactiveSong Default => new(null, ReactiveMasterTrack.Default, new List<ReactiveTrack>() { ReactiveTrack.Default }, new List<ReactiveTempoEvent>() { new(0, 2) });
 
         private string GetNameFromPath(string path)
         {
@@ -54,45 +55,16 @@ namespace ReactiveData.App
             return track.notes.Count == 0;
         }
 
-        public AudioNode[] BuildInstrumentNodes(float startTime)
+        public DSPInstrument[] BuildInstrumentNodes(float startTime)
         {
             var hasSoloTracks = tracks.Any(t => t.isSoloed.Value);
-            var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed.Value) && !t.isMuted.Value).ToList();
-            var nodes = new AudioNode[filteredTracks.Count];
-
-            for (int i = 0; i < filteredTracks.Count; i++)
-            {
-                var track = filteredTracks[i];
-                nodes[i] = track.BuildAudioNode(startTime, tempoEvents);
-            }
-
-            return nodes;
+            var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed.Value) && !t.isMuted.Value);
+            return filteredTracks.Select(t => t.BuildInstrument(startTime, tempoEvents)).ToArray();
         }
 
-        public AudioNode BuildMixerNode()
+        public DSPMaster BuildMasterNode()
         {
-            var hasSoloTracks = tracks.Any(t => t.isSoloed.Value);
-            var filteredTracks = tracks.Where(t => (!hasSoloTracks || t.isSoloed.Value) && !t.isMuted.Value).ToList();
-
-            var graph = new DSP.NodeGraph();
-            int outLeft = graph.AddOutput<FloatValue>("Left", 0);
-            int outRight = graph.AddOutput<FloatValue>("Right", 1);
-            int mixLeft = graph.AddNode(Prelude.Mix(filteredTracks.Count));
-            int mixRight = graph.AddNode(Prelude.Mix(filteredTracks.Count));
-            graph.AddConnection(new(mixLeft, 0, outLeft, 0));
-            graph.AddConnection(new(mixRight, 0, outRight, 0));
-
-            for (int i = 0; i < filteredTracks.Count; i++)
-            {
-                var volume = graph.AddNode(filteredTracks[i].VolumeNode);
-                int inLeft = graph.AddInput<FloatValue>($"Left {i}", 2 * i);
-                int inRight = graph.AddInput<FloatValue>($"Right {i}", 2 * i + 1);
-                graph.AddConnection(new(inLeft, 0, mixLeft, 2 * i));
-                graph.AddConnection(new(inRight, 0, mixRight, 2 * i));
-                graph.AddConnection(new(volume, 0, mixLeft, 2 * i + 1));
-                graph.AddConnection(new(volume, 0, mixRight, 2 * i + 1));
-            }
-            return graph;
+            return master.Value.BuildMaster();
         }
 
         public float GetDuration()

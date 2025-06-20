@@ -1,3 +1,5 @@
+using System;
+
 namespace DSP
 {
     public abstract class NamedValue
@@ -11,6 +13,11 @@ namespace DSP
         }
 
         public abstract NamedValue Clone();
+
+        public void Set(NamedValue from)
+        {
+            Value.Set(from.Value);
+        }
     }
 
     public class NamedValue<T> : NamedValue where T : Value
@@ -32,76 +39,57 @@ namespace DSP
 
     public enum ValueType
     {
-        Float, Bool
+        Float,
+        Bool
     }
 
     public abstract class Value
     {
+        public abstract ValueType Type { get; }
         public abstract Value Clone();
         public abstract void Set(Value value);
-        public abstract ValueType Type { get; }
+
         public static Value NewFromType(ValueType type)
         {
             return type switch
             {
                 ValueType.Float => new FloatValue(),
                 ValueType.Bool => new BoolValue(),
-                _ => throw new System.ArgumentOutOfRangeException(nameof(type), type, null)
+                _ => throw new ArgumentOutOfRangeException(nameof(type), type, null)
             };
         }
     }
 
-    public class FloatValue : Value
+    public abstract class BaseValue<T> : Value
     {
-        public float value;
+        public T value;
 
-        public FloatValue()
-        {
-            value = 0;
-        }
-
-        public FloatValue(float value)
+        protected BaseValue(T value)
         {
             this.value = value;
         }
 
-        public override ValueType Type => ValueType.Float;
-
-        public override Value Clone()
-        {
-            return new FloatValue(value);
-        }
-
         public override void Set(Value value)
         {
-            this.value = ((FloatValue)value).value;
+            this.value = ((BaseValue<T>)value).value;
         }
     }
 
-    public class BoolValue : Value
+    public class FloatValue : BaseValue<float>
     {
-        public bool value;
+        public FloatValue() : base(0f) { }
+        public FloatValue(float value) : base(value) { }
+        public override ValueType Type => ValueType.Float;
 
-        public BoolValue()
-        {
-            value = false;
-        }
+        public override Value Clone() => new FloatValue(value);
+    }
 
-        public BoolValue(bool value)
-        {
-            this.value = value;
-        }
-
+    public class BoolValue : BaseValue<bool>
+    {
+        public BoolValue() : base(false) { }
+        public BoolValue(bool value) : base(value) { }
         public override ValueType Type => ValueType.Bool;
 
-        public override Value Clone()
-        {
-            return new BoolValue(value);
-        }
-
-        public override void Set(Value value)
-        {
-            this.value = ((BoolValue)value).value;
-        }
+        public override Value Clone() => new BoolValue(value);
     }
 }

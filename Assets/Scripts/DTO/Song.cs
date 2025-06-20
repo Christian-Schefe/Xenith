@@ -13,16 +13,18 @@ namespace DTO
 
         public class V1 : SchemaVersion
         {
-            public static ClassProp<ArraySchemaValue> tracks = new("tracks", new ArraySchema(new TrackSchema()));
-            public static ClassProp<ArraySchemaValue> tempoEvents = new("tempoEvents", new ArraySchema(new TempoEventSchema()));
+            public static ClassProp<ObjectSchemaValue> master = new(nameof(master), new MasterTrackSchema());
+            public static ClassProp<ArraySchemaValue> tracks = new(nameof(tracks), new ArraySchema(new TrackSchema()));
+            public static ClassProp<ArraySchemaValue> tempoEvents = new(nameof(tempoEvents), new ArraySchema(new TempoEventSchema()));
 
             public V1() : base("1.0") { }
 
             protected override (string key, Schema val)[] Values => new[] { tracks.Key, tempoEvents.Key };
 
-            public static ObjectSchemaValue Make(IEnumerable<SchemaValue> tracks, IEnumerable<SchemaValue> tempoEvents)
+            public static ObjectSchemaValue Make(ObjectSchemaValue master, IEnumerable<SchemaValue> tracks, IEnumerable<SchemaValue> tempoEvents)
             {
                 return new ObjectSchemaValue(
+                    V1.master.Make(master),
                     V1.tracks.Make(new(tracks.ToList())),
                     V1.tempoEvents.Make(new(tempoEvents.ToList()))
                 );
@@ -30,10 +32,10 @@ namespace DTO
 
             public class NoteSchema : ClassSchema
             {
-                public static ClassProp<FloatSchemaValue> beat = new("beat", new FloatSchema());
-                public static ClassProp<IntSchemaValue> pitch = new("pitch", new IntSchema());
-                public static ClassProp<FloatSchemaValue> velocity = new("velocity", new FloatSchema());
-                public static ClassProp<FloatSchemaValue> length = new("length", new FloatSchema());
+                public static ClassProp<FloatSchemaValue> beat = new(nameof(beat), new FloatSchema());
+                public static ClassProp<IntSchemaValue> pitch = new(nameof(pitch), new IntSchema());
+                public static ClassProp<FloatSchemaValue> velocity = new(nameof(velocity), new FloatSchema());
+                public static ClassProp<FloatSchemaValue> length = new(nameof(length), new FloatSchema());
 
                 protected override (string key, Schema val)[] Values => new[] { beat.Key, pitch.Key, velocity.Key, length.Key };
 
@@ -50,8 +52,8 @@ namespace DTO
 
             public class TempoEventSchema : ClassSchema
             {
-                public static ClassProp<FloatSchemaValue> beat = new("beat", new FloatSchema());
-                public static ClassProp<FloatSchemaValue> bps = new("bps", new FloatSchema());
+                public static ClassProp<FloatSchemaValue> beat = new(nameof(beat), new FloatSchema());
+                public static ClassProp<FloatSchemaValue> bps = new(nameof(bps), new FloatSchema());
 
                 protected override (string key, Schema val)[] Values => new[] { beat.Key, bps.Key };
 
@@ -64,17 +66,35 @@ namespace DTO
                 }
             }
 
+            public class MasterTrackSchema : ClassSchema
+            {
+                public static ClassProp<ArraySchemaValue<AutoSchemaValue<NodeResource>>> effects = new(nameof(effects), new ArraySchema<AutoSchemaValue<NodeResource>>(new AutoSchema<NodeResource>()));
+                public static ClassProp<FloatSchemaValue> volume = new(nameof(volume), new FloatSchema());
+                public static ClassProp<FloatSchemaValue> pan = new(nameof(pan), new FloatSchema());
+
+                protected override (string key, Schema val)[] Values => new[] { effects.Key, volume.Key, pan.Key };
+
+                public static ObjectSchemaValue Make(IEnumerable<NodeResource> effects, float volume, float pan)
+                {
+                    return new ObjectSchemaValue(
+                        MasterTrackSchema.effects.Make(new(effects.Select(e => new AutoSchemaValue<NodeResource>(e)).ToList())),
+                        MasterTrackSchema.volume.Make(new(volume)),
+                        MasterTrackSchema.pan.Make(new(pan))
+                    );
+                }
+            }
+
             public class TrackSchema : ClassSchema
             {
-                public static ClassProp<StringSchemaValue> name = new("name", new StringSchema());
-                public static ClassProp<AutoSchemaValue<NodeResource>> instrument = new("instrument", new AutoSchema<NodeResource>());
-                public static ClassProp<ArraySchemaValue<AutoSchemaValue<NodeResource>>> effects = new("effects", new ArraySchema<AutoSchemaValue<NodeResource>>(new AutoSchema<NodeResource>()));
-                public static ClassProp<BoolSchemaValue> isMuted = new("isMuted", new BoolSchema());
-                public static ClassProp<BoolSchemaValue> isSoloed = new("isSoloed", new BoolSchema());
-                public static ClassProp<FloatSchemaValue> volume = new("volume", new FloatSchema());
-                public static ClassProp<FloatSchemaValue> pan = new("pan", new FloatSchema());
-                public static ClassProp<AutoSchemaValue<MusicKey>> keySignature = new("keySignature", new AutoSchema<MusicKey>());
-                public static ClassProp<ArraySchemaValue> notes = new("notes", new ArraySchema(new NoteSchema()));
+                public static ClassProp<StringSchemaValue> name = new(nameof(name), new StringSchema());
+                public static ClassProp<AutoSchemaValue<NodeResource>> instrument = new(nameof(instrument), new AutoSchema<NodeResource>());
+                public static ClassProp<ArraySchemaValue<AutoSchemaValue<NodeResource>>> effects = new(nameof(effects), new ArraySchema<AutoSchemaValue<NodeResource>>(new AutoSchema<NodeResource>()));
+                public static ClassProp<BoolSchemaValue> isMuted = new(nameof(isMuted), new BoolSchema());
+                public static ClassProp<BoolSchemaValue> isSoloed = new(nameof(isSoloed), new BoolSchema());
+                public static ClassProp<FloatSchemaValue> volume = new(nameof(volume), new FloatSchema());
+                public static ClassProp<FloatSchemaValue> pan = new(nameof(pan), new FloatSchema());
+                public static ClassProp<AutoSchemaValue<MusicKey>> keySignature = new(nameof(keySignature), new AutoSchema<MusicKey>());
+                public static ClassProp<ArraySchemaValue> notes = new(nameof(notes), new ArraySchema(new NoteSchema()));
 
                 protected override (string key, Schema val)[] Values => new[] { name.Key, instrument.Key, effects.Key, isMuted.Key, isSoloed.Key, volume.Key, pan.Key, keySignature.Key, notes.Key };
 

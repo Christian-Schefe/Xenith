@@ -1,31 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Yeast;
 
 namespace DSP
 {
-    public class NodeSettings
-    {
-        public Dictionary<string, NodeSetting> settings = new();
-
-        public NodeSettings(params NodeSetting[] settings)
-        {
-            foreach (var setting in settings)
-            {
-                this.settings[setting.name] = setting;
-            }
-        }
-
-        public void CloneInto(NodeSettings target)
-        {
-            foreach (var setting in settings)
-            {
-                setting.Value.CloneInto(target.settings[setting.Key]);
-            }
-        }
-    }
-
     public enum SettingType
     {
         Float,

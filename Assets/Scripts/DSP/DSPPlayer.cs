@@ -7,21 +7,19 @@ namespace DSP
 {
     public class DSPPlayer
     {
-        private readonly AudioNode mixer;
-        private readonly AudioNode[] instruments;
+        private const int BUFFER_FRAMES = 512;
+
+        private readonly DSPMaster master;
+        private readonly DSPInstrument[] instruments;
+
+        private readonly float globalVolume;
+        private readonly int channels;
+        private readonly int ringBufferFrames;
 
         private Context context;
 
-        private readonly int channels;
-
-        private const int BUFFER_FRAMES = 512;
-        private readonly int ringBufferFrames;
-
-        private float[][] instrumentBuffer, mixBuffer;
-
-        private float[] ringBuffer;
-        private int writeIndex;
-        private int readIndex;
+        private float[][] instrumentBuffer, effectsBuffer, mixBuffer;
+        private RingBuffer ringBuffer;
 
         private Barrier instrumentsDone;
         private CountdownEvent allShutdown;
@@ -29,33 +27,42 @@ namespace DSP
         private bool running;
         private CancellationTokenSource cancellationTokenSource;
 
-        public DSPPlayer(AudioNode[] instruments, AudioNode mixer, int channels, int minRingBufferFrames)
+        public DSPPlayer(DSPInstrument[] instruments, DSPMaster master, float globalVolume, int channels, int minRingBufferFrames)
         {
+
             this.instruments = instruments;
-            this.mixer = mixer;
+            this.master = master;
             this.channels = channels;
+            this.globalVolume = globalVolume;
             ringBufferFrames = ((minRingBufferFrames % BUFFER_FRAMES == 0) ?
                 minRingBufferFrames :
                 ((minRingBufferFrames / BUFFER_FRAMES) + 1) * BUFFER_FRAMES) + 1;
+
+            foreach (var instrument in instruments) instrument.Validate();
+            master.Validate();
         }
 
         public void Start(Context context)
         {
             int instrumentCount = instruments.Length;
+            int participantCount = 2 * instrumentCount + 1;
+
             instrumentBuffer = new float[instrumentCount][];
+            effectsBuffer = new float[instrumentCount][];
             mixBuffer = new float[instrumentCount][];
-            instrumentsDone = new Barrier(instrumentCount + 1, _ =>
+
+            instrumentsDone = new Barrier(participantCount, _ =>
             {
-                (mixBuffer, instrumentBuffer) = (instrumentBuffer, mixBuffer);
+                (mixBuffer, effectsBuffer, instrumentBuffer) = (effectsBuffer, instrumentBuffer, mixBuffer);
             });
-            allShutdown = new CountdownEvent(instrumentCount + 1);
-            ringBuffer = new float[ringBufferFrames * channels];
-            readIndex = 0;
-            writeIndex = 0;
+            allShutdown = new CountdownEvent(participantCount);
+
+            ringBuffer = new RingBuffer(ringBufferFrames * channels);
 
             for (int i = 0; i < instrumentCount; i++)
             {
                 instrumentBuffer[i] = new float[BUFFER_FRAMES * channels];
+                effectsBuffer[i] = new float[BUFFER_FRAMES * channels];
                 mixBuffer[i] = new float[BUFFER_FRAMES * channels];
             }
 
@@ -67,11 +74,13 @@ namespace DSP
             for (int i = 0; i < instrumentCount; i++)
             {
                 int id = i;
-                instruments[i].Initialize();
+                instruments[i].instrument.Initialize(context);
+                instruments[i].effects.Initialize(context);
                 ThreadPool.QueueUserWorkItem(_ => InstrumentThread(cancellationTokenSource.Token, id));
+                ThreadPool.QueueUserWorkItem(_ => EffectsThread(cancellationTokenSource.Token, id));
             }
 
-            mixer.Initialize();
+            master.effects.Initialize(context);
             ThreadPool.QueueUserWorkItem(_ => MixerThread(cancellationTokenSource.Token));
         }
 
@@ -89,14 +98,42 @@ namespace DSP
                 instrumentsDone.Dispose();
                 allShutdown.Dispose();
                 Debug.Log("DSP has been reset.");
+
+                master.effects.Dispose();
+                foreach (var instrument in instruments)
+                {
+                    instrument.instrument.Dispose();
+                    instrument.effects.Dispose();
+                }
             }).Start();
+        }
+
+        private void ThreadWrapper(string name, Action run)
+        {
+            try
+            {
+                run();
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"{name} encountered an error: {ex.Message}\n{ex.StackTrace}");
+                cancellationTokenSource.Cancel();
+            }
+            finally
+            {
+                allShutdown.Signal();
+                Debug.Log($"{name} has shut down.");
+            }
         }
 
         private void InstrumentThread(CancellationToken token, int id)
         {
-            try
+            ThreadWrapper($"InstrumentThread {id}", () =>
             {
-                var instrument = instruments[id];
+                var instrument = instruments[id].instrument;
                 var outputValues = instrument.outputs.Select(o => (FloatValue)o.Value).ToArray();
 
                 while (!token.IsCancellationRequested && running)
@@ -114,36 +151,62 @@ namespace DSP
                     if (token.IsCancellationRequested || !running) break;
                     instrumentsDone.SignalAndWait(token);
                 }
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"InstrumentThread {id} encountered an error: {ex.Message}\n{ex.StackTrace}");
-                cancellationTokenSource.Cancel();
-            }
-            finally
-            {
-                allShutdown.Signal();
-                Debug.Log($"InstrumentThread {id} has shut down.");
-            }
+            });
         }
 
+        private void EffectsThread(CancellationToken token, int id)
+        {
+            ThreadWrapper($"EffectsThread {id}", () =>
+            {
+                var effect = instruments[id].effects;
+                var inputsValues = effect.inputs.Select(i => (FloatValue)i.Value).ToArray();
+                var outputValues = effect.outputs.Select(o => (FloatValue)o.Value).ToArray();
+
+                // wait once for instrument buffer to be filled
+                if (token.IsCancellationRequested || !running) return;
+                instrumentsDone.SignalAndWait(token);
+
+                while (!token.IsCancellationRequested && running)
+                {
+                    var buffer = effectsBuffer[id];
+                    for (int i = 0; i < BUFFER_FRAMES; i++)
+                    {
+                        for (int c = 0; c < channels; c++)
+                        {
+                            inputsValues[c].value = buffer[i * channels + c];
+                        }
+                        effect.Process(context);
+                        for (int c = 0; c < channels; c++)
+                        {
+                            buffer[i * channels + c] = outputValues[c].value;
+                        }
+                    }
+
+                    if (token.IsCancellationRequested || !running) break;
+                    instrumentsDone.SignalAndWait(token);
+                }
+            });
+        }
         private void MixerThread(CancellationToken token)
         {
-            try
+            ThreadWrapper("MixerThread", () =>
             {
-                FloatValue[] outputValues = mixer.outputs.Select(o => (FloatValue)o.Value).ToArray();
-                FloatValue[] inputValues = mixer.inputs.Select(i => (FloatValue)i.Value).ToArray();
+                FloatValue[] effectsInputValues = master.effects.inputs.Select(i => (FloatValue)i.Value).ToArray();
+                FloatValue[] effectsOutputValues = master.effects.outputs.Select(o => (FloatValue)o.Value).ToArray();
+
+                var effects = master.effects;
+
+                // wait twice for instrument and effects buffers to be filled
+                if (token.IsCancellationRequested || !running) return;
+                instrumentsDone.SignalAndWait(token);
 
                 if (token.IsCancellationRequested || !running) return;
                 instrumentsDone.SignalAndWait(token);
 
                 while (!token.IsCancellationRequested && running)
                 {
-                    int required = BUFFER_FRAMES * channels;
-                    while (RingBufferFreeSpace() < required)
+                    int dataToWriteCount = BUFFER_FRAMES * channels;
+                    while (!ringBuffer.CanWrite(dataToWriteCount))
                     {
                         if (token.IsCancellationRequested || !running) break;
                         Thread.Sleep(1);
@@ -153,91 +216,61 @@ namespace DSP
 
                     for (int i = 0; i < BUFFER_FRAMES; i++)
                     {
-                        for (int inst = 0; inst < instruments.Length; inst++)
-                        {
-                            var buffer = mixBuffer[inst];
-                            for (int c = 0; c < channels; c++)
-                            {
-                                int index = i * channels + c;
-                                inputValues[inst * channels + c].value = buffer[index];
-                            }
-                        }
-
-                        mixer.Process(context);
-
                         for (int c = 0; c < channels; c++)
                         {
-                            int rbIndex = (writeIndex + i * channels + c) % ringBuffer.Length;
-                            ringBuffer[rbIndex] = outputValues[c].value;
+                            effectsInputValues[c].value = 0f;
+                            for (int inst = 0; inst < instruments.Length; inst++)
+                            {
+                                effectsInputValues[c].value += mixBuffer[inst][i * channels + c];
+                            }
+                        }
+                        effects.Process(context);
+                        for (int c = 0; c < channels; c++)
+                        {
+                            mixBuffer[0][i * channels + c] = effectsOutputValues[c].value * globalVolume;
                         }
                     }
 
-                    writeIndex = (writeIndex + BUFFER_FRAMES * channels) % ringBuffer.Length;
+                    ringBuffer.WriteFrom(mixBuffer[0], 0, dataToWriteCount);
 
                     if (token.IsCancellationRequested || !running) break;
                     instrumentsDone.SignalAndWait(token);
                 }
-            }
-            catch (OperationCanceledException)
-            {
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"MixerThread encountered an error: {ex.Message}\n{ex.StackTrace}");
-                cancellationTokenSource.Cancel();
-            }
-            finally
-            {
-                allShutdown.Signal();
-                Debug.Log("MixerThread has shut down.");
-            }
+            });
         }
 
-        private int RingBufferData()
+        public bool TakeData(float[] data, int offset, int targetChannels, int frames)
         {
-            return (ringBuffer.Length + writeIndex - readIndex) % ringBuffer.Length;
-        }
-
-        private int RingBufferFreeSpace()
-        {
-            return ringBuffer.Length - RingBufferData() - 1;
-        }
-
-        public bool TakeData(float[] data, int offset, int targetChannels, int frames, float volume)
-        {
-            int available = RingBufferData();
-
-            if (available < frames * channels)
+            int dataToReadCount = frames * channels;
+            if (!ringBuffer.CanRead(dataToReadCount))
             {
                 return false;
             }
 
-            for (int i = 0; i < frames; i++)
+            if (targetChannels == channels)
             {
-                if (targetChannels == channels)
-                {
-                    for (int c = 0; c < channels; c++)
-                    {
-                        int rbIndex = (readIndex + i * channels + c) % ringBuffer.Length;
-                        data[offset + i * channels + c] = ringBuffer[rbIndex] * volume;
-                    }
-                }
-                else if (targetChannels == 1)
+                ringBuffer.ReadInto(data, offset, dataToReadCount);
+            }
+            else if (targetChannels == 1)
+            {
+                var readData = new float[dataToReadCount];
+                ringBuffer.ReadInto(readData, offset, dataToReadCount);
+                for (int i = 0; i < frames; i++)
                 {
                     data[offset + i] = 0;
+                    float factor = 1f / channels;
                     for (int c = 0; c < channels; c++)
                     {
-                        int rbIndex = (readIndex + i * channels + c) % ringBuffer.Length;
-                        data[offset + i] += ringBuffer[rbIndex] * (1.0f / channels) * volume;
+                        int index = i * channels + c;
+                        data[offset + i] += readData[index] * factor;
                     }
                 }
-                else
-                {
-                    Debug.LogError($"Unsupported target channels: {targetChannels}. Only 1 or {channels} are supported.");
-                    return false;
-                }
             }
-            readIndex = (readIndex + frames * channels) % ringBuffer.Length;
+            else
+            {
+                Debug.LogError($"Unsupported target channels: {targetChannels}. Only 1 or {channels} are supported.");
+                return false;
+            }
             return true;
         }
     }

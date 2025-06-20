@@ -23,6 +23,7 @@ namespace NodeGraph
             { new NodeResource("const_float", true), () => new ConstFloatNode() },
             { new NodeResource("input", true), () => new GraphEdgeNode(true) },
             { new NodeResource("output", true), () => new GraphEdgeNode(false) },
+            { new NodeResource("filter/butterworth", true), () => new ButterworthLowpassFilter() },
         };
 
         private void Awake()

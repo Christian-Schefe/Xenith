@@ -1,4 +1,3 @@
-using DTO;
 using FileFormat;
 using ReactiveData.App;
 using System.Collections;
@@ -7,7 +6,7 @@ using UnityEngine.EventSystems;
 
 namespace DSP
 {
-    public class DPSTest : MonoBehaviour
+    public class DSPRunner : MonoBehaviour
     {
         private DSPPlayer player;
         private bool isRendering;
@@ -49,9 +48,9 @@ namespace DSP
 
                 var startTime = noteEditor.GetPlayStartTime();
                 var instruments = song.BuildInstrumentNodes(startTime);
-                var mixer = song.BuildMixerNode();
+                var master = song.BuildMasterNode();
 
-                player = new DSPPlayer(instruments, mixer, 2, 65536);
+                player = new DSPPlayer(instruments, master, dsp.Volume, 2, 8192);
                 var context = new Context(AudioSettings.outputSampleRate);
                 player.Start(context);
 
@@ -70,10 +69,10 @@ namespace DSP
             if (!main.app.openElement.Value.TryGet(out ReactiveSong song)) return;
             isRendering = true;
             var instruments = song.BuildInstrumentNodes(0);
-            var mixer = song.BuildMixerNode();
+            var master = song.BuildMasterNode();
             var sampleRate = 44100;
             var duration = song.GetDuration() + 5;
-            StartCoroutine(RenderWAV(instruments, mixer, duration, sampleRate, callback));
+            StartCoroutine(RenderWAV(instruments, master, duration, sampleRate, callback));
         }
 
         private void OnApplicationQuit()
@@ -86,7 +85,7 @@ namespace DSP
             }
         }
 
-        private IEnumerator RenderWAV(AudioNode[] instruments, AudioNode mixer, float duration, int sampleRate, System.Action<WavFile> callback)
+        private IEnumerator RenderWAV(DSPInstrument[] instruments, DSPMaster mixer, float duration, int sampleRate, System.Action<WavFile> callback)
         {
             int channels = 2;
 
@@ -94,7 +93,7 @@ namespace DSP
             var data = new float[frameCount * channels];
             int framesPerRead = frameCount / 100;
 
-            var player = new DSPPlayer(instruments, mixer, channels, framesPerRead * 2);
+            var player = new DSPPlayer(instruments, mixer, 1.0f, channels, framesPerRead * 2);
             var context = new Context(sampleRate);
             player.Start(context);
 
@@ -104,7 +103,7 @@ namespace DSP
             {
                 int framesToRead = Mathf.Min(framesPerRead, frameCount - framesRead);
 
-                while (!player.TakeData(data, framesRead * channels, channels, framesToRead, 1.0f))
+                while (!player.TakeData(data, framesRead * channels, channels, framesToRead))
                 {
                     yield return null;
                 }

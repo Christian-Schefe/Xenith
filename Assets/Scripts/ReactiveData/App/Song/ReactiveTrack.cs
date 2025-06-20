@@ -8,22 +8,42 @@ using System.Linq;
 
 namespace ReactiveData.App
 {
-    public class ReactiveTrack : IKeyed
+    public class ReactiveTrackBase : IKeyed
+    {
+        public ReactiveList<DTO.NodeResource> effects;
+        public Reactive<float> volume;
+        public Reactive<float> pan;
+
+        public string ID { get; private set; } = Guid.NewGuid().ToString();
+        public string Key => ID;
+
+        public AudioNode BuildEffects()
+        {
+            var graphDatabase = Globals<GraphDatabase>.Instance;
+            var effectNodes = effects.Select(effect =>
+            {
+                if (!graphDatabase.GetNodeFromTypeId(effect, out var effectNode))
+                {
+                    throw new Exception($"Failed to create effect node of type {effect.id}");
+                }
+                return effectNode;
+            }).ToList();
+            effectNodes.Add(new ReactiveGainPanNode(volume, pan));
+            var effectPipeline = new Pipeline(effectNodes.ToArray());
+            return effectPipeline;
+        }
+    }
+
+    public class ReactiveTrack : ReactiveTrackBase
     {
         public Reactive<string> name;
         public Reactive<DTO.NodeResource> instrument;
-        public ReactiveList<DTO.NodeResource> effects;
         public Reactive<bool> isMuted;
         public Reactive<bool> isSoloed;
-        public Reactive<float> volume;
-        public Reactive<float> pan;
         public Reactive<MusicKey> keySignature;
         public ReactiveList<ReactiveNote> notes;
 
         public Reactive<bool> isBGVisible = new(false);
-
-        private readonly ReactiveFloatNode volumeNode;
-        public ReactiveFloatNode VolumeNode => volumeNode;
 
         public static ReactiveTrack Default => new("New Track", new("default_synth", true), new List<DTO.NodeResource>(), false, false, 0.75f, 0.0f, MusicKey.CMajor, new List<ReactiveNote>());
 
@@ -38,13 +58,9 @@ namespace ReactiveData.App
             this.pan = new(pan);
             this.notes = new(notes);
             this.keySignature = new(keySignature);
-            volumeNode = new ReactiveFloatNode(this.volume);
         }
 
-        public string ID { get; private set; } = Guid.NewGuid().ToString();
-        public string Key => ID;
-
-        public AudioNode BuildAudioNode(float startTime, IList<ReactiveTempoEvent> tempoEvents)
+        public DSPInstrument BuildInstrument(float startTime, IList<ReactiveTempoEvent> tempoEvents)
         {
             var graphDatabase = Globals<GraphDatabase>.Instance;
             if (!graphDatabase.GetNodeFromTypeId(instrument.Value, out var audioNode))
@@ -52,7 +68,7 @@ namespace ReactiveData.App
                 throw new Exception($"Failed to create audio node of type {instrument.Value.id}");
             }
             var sequencer = new Sequencer(startTime, BuildNotes(tempoEvents), () => audioNode.Clone());
-            return sequencer;
+            return new(sequencer, BuildEffects());
         }
 
         private List<SequencerNote> BuildNotes(IList<ReactiveTempoEvent> tempoEvents)
@@ -73,6 +89,23 @@ namespace ReactiveData.App
             if (notes.Count == 0) return 0;
             var lastNote = notes[^1];
             return lastNote.time + lastNote.duration;
+        }
+    }
+
+    public class ReactiveMasterTrack : ReactiveTrackBase
+    {
+        public static ReactiveMasterTrack Default => new(new List<DTO.NodeResource>(), 0.75f, 0.0f);
+
+        public ReactiveMasterTrack(IEnumerable<DTO.NodeResource> effects, float volume, float pan)
+        {
+            this.effects = new(effects);
+            this.volume = new(volume);
+            this.pan = new(pan);
+        }
+
+        public DSPMaster BuildMaster()
+        {
+            return new(BuildEffects());
         }
     }
 }

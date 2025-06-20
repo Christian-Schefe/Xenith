@@ -11,7 +11,7 @@ namespace DSP
         public abstract List<NamedValue> BuildInputs();
         public abstract List<NamedValue> BuildOutputs();
 
-        public virtual void Initialize()
+        public virtual void Initialize(Context context)
         {
             inputs = BuildInputs();
             outputs = BuildOutputs();
@@ -43,6 +43,11 @@ namespace DSP
         public SettingsNode()
         {
             settings = DefaultSettings.ToDictionary(e => e.name, e => e);
+            OnSettingsChanged();
+        }
+
+        public override void Initialize(Context context)
+        {
             OnSettingsChanged();
         }
 

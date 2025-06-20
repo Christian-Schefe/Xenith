@@ -209,7 +209,7 @@ public class Main : MonoBehaviour
         var fileBrowser = Globals<FileBrowser>.Instance;
         fileBrowser.SaveFile(path =>
         {
-            var dsp = Globals<DPSTest>.Instance;
+            var dsp = Globals<DSPRunner>.Instance;
             exportingModal.SetActive(true);
             float exportStartTime = Time.time; ;
             dsp.Render(wavFile =>
