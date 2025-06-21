@@ -1,10 +1,9 @@
 using ActionMenu;
-using DSP;
-using DTO;
 using FileFormat;
 using PianoRoll;
 using ReactiveData.App;
 using ReactiveData.Core;
+using ReactiveData.UI;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -13,7 +12,8 @@ public class TrackEditor : MonoBehaviour
     [SerializeField] private RectTransform uiRoot;
     [SerializeField] private RectTransform trackContainer;
     [SerializeField] private TrackUI trackPrefab;
-    [SerializeField] private RectTransform addTrackButton;
+    [SerializeField] private ReactiveButton addTrackButton;
+    [SerializeField] private MasterTrackUI masterTrackUI;
 
     private TopLevelAction trackAction = null;
 
@@ -26,7 +26,7 @@ public class TrackEditor : MonoBehaviour
 
     private void Awake()
     {
-        addTrackButton.GetComponentInChildren<Button>().onClick.AddListener(AddTrack);
+        addTrackButton.OnClick += AddTrack;
     }
 
     private void Start()
@@ -40,7 +40,7 @@ public class TrackEditor : MonoBehaviour
         trackBinder ??= new(null, _ =>
         {
             var instance = Instantiate(trackPrefab, trackContainer);
-            addTrackButton.SetAsLastSibling();
+            addTrackButton.transform.SetAsLastSibling();
             return instance;
         }, track => Destroy(track.gameObject));
     }
@@ -50,6 +50,7 @@ public class TrackEditor : MonoBehaviour
         this.song = song;
         InitializeBinder();
         trackBinder.ChangeSource(song.tracks);
+        masterTrackUI.Bind(song.master.Value);
     }
 
     private void UnbindSong()
@@ -57,6 +58,7 @@ public class TrackEditor : MonoBehaviour
         song = null;
         InitializeBinder();
         trackBinder.ChangeSource(null);
+        masterTrackUI.Unbind();
     }
 
     private TopLevelAction BuildAction()

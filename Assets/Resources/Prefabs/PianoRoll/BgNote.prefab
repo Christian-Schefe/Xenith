@@ -48,8 +48,8 @@ MonoBehaviour:
   sprite: {fileID: 4334661276217716926}
   velocityGradient:
     serializedVersion: 2
-    key0: {r: 0.9372549, g: 0.3372549, b: 0.18431373, a: 1}
-    key1: {r: 0.9372549, g: 0.3372549, b: 0.18431373, a: 1}
+    key0: {r: 0.8207547, g: 0.8207547, b: 0.8207547, a: 1}
+    key1: {r: 0.8207547, g: 0.8207547, b: 0.8207547, a: 1}
     key2: {r: 0, g: 0, b: 0, a: 0}
     key3: {r: 0, g: 0, b: 0, a: 0}
     key4: {r: 0, g: 0, b: 0, a: 0}
@@ -77,7 +77,7 @@ MonoBehaviour:
     m_NumColorKeys: 2
     m_NumAlphaKeys: 2
   selectedColor: {r: 1, g: 0.8377491, b: 0, a: 1}
-  alpha: 0.4
+  alpha: 0.3
 --- !u!212 &4334661276217716926
 SpriteRenderer:
   m_ObjectHideFlags: 0

@@ -93,6 +93,7 @@ namespace DSP
             {
                 node.Initialize(context);
             }
+            base.Initialize(context);
         }
 
         public override List<NamedValue> BuildInputs() => nodes[0].BuildInputs();

@@ -1,11 +1,14 @@
 using ReactiveData.Core;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace ReactiveData.UI
 {
     public class ReactiveToggleButton : ReactiveButton
     {
         public Color offNormal, offHovered, offPressed;
+        public Image iconImage;
+        public Sprite offIcon, onIcon;
 
         private Reactive<bool> toggle = new(false);
 
@@ -44,6 +47,17 @@ namespace ReactiveData.UI
             if (text != null)
             {
                 text.color = state switch
+                {
+                    State.Normal => textNormal,
+                    State.Hovered => textHovered,
+                    State.Pressed => textPressed,
+                    _ => text.color
+                };
+            }
+            if (iconImage != null)
+            {
+                iconImage.sprite = toggle.Value ? onIcon : offIcon;
+                iconImage.color = state switch
                 {
                     State.Normal => textNormal,
                     State.Hovered => textHovered,

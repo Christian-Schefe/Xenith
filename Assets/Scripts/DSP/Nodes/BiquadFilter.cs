@@ -118,6 +118,7 @@ namespace DSP
         {
             sampleRate = context.sampleRate;
             coeffs = BiquadCoeffs.ButterworthLowpass(sampleRate, cutoffFrequency);
+            base.Initialize(context);
         }
 
         public override void Process(Context context)

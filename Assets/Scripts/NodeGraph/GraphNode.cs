@@ -216,6 +216,10 @@ namespace NodeGraph
             {
                 node.ValidateSettingsFromNode(settingsNode);
             }
+            else
+            {
+                node.settings.Clear();
+            }
 
             foreach (var setting in node.settings)
             {

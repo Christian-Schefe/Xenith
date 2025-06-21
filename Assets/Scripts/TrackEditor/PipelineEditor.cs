@@ -21,11 +21,11 @@ public class PipelineEditor : MonoBehaviour
     private void Start()
     {
         var main = Globals<Main>.Instance;
-        var editingTrack = new NestedReactive<ReactiveSong, ReactiveTrack>(main.app.openSong, song => song?.editingPipeline);
+        var editingTrack = new NestedReactive<ReactiveSong, ReactiveTrackBase>(main.app.openSong, song => song?.editingPipeline);
         editingTrack.AddAndCall(OnOpenTrackChanged);
     }
 
-    private void OnOpenTrackChanged(ReactiveTrack track)
+    private void OnOpenTrackChanged(ReactiveTrackBase track)
     {
         if (track != null)
         {

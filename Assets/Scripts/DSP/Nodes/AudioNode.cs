@@ -16,6 +16,7 @@ namespace DSP
             inputs = BuildInputs();
             outputs = BuildOutputs();
         }
+
         public abstract void Process(Context context);
         public abstract void ResetState();
         public abstract AudioNode Clone();
@@ -49,6 +50,7 @@ namespace DSP
         public override void Initialize(Context context)
         {
             OnSettingsChanged();
+            base.Initialize(context);
         }
 
         public abstract void OnSettingsChanged();

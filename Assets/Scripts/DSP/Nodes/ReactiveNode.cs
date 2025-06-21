@@ -15,11 +15,11 @@ namespace DSP
         private IReactive<float> reactivePan;
         private float gain;
         private float pan;
+        private bool isMaster;
 
-        private float prevGain;
-
-        public ReactiveGainPanNode(IReactive<float> reactiveGain, IReactive<float> reactivePan)
+        public ReactiveGainPanNode(bool isMaster, IReactive<float> reactiveGain, IReactive<float> reactivePan)
         {
+            this.isMaster = isMaster;
             this.reactiveGain = reactiveGain;
             this.reactivePan = reactivePan;
             reactiveGain.OnChanged += OnGainChanged;
@@ -44,16 +44,31 @@ namespace DSP
 
         public override AudioNode Clone()
         {
-            return new ReactiveGainPanNode(reactiveGain, reactivePan);
+            return new ReactiveGainPanNode(isMaster, reactiveGain, reactivePan);
         }
 
         public override void Process(Context context)
         {
-            leftOut.value.value = leftIn.value.value * gain * (1 - pan);
-            rightOut.value.value = rightIn.value.value * gain * (1 + pan);
+            if (isMaster)
+            {
+                // stereo rotation matrix with limited pan range
+                float angle = pan * Mathf.PI * 0.125f;
+                float outLeft = Mathf.Cos(angle) * leftIn.value.value - Mathf.Sin(angle) * rightIn.value.value;
+                float outRight = Mathf.Sin(angle) * leftIn.value.value + Mathf.Cos(angle) * rightIn.value.value;
 
-            if (gain != prevGain) Debug.Log($"Gain changed from {prevGain} to {gain}");
-            prevGain = gain;
+                leftOut.value.value = gain * outLeft;
+                rightOut.value.value = gain * outRight;
+            }
+            else
+            {
+                // equal power pan
+                float angle = (pan + 1f) * 0.25f * Mathf.PI;
+                float outLeft = Mathf.Cos(angle) * leftIn.value.value;
+                float outRight = Mathf.Sin(angle) * rightIn.value.value;
+
+                leftOut.value.value = gain * outLeft;
+                rightOut.value.value = gain * outRight;
+            }
         }
 
         public override void ResetState() { }

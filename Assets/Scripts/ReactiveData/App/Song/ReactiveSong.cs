@@ -15,7 +15,7 @@ namespace ReactiveData.App
         public ReactiveList<ReactiveTempoEvent> tempoEvents;
 
         public Reactive<ReactiveTrack> activeTrack;
-        public Reactive<ReactiveTrack> editingPipeline;
+        public Reactive<ReactiveTrackBase> editingPipeline;
 
         public ReactiveSong(string path, ReactiveMasterTrack masterTrack, IEnumerable<ReactiveTrack> tracks, IEnumerable<ReactiveTempoEvent> tempoEvents)
         {

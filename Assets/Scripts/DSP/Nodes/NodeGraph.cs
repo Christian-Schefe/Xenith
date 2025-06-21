@@ -194,6 +194,8 @@ namespace DSP
             BuildConnectionMap();
             ValidateNodes();
             ConstructExecutionOrder();
+
+            base.Initialize(context);
         }
 
         public override void Process(Context context)

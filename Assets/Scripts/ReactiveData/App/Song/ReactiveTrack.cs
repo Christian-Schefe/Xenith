@@ -10,12 +10,18 @@ namespace ReactiveData.App
 {
     public class ReactiveTrackBase : IKeyed
     {
+        public Reactive<string> name;
         public ReactiveList<DTO.NodeResource> effects;
         public Reactive<float> volume;
         public Reactive<float> pan;
 
         public string ID { get; private set; } = Guid.NewGuid().ToString();
         public string Key => ID;
+
+        protected virtual ReactiveGainPanNode GetReactiveGainPanNode()
+        {
+            return new ReactiveGainPanNode(false, volume, pan);
+        }
 
         public AudioNode BuildEffects()
         {
@@ -28,7 +34,7 @@ namespace ReactiveData.App
                 }
                 return effectNode;
             }).ToList();
-            effectNodes.Add(new ReactiveGainPanNode(volume, pan));
+            effectNodes.Add(GetReactiveGainPanNode());
             var effectPipeline = new Pipeline(effectNodes.ToArray());
             return effectPipeline;
         }
@@ -36,7 +42,6 @@ namespace ReactiveData.App
 
     public class ReactiveTrack : ReactiveTrackBase
     {
-        public Reactive<string> name;
         public Reactive<DTO.NodeResource> instrument;
         public Reactive<bool> isMuted;
         public Reactive<bool> isSoloed;
@@ -98,6 +103,7 @@ namespace ReactiveData.App
 
         public ReactiveMasterTrack(IEnumerable<DTO.NodeResource> effects, float volume, float pan)
         {
+            name = new("Master");
             this.effects = new(effects);
             this.volume = new(volume);
             this.pan = new(pan);
@@ -106,6 +112,11 @@ namespace ReactiveData.App
         public DSPMaster BuildMaster()
         {
             return new(BuildEffects());
+        }
+
+        protected override ReactiveGainPanNode GetReactiveGainPanNode()
+        {
+            return new ReactiveGainPanNode(true, volume, pan);
         }
     }
 }

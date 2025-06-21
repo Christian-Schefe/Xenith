@@ -1,8 +1,6 @@
-using NodeGraph;
 using ReactiveData.App;
 using ReactiveData.Core;
 using ReactiveData.UI;
-using System.Linq;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,12 +9,12 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     [SerializeField] private TMPro.TMP_InputField trackNameText;
     [SerializeField] private UIImage bgImage;
     [SerializeField] private Slider volumeSlider;
-    [SerializeField] private Slider panSlider;
+    [SerializeField] private ReactiveKnob panKnob;
     [SerializeField] private ReactiveToggleButton muteButton;
     [SerializeField] private ReactiveToggleButton soloButton;
     [SerializeField] private ReactiveToggleButton bgVisibleButton;
-    [SerializeField] private Button setInstrumentButton;
-    [SerializeField] private Button editPipelineButton;
+    [SerializeField] private ReactiveButton setInstrumentButton;
+    [SerializeField] private ReactiveButton editPipelineButton;
     [SerializeField] private ReactiveButton openButton;
     [SerializeField] private TMPro.TextMeshProUGUI instrumentNameText;
 
@@ -28,7 +26,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         this.track = track;
         track.name.AddAndCall(OnNameChanged);
         track.volume.AddAndCall(OnVolumeChanged);
-        track.pan.AddAndCall(OnPanChanged);
+        panKnob.Bind(track.pan, -1, 1);
         track.instrument.AddAndCall(OnInstrumentChanged);
 
         muteButton.Bind(track.isMuted);
@@ -47,7 +45,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     {
         track.name.Remove(OnNameChanged);
         track.volume.Remove(OnVolumeChanged);
-        track.pan.Remove(OnPanChanged);
+        panKnob.Unbind();
         track.instrument.Remove(OnInstrumentChanged);
 
         muteButton.Unbind();
@@ -64,21 +62,19 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
 
     private void OnEnable()
     {
-        setInstrumentButton.onClick.AddListener(OnSetInstrumentButtonClick);
-        editPipelineButton.onClick.AddListener(OnEditPipelineButtonClick);
+        setInstrumentButton.OnClick += OnSetInstrumentButtonClick;
+        editPipelineButton.OnClick += OnEditPipelineButtonClick;
         openButton.AddListener(OnOpenClick);
         volumeSlider.onValueChanged.AddListener(OnVolumeSliderChanged);
-        panSlider.onValueChanged.AddListener(OnPanSliderChanged);
         trackNameText.onEndEdit.AddListener(OnTrackNameInputEndEdit);
     }
 
     private void OnDisable()
     {
-        setInstrumentButton.onClick.RemoveListener(OnSetInstrumentButtonClick);
-        editPipelineButton.onClick.RemoveListener(OnEditPipelineButtonClick);
+        setInstrumentButton.OnClick -= OnSetInstrumentButtonClick;
+        editPipelineButton.OnClick -= OnEditPipelineButtonClick;
         openButton.RemoveListener(OnOpenClick);
         volumeSlider.onValueChanged.RemoveListener(OnVolumeSliderChanged);
-        panSlider.onValueChanged.RemoveListener(OnPanSliderChanged);
         trackNameText.onEndEdit.RemoveListener(OnTrackNameInputEndEdit);
     }
 
@@ -93,11 +89,6 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     private void OnVolumeSliderChanged(float volume)
     {
         track.volume.Value = volume;
-    }
-
-    private void OnPanSliderChanged(float pan)
-    {
-        track.pan.Value = pan * 2 - 1;
     }
 
     private void OnOpenClick()
@@ -140,11 +131,6 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     private void OnVolumeChanged(float volume)
     {
         volumeSlider.value = volume;
-    }
-
-    private void OnPanChanged(float pan)
-    {
-        panSlider.value = pan * 0.5f + 0.5f;
     }
 
     private void OnInstrumentChanged(DTO.NodeResource instrument)

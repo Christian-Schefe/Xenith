@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Unity.Collections.LowLevel.Unsafe;
 
 namespace ReactiveData.Core
 {
@@ -12,6 +13,11 @@ namespace ReactiveData.Core
     {
         public T Value { get; }
         public event Action<T> OnChanged;
+    }
+
+    public interface IWritableReactive<T> : IReactive<T>
+    {
+        public void SetValue(T value);
     }
 
     public abstract class ReactiveBase<T> : IReactive<T>, IReactive
@@ -39,7 +45,7 @@ namespace ReactiveData.Core
         }
     }
 
-    public abstract class WritableReactiveBase<T> : IReactive<T>, IReactive
+    public abstract class WritableReactiveBase<T> : IWritableReactive<T>, IReactive
     {
         public abstract T Value { get; set; }
 
@@ -62,11 +68,32 @@ namespace ReactiveData.Core
         {
             OnChanged?.Invoke(Value);
         }
+
+        public void SetValue(T value) => Value = value;
     }
 
-    public class DerivedReactive<T> : DerivedReactive<T, T>
+    public class TwoWayDerivedReactive<K, T> : DerivedReactive<K, T>, IWritableReactive<T>
     {
-        public DerivedReactive(IReactive<T> source, Func<T, T> transform) : base(source, transform) { }
+        private IWritableReactive<K> source;
+        private Func<T, K> backTransform;
+
+        public TwoWayDerivedReactive(IWritableReactive<K> source, Func<K, T> transform, Func<T, K> backTransform, IEqualityComparer<T> comparer = null) : base(source, transform, comparer)
+        {
+            this.source = source;
+            this.backTransform = backTransform;
+        }
+
+        public override void Dispose()
+        {
+            base.Dispose();
+            backTransform = null;
+            source = null;
+        }
+
+        public void SetValue(T value)
+        {
+            source.SetValue(backTransform(value));
+        }
     }
 
     public class DerivedReactive<K, T> : ReactiveBase<T>
@@ -88,7 +115,7 @@ namespace ReactiveData.Core
             Comparer = comparer ?? EqualityComparer<T>.Default;
         }
 
-        public void Dispose()
+        public virtual void Dispose()
         {
             if (source != null)
             {
