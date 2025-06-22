@@ -80,10 +80,10 @@ namespace DSP
                 throw new System.ArgumentException("Pipeline must contain at least one node.");
             }
             this.nodes = nodes;
-            nodePipes = new Pipe[nodes.Length];
-            for (int i = 1; i < nodes.Length; i++)
+            nodePipes = new Pipe[nodes.Length - 1];
+            for (int i = 0; i < nodes.Length - 1; i++)
             {
-                nodePipes[i] = new Pipe(nodes[i - 1], nodes[i]);
+                nodePipes[i] = new Pipe(nodes[i], nodes[i + 1]);
             }
         }
 

@@ -6,9 +6,11 @@ using UnityEngine.UI;
 
 public class MasterTrackUI : MonoBehaviour, IReactor<ReactiveMasterTrack>
 {
+    [SerializeField] private TMPro.TextMeshProUGUI volumeText;
     [SerializeField] private ReactiveButton editPipelineButton;
     [SerializeField] private UIImage bgImage;
     [SerializeField] private Slider volumeSlider;
+    [SerializeField] private TMPro.TextMeshProUGUI panText;
     [SerializeField] private ReactiveKnob panKnob;
 
     private ReactiveMasterTrack masterTrack;
@@ -30,18 +32,29 @@ public class MasterTrackUI : MonoBehaviour, IReactor<ReactiveMasterTrack>
         masterTrack = track;
         masterTrack.volume.AddAndCall(OnVolumeChanged);
         panKnob.Bind(masterTrack.pan, -1, 1);
+        masterTrack.pan.AddAndCall(OnPanChanged);
     }
 
     public void Unbind()
     {
         masterTrack.volume.Remove(OnVolumeChanged);
         panKnob.Unbind();
+        masterTrack.pan.Remove(OnPanChanged);
         masterTrack = null;
     }
 
-    private void OnVolumeSliderChanged(float volume)
+    private void OnVolumeSliderChanged(float alpha)
     {
-        masterTrack.volume.Value = volume;
+        masterTrack.volume.Value = alpha * alpha * 2;
+    }
+
+    private void OnVolumeChanged(float volume)
+    {
+        var newAlpha = Mathf.Sqrt(volume * 0.5f);
+        volumeSlider.value = newAlpha;
+        float dB = 20f * Mathf.Log10(volume);
+        var dBString = dB.ToString("F1");
+        volumeText.text = $"{(dBString.StartsWith("-") ? "" : "+")}{dBString} dB";
     }
 
     private void OnEditPipelineButtonClick()
@@ -50,8 +63,9 @@ public class MasterTrackUI : MonoBehaviour, IReactor<ReactiveMasterTrack>
         trackEditor.Song.editingPipeline.Value = masterTrack;
     }
 
-    private void OnVolumeChanged(float volume)
+    private void OnPanChanged(float pan)
     {
-        volumeSlider.value = volume;
+        var panInt = Mathf.RoundToInt(pan * 100);
+        panText.text = $"{(panInt > 0 ? "+" : "")}{panInt}";
     }
 }

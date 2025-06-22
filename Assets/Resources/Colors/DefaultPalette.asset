@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: DefaultPalette
   m_EditorClassIdentifier: 
   primary:
-    shade: {fileID: 11400000, guid: 4131dbd524a6a7f49ab448d4a61539b7, type: 2}
+    shade: {fileID: 11400000, guid: ee14084d3c4079b4ab3dad16a57632a6, type: 2}
     step: 6
     alpha: 1
   secondary:

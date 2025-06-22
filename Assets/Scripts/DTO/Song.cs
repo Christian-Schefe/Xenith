@@ -66,18 +66,32 @@ namespace DTO
                 }
             }
 
+            public class EffectSchema : ClassSchema
+            {
+                public static ClassProp<AutoSchemaValue<NodeResource>> effect = new(nameof(effect), new AutoSchema<NodeResource>());
+
+                protected override (string key, Schema val)[] Values => new[] { effect.Key };
+
+                public static ObjectSchemaValue Make(NodeResource effect)
+                {
+                    return new ObjectSchemaValue(
+                        EffectSchema.effect.Make(new(effect))
+                    );
+                }
+            }
+
             public class MasterTrackSchema : ClassSchema
             {
-                public static ClassProp<ArraySchemaValue<AutoSchemaValue<NodeResource>>> effects = new(nameof(effects), new ArraySchema<AutoSchemaValue<NodeResource>>(new AutoSchema<NodeResource>()));
+                public static ClassProp<ArraySchemaValue> effects = new(nameof(effects), new ArraySchema(new EffectSchema()));
                 public static ClassProp<FloatSchemaValue> volume = new(nameof(volume), new FloatSchema());
                 public static ClassProp<FloatSchemaValue> pan = new(nameof(pan), new FloatSchema());
 
                 protected override (string key, Schema val)[] Values => new[] { effects.Key, volume.Key, pan.Key };
 
-                public static ObjectSchemaValue Make(IEnumerable<NodeResource> effects, float volume, float pan)
+                public static ObjectSchemaValue Make(IEnumerable<SchemaValue> effects, float volume, float pan)
                 {
                     return new ObjectSchemaValue(
-                        MasterTrackSchema.effects.Make(new(effects.Select(e => new AutoSchemaValue<NodeResource>(e)).ToList())),
+                        MasterTrackSchema.effects.Make(new(effects.ToList())),
                         MasterTrackSchema.volume.Make(new(volume)),
                         MasterTrackSchema.pan.Make(new(pan))
                     );
@@ -88,7 +102,7 @@ namespace DTO
             {
                 public static ClassProp<StringSchemaValue> name = new(nameof(name), new StringSchema());
                 public static ClassProp<AutoSchemaValue<NodeResource>> instrument = new(nameof(instrument), new AutoSchema<NodeResource>());
-                public static ClassProp<ArraySchemaValue<AutoSchemaValue<NodeResource>>> effects = new(nameof(effects), new ArraySchema<AutoSchemaValue<NodeResource>>(new AutoSchema<NodeResource>()));
+                public static ClassProp<ArraySchemaValue> effects = new(nameof(effects), new ArraySchema(new EffectSchema()));
                 public static ClassProp<BoolSchemaValue> isMuted = new(nameof(isMuted), new BoolSchema());
                 public static ClassProp<BoolSchemaValue> isSoloed = new(nameof(isSoloed), new BoolSchema());
                 public static ClassProp<FloatSchemaValue> volume = new(nameof(volume), new FloatSchema());
@@ -98,12 +112,12 @@ namespace DTO
 
                 protected override (string key, Schema val)[] Values => new[] { name.Key, instrument.Key, effects.Key, isMuted.Key, isSoloed.Key, volume.Key, pan.Key, keySignature.Key, notes.Key };
 
-                public static ObjectSchemaValue Make(string name, NodeResource instrument, IEnumerable<NodeResource> effects, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, IEnumerable<SchemaValue> notes)
+                public static ObjectSchemaValue Make(string name, NodeResource instrument, IEnumerable<SchemaValue> effects, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, IEnumerable<SchemaValue> notes)
                 {
                     return new ObjectSchemaValue(
                         TrackSchema.name.Make(new(name)),
                         TrackSchema.instrument.Make(new(instrument)),
-                        TrackSchema.effects.Make(new(effects.Select(e => new AutoSchemaValue<NodeResource>(e)).ToList())),
+                        TrackSchema.effects.Make(new(effects.ToList())),
                         TrackSchema.isMuted.Make(new(isMuted)),
                         TrackSchema.isSoloed.Make(new(isSoloed)),
                         TrackSchema.volume.Make(new(volume)),

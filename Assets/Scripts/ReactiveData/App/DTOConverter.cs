@@ -19,13 +19,15 @@ namespace ReactiveData.App
 
         public static ObjectSchemaValue Serialize(ReactiveMasterTrack masterTrack)
         {
-            return SongSchema.V1.MasterTrackSchema.Make(masterTrack.effects, masterTrack.volume.Value, masterTrack.pan.Value);
+            var effectsList = masterTrack.effects.Select(Serialize).ToList();
+            return SongSchema.V1.MasterTrackSchema.Make(effectsList, masterTrack.volume.Value, masterTrack.pan.Value);
         }
 
         public static ObjectSchemaValue Serialize(ReactiveTrack track)
         {
             var notesList = track.notes.Select(Serialize).ToList();
-            return SongSchema.V1.TrackSchema.Make(track.name.Value, track.instrument.Value, track.effects, track.isMuted.Value, track.isSoloed.Value, track.volume.Value, track.pan.Value, track.keySignature.Value, notesList);
+            var effectsList = track.effects.Select(Serialize).ToList();
+            return SongSchema.V1.TrackSchema.Make(track.name.Value, track.instrument.Value, effectsList, track.isMuted.Value, track.isSoloed.Value, track.volume.Value, track.pan.Value, track.keySignature.Value, notesList);
         }
 
         public static ObjectSchemaValue Serialize(ReactiveNote note)
@@ -36,6 +38,11 @@ namespace ReactiveData.App
         public static ObjectSchemaValue Serialize(ReactiveTempoEvent tempoEvent)
         {
             return SongSchema.V1.TempoEventSchema.Make(tempoEvent.beat.Value, tempoEvent.bps.Value);
+        }
+
+        public static ObjectSchemaValue Serialize(ReactiveEffect effect)
+        {
+            return SongSchema.V1.EffectSchema.Make(effect.effect.Value);
         }
 
         public static Graph Serialize(ReactiveGraph graph)
@@ -69,8 +76,9 @@ namespace ReactiveData.App
 
         public static ReactiveMasterTrack DeserializeMasterTrack(SchemaValue masterTrack)
         {
+            var effects = SongSchema.V1.TrackSchema.effects.Retrieve(masterTrack).Values.Select(DeserializeEffect).ToList();
             return new ReactiveMasterTrack(
-                SongSchema.V1.MasterTrackSchema.effects.Retrieve(masterTrack).Values.Select(e => e.Value).ToList(),
+                effects,
                 SongSchema.V1.MasterTrackSchema.volume.Retrieve(masterTrack).Value,
                 SongSchema.V1.MasterTrackSchema.pan.Retrieve(masterTrack).Value
             );
@@ -79,16 +87,24 @@ namespace ReactiveData.App
         public static ReactiveTrack DeserializeTrack(SchemaValue track)
         {
             var notes = SongSchema.V1.TrackSchema.notes.Retrieve(track).Values.Select(DeserializeNote);
+            var effects = SongSchema.V1.TrackSchema.effects.Retrieve(track).Values.Select(DeserializeEffect).ToList();
             return new ReactiveTrack(
                 SongSchema.V1.TrackSchema.name.Retrieve(track).Value,
                 SongSchema.V1.TrackSchema.instrument.Retrieve(track).Value,
-                SongSchema.V1.TrackSchema.effects.Retrieve(track).Values.Select(e => e.Value).ToList(),
+                effects,
                 SongSchema.V1.TrackSchema.isMuted.Retrieve(track).Value,
                 SongSchema.V1.TrackSchema.isSoloed.Retrieve(track).Value,
                 SongSchema.V1.TrackSchema.volume.Retrieve(track).Value,
                 SongSchema.V1.TrackSchema.pan.Retrieve(track).Value,
                 SongSchema.V1.TrackSchema.keySignature.Retrieve(track).Value,
                 notes
+            );
+        }
+
+        public static ReactiveEffect DeserializeEffect(SchemaValue effect)
+        {
+            return new ReactiveEffect(
+                SongSchema.V1.EffectSchema.effect.Retrieve(effect).Value
             );
         }
 

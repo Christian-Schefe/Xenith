@@ -16,7 +16,7 @@ namespace PianoRoll
         [SerializeField] private TempoMarker tempoMarkerPrefab;
         [SerializeField] private SpriteRenderer selector;
 
-        public Reactive<Vector2> zoom = new(new(1f, 0.33f));
+        public Reactive<Vector2> zoom = new(new(1f, 0.5f));
         public Vector2 Zoom => zoom.Value;
 
         private float xSnap = 2f;
@@ -56,7 +56,8 @@ namespace PianoRoll
         private void Awake()
         {
             var main = Globals<Main>.Instance;
-            main.app.openElement.AddAndCall(OnOpenElementChanged);
+            var openTrack = new NestedReactive<ReactiveSong, ReactiveTrack>(main.app.openSong, song => song?.activeTrack);
+            openTrack.AddAndCall(OnOpenElementChanged);
         }
 
         private void Start()
@@ -184,26 +185,30 @@ namespace PianoRoll
             }
         }
 
-        private void OnOpenElementChanged(Nand<ReactiveSong, ReactiveGraph> openElement)
+        private void OnOpenElementChanged(ReactiveTrack newActiveTrack)
         {
-            bool visible = openElement.TryGet(out ReactiveSong song);
+            bool visible = newActiveTrack != null;
             InitializeBinders();
             var pianoRollVisuals = Globals<PianoRollVisuals>.Instance;
             pianoRollVisuals.SetVisible(visible);
+            var main = Globals<Main>.Instance;
+            var playPosition = Globals<PlayPosition>.Instance;
+            playPosition.gameObject.SetActive(visible);
             if (visible)
             {
-                activeSong = song;
-                trackBinder.ChangeSource(song.tracks);
-                tempoEventBinder.ChangeSource(song.tempoEvents);
-                song.activeTrack.AddAndCall(OnActiveTrackChanged);
+                activeSong = main.app.openSong.Value;
+                trackBinder.ChangeSource(activeSong.tracks);
+                tempoEventBinder.ChangeSource(activeSong.tempoEvents);
+                noteBinder.ChangeSource(newActiveTrack.notes);
+                ChangeBGNoteSources();
             }
             else
             {
-                activeSong?.activeTrack.Remove(OnActiveTrackChanged);
                 activeSong = null;
                 trackBinder.ChangeSource(null);
                 noteBinder.ChangeSource(null);
                 tempoEventBinder.ChangeSource(null);
+                noteBinder.ChangeSource(null);
                 bgNotes.ClearSources();
             }
             ResetState();
@@ -215,14 +220,6 @@ namespace PianoRoll
             noteBinder ??= new(null, _ => Instantiate(notePrefab, transform), note => Destroy(note.gameObject));
             bgNoteBinder ??= new(bgNotes, _ => Instantiate(bgNotePrefab, transform), note => Destroy(note.gameObject));
             tempoEventBinder ??= new(null, _ => Instantiate(tempoMarkerPrefab, tempoMarkerParent), marker => Destroy(marker.gameObject));
-        }
-
-        private void OnActiveTrackChanged(ReactiveTrack newActiveTrack)
-        {
-            ResetState();
-            InitializeBinders();
-            noteBinder.ChangeSource(newActiveTrack.notes);
-            ChangeBGNoteSources();
         }
 
         private void ChangeBGNoteSources()

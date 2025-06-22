@@ -40,6 +40,12 @@ namespace NodeGraph
             return allResources.Where(IsInstrument);
         }
 
+        public IEnumerable<NodeResource> GetEffects()
+        {
+            var allResources = GetBuiltinNodeTypes().Select(e => e.Key).Concat(graphs.Value.Keys.Select(id => new NodeResource(id, false)));
+            return allResources.Where(IsEffect);
+        }
+
         public bool IsInstrument(NodeResource id)
         {
             if (!GetNodeFromTypeId(id, out var node)) return false;
@@ -47,6 +53,16 @@ namespace NodeGraph
             var outputs = node.BuildOutputs();
             if (inputs.Count != 2 || outputs.Count != 2) return false;
             if (inputs[0].Value.Type != ValueType.Float || inputs[1].Value.Type != ValueType.Bool) return false;
+            return outputs[0].Value.Type == ValueType.Float && outputs[1].Value.Type == ValueType.Float;
+        }
+
+        public bool IsEffect(NodeResource id)
+        {
+            if (!GetNodeFromTypeId(id, out var node)) return false;
+            var inputs = node.BuildInputs();
+            var outputs = node.BuildOutputs();
+            if (inputs.Count != 2 || outputs.Count != 2) return false;
+            if (inputs[0].Value.Type != ValueType.Float || inputs[1].Value.Type != ValueType.Float) return false;
             return outputs[0].Value.Type == ValueType.Float && outputs[1].Value.Type == ValueType.Float;
         }
 

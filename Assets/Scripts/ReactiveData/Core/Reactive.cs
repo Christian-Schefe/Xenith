@@ -43,6 +43,22 @@ namespace ReactiveData.Core
         {
             OnChanged?.Invoke(Value);
         }
+
+        public void AddAndCall(Action<T> action)
+        {
+            OnChanged += action;
+            action(Value);
+        }
+
+        public void Add(Action<T> action)
+        {
+            OnChanged += action;
+        }
+
+        public void Remove(Action<T> action)
+        {
+            OnChanged -= action;
+        }
     }
 
     public abstract class WritableReactiveBase<T> : IWritableReactive<T>, IReactive
@@ -70,6 +86,22 @@ namespace ReactiveData.Core
         }
 
         public void SetValue(T value) => Value = value;
+
+        public void AddAndCall(Action<T> action)
+        {
+            OnChanged += action;
+            action(Value);
+        }
+
+        public void Add(Action<T> action)
+        {
+            OnChanged += action;
+        }
+
+        public void Remove(Action<T> action)
+        {
+            OnChanged -= action;
+        }
     }
 
     public class TwoWayDerivedReactive<K, T> : DerivedReactive<K, T>, IWritableReactive<T>
@@ -134,12 +166,6 @@ namespace ReactiveData.Core
                 MarkChange();
             }
         }
-
-        public void AddAndCall(Action<T> action)
-        {
-            OnChanged += action;
-            action(Value);
-        }
     }
 
     public class NestedReactive<K, T> : ReactiveBase<T>
@@ -182,12 +208,6 @@ namespace ReactiveData.Core
         {
             MarkChange();
         }
-
-        public void AddAndCall(Action<T> action)
-        {
-            OnChanged += action;
-            action(Value);
-        }
     }
 
     public class Reactive<T> : WritableReactiveBase<T>
@@ -212,22 +232,6 @@ namespace ReactiveData.Core
         {
             value = initialValue;
             Comparer = comparer ?? EqualityComparer<T>.Default;
-        }
-
-        public void AddAndCall(Action<T> action)
-        {
-            OnChanged += action;
-            action(value);
-        }
-
-        public void Add(Action<T> action)
-        {
-            OnChanged += action;
-        }
-
-        public void Remove(Action<T> action)
-        {
-            OnChanged -= action;
         }
     }
 }

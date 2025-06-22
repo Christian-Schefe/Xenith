@@ -42,6 +42,19 @@ namespace ReactiveData.App
             return System.IO.Path.GetFileNameWithoutExtension(path);
         }
 
+        public void DeleteTrack(ReactiveTrack track)
+        {
+            if (track == null) return;
+            var index = tracks.IndexOf(track);
+            if (index < 0) return;
+
+            if (activeTrack.Value == track)
+            {
+                activeTrack.Value = tracks.Count > 1 ? tracks[index == 0 ? index + 1 : index - 1] : null;
+            }
+            tracks.Remove(track);
+        }
+
         public void SortTempoEvents()
         {
             tempoEvents.Sort((a, b) => a.beat.Value.CompareTo(b.beat.Value));

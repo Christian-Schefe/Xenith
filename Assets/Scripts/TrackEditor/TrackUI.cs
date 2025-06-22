@@ -1,6 +1,7 @@
 using ReactiveData.App;
 using ReactiveData.Core;
 using ReactiveData.UI;
+using System.Numerics;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,6 +10,8 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     [SerializeField] private TMPro.TMP_InputField trackNameText;
     [SerializeField] private UIImage bgImage;
     [SerializeField] private Slider volumeSlider;
+    [SerializeField] private TMPro.TextMeshProUGUI volumeText;
+    [SerializeField] private TMPro.TextMeshProUGUI panText;
     [SerializeField] private ReactiveKnob panKnob;
     [SerializeField] private ReactiveToggleButton muteButton;
     [SerializeField] private ReactiveToggleButton soloButton;
@@ -16,6 +19,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     [SerializeField] private ReactiveButton setInstrumentButton;
     [SerializeField] private ReactiveButton editPipelineButton;
     [SerializeField] private ReactiveButton openButton;
+    [SerializeField] private ReactiveButton deleteButton;
     [SerializeField] private TMPro.TextMeshProUGUI instrumentNameText;
 
     private ReactiveTrack track;
@@ -27,6 +31,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         track.name.AddAndCall(OnNameChanged);
         track.volume.AddAndCall(OnVolumeChanged);
         panKnob.Bind(track.pan, -1, 1);
+        track.pan.AddAndCall(OnPanChanged);
         track.instrument.AddAndCall(OnInstrumentChanged);
 
         muteButton.Bind(track.isMuted);
@@ -46,6 +51,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         track.name.Remove(OnNameChanged);
         track.volume.Remove(OnVolumeChanged);
         panKnob.Unbind();
+        track.pan.Remove(OnPanChanged);
         track.instrument.Remove(OnInstrumentChanged);
 
         muteButton.Unbind();
@@ -64,6 +70,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     {
         setInstrumentButton.OnClick += OnSetInstrumentButtonClick;
         editPipelineButton.OnClick += OnEditPipelineButtonClick;
+        deleteButton.OnClick += OnDeleteClick;
         openButton.AddListener(OnOpenClick);
         volumeSlider.onValueChanged.AddListener(OnVolumeSliderChanged);
         trackNameText.onEndEdit.AddListener(OnTrackNameInputEndEdit);
@@ -73,6 +80,7 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     {
         setInstrumentButton.OnClick -= OnSetInstrumentButtonClick;
         editPipelineButton.OnClick -= OnEditPipelineButtonClick;
+        deleteButton.OnClick -= OnDeleteClick;
         openButton.RemoveListener(OnOpenClick);
         volumeSlider.onValueChanged.RemoveListener(OnVolumeSliderChanged);
         trackNameText.onEndEdit.RemoveListener(OnTrackNameInputEndEdit);
@@ -86,15 +94,16 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         }
     }
 
-    private void OnVolumeSliderChanged(float volume)
-    {
-        track.volume.Value = volume;
-    }
-
     private void OnOpenClick()
     {
         var trackEditor = Globals<TrackEditor>.Instance;
         trackEditor.Song.activeTrack.Value = track;
+    }
+
+    private void OnDeleteClick()
+    {
+        var trackEditor = Globals<TrackEditor>.Instance;
+        trackEditor.Song.DeleteTrack(track);
     }
 
     private void OnSetInstrumentButtonClick()
@@ -128,9 +137,18 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
         trackNameText.text = name;
     }
 
+    private void OnVolumeSliderChanged(float alpha)
+    {
+        track.volume.Value = alpha * alpha * 2;
+    }
+
     private void OnVolumeChanged(float volume)
     {
-        volumeSlider.value = volume;
+        var newAlpha = Mathf.Sqrt(volume * 0.5f);
+        volumeSlider.value = newAlpha;
+        float dB = 20f * Mathf.Log10(volume);
+        var dBString = dB.ToString("F1");
+        volumeText.text = $"{(dBString.StartsWith("-") ? "" : "+")}{dBString} dB";
     }
 
     private void OnInstrumentChanged(DTO.NodeResource instrument)
@@ -141,5 +159,11 @@ public class TrackUI : MonoBehaviour, IReactor<ReactiveTrack>
     private void OnActiveTrackChanged(ReactiveTrack activeTrack)
     {
         bgImage.outline = activeTrack == track;
+    }
+
+    private void OnPanChanged(float pan)
+    {
+        var panInt = Mathf.RoundToInt(pan * 100);
+        panText.text = $"{(panInt > 0 ? "+" : "")}{panInt}";
     }
 }

@@ -8,10 +8,23 @@ using System.Linq;
 
 namespace ReactiveData.App
 {
+    public class ReactiveEffect : IKeyed
+    {
+        public Reactive<DTO.NodeResource> effect;
+
+        public ReactiveEffect(DTO.NodeResource effect)
+        {
+            this.effect = new(effect);
+        }
+
+        public string ID { get; private set; } = Guid.NewGuid().ToString();
+        public string Key => ID;
+    }
+
     public class ReactiveTrackBase : IKeyed
     {
         public Reactive<string> name;
-        public ReactiveList<DTO.NodeResource> effects;
+        public ReactiveList<ReactiveEffect> effects;
         public Reactive<float> volume;
         public Reactive<float> pan;
 
@@ -28,9 +41,9 @@ namespace ReactiveData.App
             var graphDatabase = Globals<GraphDatabase>.Instance;
             var effectNodes = effects.Select(effect =>
             {
-                if (!graphDatabase.GetNodeFromTypeId(effect, out var effectNode))
+                if (!graphDatabase.GetNodeFromTypeId(effect.effect.Value, out var effectNode))
                 {
-                    throw new Exception($"Failed to create effect node of type {effect.id}");
+                    throw new Exception($"Failed to create effect node of type {effect.effect.Value.id}");
                 }
                 return effectNode;
             }).ToList();
@@ -50,9 +63,9 @@ namespace ReactiveData.App
 
         public Reactive<bool> isBGVisible = new(false);
 
-        public static ReactiveTrack Default => new("New Track", new("default_synth", true), new List<DTO.NodeResource>(), false, false, 0.75f, 0.0f, MusicKey.CMajor, new List<ReactiveNote>());
+        public static ReactiveTrack Default => new("New Track", new("default_synth", true), new List<ReactiveEffect>(), false, false, 1.0f, 0.0f, MusicKey.CMajor, new List<ReactiveNote>());
 
-        public ReactiveTrack(string name, DTO.NodeResource instrument, IEnumerable<DTO.NodeResource> effects, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, IEnumerable<ReactiveNote> notes)
+        public ReactiveTrack(string name, DTO.NodeResource instrument, IEnumerable<ReactiveEffect> effects, bool isMuted, bool isSoloed, float volume, float pan, MusicKey keySignature, IEnumerable<ReactiveNote> notes)
         {
             this.name = new(name);
             this.instrument = new(instrument);
@@ -99,9 +112,9 @@ namespace ReactiveData.App
 
     public class ReactiveMasterTrack : ReactiveTrackBase
     {
-        public static ReactiveMasterTrack Default => new(new List<DTO.NodeResource>(), 0.75f, 0.0f);
+        public static ReactiveMasterTrack Default => new(new List<ReactiveEffect>(), 1.0f, 0.0f);
 
-        public ReactiveMasterTrack(IEnumerable<DTO.NodeResource> effects, float volume, float pan)
+        public ReactiveMasterTrack(IEnumerable<ReactiveEffect> effects, float volume, float pan)
         {
             name = new("Master");
             this.effects = new(effects);

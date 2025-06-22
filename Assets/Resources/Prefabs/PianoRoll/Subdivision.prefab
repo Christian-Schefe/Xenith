@@ -101,5 +101,5 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   sprite: {fileID: 1733163623541906734}
-  normalColor: {r: 1, g: 1, b: 1, a: 0.0627451}
-  specialColor: {r: 1, g: 1, b: 1, a: 0.22745098}
+  normalColor: {r: 0.12156863, g: 0.16078432, b: 0.21568628, a: 1}
+  specialColor: {r: 0.21568629, g: 0.25490198, b: 0.31764707, a: 1}
